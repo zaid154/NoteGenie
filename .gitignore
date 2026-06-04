@@ -13,6 +13,9 @@ build/
 # Uploaded files
 server/uploads/
 
+# Local test scripts (never commit)
+test.js
+
 # Logs
 *.log
 npm-debug.log*
