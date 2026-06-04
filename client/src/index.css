@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme tokens. Light + dark dono yahan define hote hain. */
+@layer base {
+  :root {
+    --canvas: 247 248 251; /* page background */
+    --surface: 255 255 255; /* cards */
+    --line: 229 231 239; /* borders */
+    --ink: 17 24 39; /* main text */
+    --muted: 100 108 128; /* secondary text */
+  }
+
+  .dark {
+    --canvas: 13 16 25;
+    --surface: 22 27 39;
+    --line: 39 45 61;
+    --ink: 233 237 245;
+    --muted: 148 158 178;
+  }
+
+  * {
+    border-color: rgb(var(--line));
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+  }
+
+  /* Notes markdown ko readable typography deta hai. */
+  .prose-notes h1,
+  .prose-notes h2,
+  .prose-notes h3 {
+    @apply font-display font-semibold text-ink mt-6 mb-2;
+  }
+  .prose-notes h1 {
+    @apply text-2xl;
+  }
+  .prose-notes h2 {
+    @apply text-xl;
+  }
+  .prose-notes h3 {
+    @apply text-lg;
+  }
+  .prose-notes p {
+    @apply my-3 leading-relaxed text-ink/90;
+  }
+  .prose-notes ul {
+    @apply list-disc pl-6 my-3 space-y-1;
+  }
+  .prose-notes ol {
+    @apply list-decimal pl-6 my-3 space-y-1;
+  }
+  .prose-notes code {
+    @apply rounded bg-brand-500/10 px-1.5 py-0.5 text-sm text-brand-700 dark:text-brand-300;
+  }
+  .prose-notes pre {
+    @apply rounded-xl bg-ink/90 text-white p-4 overflow-x-auto my-4 text-sm;
+  }
+  .prose-notes pre code {
+    @apply bg-transparent text-white p-0;
+  }
+  .prose-notes blockquote {
+    @apply border-l-4 border-brand-400 pl-4 italic text-muted my-3;
+  }
+  .prose-notes strong {
+    @apply font-semibold text-ink;
+  }
+  .prose-notes a {
+    @apply text-brand-600 underline;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm hover:shadow-lift active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink hover:bg-ink/5;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow-lift active:scale-[0.98];
+  }
+  .btn-outline {
+    @apply btn border border-line bg-surface text-ink hover:border-brand-400 hover:text-brand-600;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-surface shadow-card;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10;
+  }
+  .label {
+    @apply block text-sm font-medium text-ink mb-1.5;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  /* Loading skeleton ke liye shimmer effect. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-line/60;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--surface) / 0.6),
+      transparent
+    );
+    animation: shimmer 1.4s infinite;
+  }
+}

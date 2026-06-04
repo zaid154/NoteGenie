@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment variables (NEVER commit secrets / API keys)
+.env
+**/.env
+!**/.env.example
+
+# Build output
+dist/
+build/
+
+# Uploaded files
+server/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
