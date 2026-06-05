@@ -15,6 +15,16 @@ function hint(message) {
 // MongoDB Atlas se connect. Turant crash hone ke bajaye kuch baar retry karte hain,
 // taaki IP whitelist hote hi server khud connect ho jaye.
 export async function connectDB({ retries = 5, delayMs = 5000 } = {}) {
+  if (!env.mongoUri) {
+    throw new Error(
+      "MONGO_URI is not set. Add your MongoDB connection string to the root .env file."
+    );
+  }
+
+  // Connection state changes ko log karte hain taaki drop/reconnect dikh jaye.
+  mongoose.connection.on("disconnected", () => console.warn("[db] MongoDB disconnected"));
+  mongoose.connection.on("reconnected", () => console.log("[db] MongoDB reconnected"));
+
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       await mongoose.connect(env.mongoUri, { serverSelectionTimeoutMS: 8000 });

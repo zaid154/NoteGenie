@@ -61,9 +61,10 @@ async function seed() {
     role: "user",
   });
 
-  console.log("\n[seed] Done. Login credentials:");
-  console.log(`  Admin → ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
-  console.log(`  User  → ${USER_EMAIL} / ${USER_PASSWORD}`);
+  console.log("\n[seed] Done. Accounts ready:");
+  console.log(`  Admin → ${ADMIN_EMAIL}`);
+  console.log(`  User  → ${USER_EMAIL}`);
+  console.log("  (Passwords come from your .env — they are not printed here.)");
 
   await mongoose.disconnect();
   process.exit(0);

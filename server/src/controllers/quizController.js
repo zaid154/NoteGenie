@@ -64,14 +64,21 @@ export const getQuiz = asyncHandler(async (req, res) => {
 // Answers submit -> score nikaal kar attempt save karta hai, explanations ke saath result deta hai.
 // POST /api/quiz/:id/submit   body: { answers: number[] }
 export const submitQuiz = asyncHandler(async (req, res) => {
-  const { answers = [] } = req.body;
+  const { answers } = req.body;
 
   const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.user._id });
   if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
+  // Answers ek array ho aur har question ka jawab ho.
+  if (!Array.isArray(answers) || answers.length !== quiz.questions.length) {
+    return res.status(400).json({ message: "Please answer every question before submitting." });
+  }
+
   let score = 0;
   const review = quiz.questions.map((q, i) => {
-    const selected = answers[i];
+    // Out-of-range / non-number index ko -1 (galat) maan lete hain.
+    const raw = answers[i];
+    const selected = Number.isInteger(raw) && raw >= 0 && raw < q.options.length ? raw : -1;
     const isCorrect = selected === q.correctIndex;
     if (isCorrect) score++;
     return {

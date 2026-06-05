@@ -88,8 +88,9 @@ Then open `.env` and put in your MongoDB URI, a JWT secret (any long random stri
 
 **3. Create the login accounts**
 
+From the project root:
+
 ```bash
-cd server
 npm run seed:admin
 ```
 
@@ -106,7 +107,7 @@ From the project root:
 npm run dev
 ```
 
-That starts both the API (port 5000) and the React app (port 5173) at the same time. Open **http://localhost:5173** in your browser.
+This runs `dev.mjs`, which starts both the API and the React app together using the ports from your `.env` (`PORT` for the API, `CLIENT_PORT` for the app — `5001` and `3000` in the example). If a port is busy, it automatically picks the next free one and prints the real URLs in the terminal — open the frontend URL it shows (e.g. **http://localhost:3000**).
 
 ## The .env file
 
@@ -114,8 +115,10 @@ Everything goes in a single `.env` at the project root. Here's what each line is
 
 | Key | What it's for |
 |---|---|
-| `PORT` | Port the API runs on (5000). |
-| `CLIENT_URL` | The frontend URL, used for CORS. |
+| `NODE_ENV` | `development` locally; set to `production` when deploying (enables stricter checks). |
+| `PORT` | Port the API runs on (5001 in the example). |
+| `CLIENT_PORT` | Port the React dev server runs on (3000 in the example). |
+| `CLIENT_URL` | Allowed frontend origin(s) for CORS — comma-separate multiple. |
 | `MONGO_URI` | Your MongoDB connection string. |
 | `JWT_SECRET` | Secret used to sign login tokens — make it long and random. |
 | `JWT_EXPIRES_IN` | How long a login lasts (7d). |
@@ -149,20 +152,22 @@ Admin (admin role only):
 - `GET /api/admin/stats`, `GET /api/admin/users`, `DELETE /api/admin/users/:id`
 - `GET/PUT /api/admin/settings`, `POST /api/admin/settings/test`, `GET /api/admin/models`
 - `GET /api/admin/documents`, `DELETE /api/admin/documents/:id`
+- `GET /api/admin/usage`, `DELETE /api/admin/usage` (AI usage stats + reset)
 
 ## A few notes
 
 - Passwords are hashed with bcrypt, and the API uses JWT for sessions.
 - The Gemini key stays on the server — the admin UI only ever shows a masked version of it.
-- There's basic rate limiting on the API so the AI endpoints don't get hammered.
+- Security headers (helmet), a CORS allowlist, and rate limiting are on by default. Login/register get a stricter limit than the rest of the API.
+- Link imports are checked to block private/internal addresses (basic SSRF protection).
 - To use the admin panel you have to log in with the admin account. A normal account won't see it (that's on purpose).
 
 ## If something breaks
 
-**Port 5000 already in use** — an old server is still running. Find and kill it:
+**Port already in use** — `dev.mjs` will normally pick the next free port automatically. If you'd rather free up the one you want, find and kill whatever is using it (replace `5001` with your `PORT`):
 
 ```powershell
-netstat -ano | findstr ":5000"
+netstat -ano | findstr ":5001"
 taskkill /PID <PID> /F
 ```
 

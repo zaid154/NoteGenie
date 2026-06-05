@@ -25,20 +25,25 @@ export default function Analytics() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let ignore = false;
     async function load() {
       try {
         const res = await api.get("/quiz/analytics/overview");
-        setData(res.data);
+        if (!ignore) setData(res.data);
       } catch (err) {
-        setError(apiError(err));
+        if (!ignore) setError(apiError(err));
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     }
     load();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   if (loading) return <PageLoader />;
+  if (!data) return <Alert>{error || "Could not load analytics."}</Alert>;
 
   return (
     <div className="space-y-8">

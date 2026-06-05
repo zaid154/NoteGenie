@@ -64,7 +64,7 @@ export default function AdminUsage() {
     setResetting(true);
     setError("");
     try {
-      await api.delete("/admin/usage");
+      await api.delete("/admin/usage", { data: { confirm: true } });
       await load();
     } catch (e) {
       setError(apiError(e));

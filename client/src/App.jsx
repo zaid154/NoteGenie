@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
 import { PageLoader } from "./components/ui.jsx";
 import Layout from "./components/Layout.jsx";
@@ -21,17 +21,34 @@ import AdminUsage from "./pages/admin/AdminUsage.jsx";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <PageLoader />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
   return <Layout>{children}</Layout>;
 }
 
 function ProtectedAdmin({ children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <PageLoader />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
   if (user.role !== "admin") return <Navigate to="/app" replace />;
   return <Layout>{children}</Layout>;
+}
+
+function NotFound() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-canvas px-6 text-center">
+      <div>
+        <p className="font-display text-5xl font-700 text-brand-600">404</p>
+        <h1 className="mt-3 font-display text-xl font-600 text-ink">Page not found</h1>
+        <p className="mt-1 text-muted">The page you're looking for doesn't exist.</p>
+        <Link to="/" className="btn-primary mt-6 inline-flex">
+          Back to home
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 function PublicOnly({ children }) {
@@ -77,7 +94,7 @@ export default function App() {
         <Route path="content" element={<AdminContent />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

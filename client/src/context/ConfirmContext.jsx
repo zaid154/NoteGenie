@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 const ConfirmContext = createContext(null);
 
@@ -10,6 +10,11 @@ export function ConfirmProvider({ children }) {
   const resolverRef = useRef(null);
 
   const confirm = useCallback((options = {}) => {
+    // Agar koi pichla dialog abhi tak resolve nahi hua, use false de kar band karo.
+    if (resolverRef.current) {
+      resolverRef.current(false);
+      resolverRef.current = null;
+    }
     setState({
       title: options.title || "Are you sure?",
       message: options.message || "",
@@ -30,6 +35,16 @@ export function ConfirmProvider({ children }) {
     }
   }, []);
 
+  // Escape se cancel.
+  useEffect(() => {
+    if (!state) return;
+    function onKey(e) {
+      if (e.key === "Escape") close(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [state, close]);
+
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
@@ -38,6 +53,8 @@ export function ConfirmProvider({ children }) {
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="confirm-title"
+          aria-describedby={state.message ? "confirm-message" : undefined}
         >
           <div
             className="absolute inset-0 bg-ink/40 backdrop-blur-sm animate-fade"
@@ -69,11 +86,13 @@ export function ConfirmProvider({ children }) {
                 </svg>
               </span>
               <div className="min-w-0">
-                <h3 className="font-display text-base font-600 text-ink">
+                <h3 id="confirm-title" className="font-display text-base font-600 text-ink">
                   {state.title}
                 </h3>
                 {state.message && (
-                  <p className="mt-1 text-sm text-muted">{state.message}</p>
+                  <p id="confirm-message" className="mt-1 text-sm text-muted">
+                    {state.message}
+                  </p>
                 )}
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { IconEye, IconEyeOff } from "./icons.jsx";
 
 // Reusable labelled input with a leading icon, inline error, and an
@@ -12,12 +12,16 @@ export default function FormField({
   ...inputProps
 }) {
   const [show, setShow] = useState(false);
+  const fieldId = useId();
+  const errorId = `${fieldId}-error`;
   const isPassword = type === "password";
   const inputType = isPassword ? (show ? "text" : "password") : type;
 
   return (
     <div>
-      <label className="label">{label}</label>
+      <label className="label" htmlFor={fieldId}>
+        {label}
+      </label>
       <div className="relative">
         {Icon && (
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
@@ -25,7 +29,10 @@ export default function FormField({
           </span>
         )}
         <input
+          id={fieldId}
           type={inputType}
+          aria-invalid={error ? "true" : undefined}
+          aria-describedby={error ? errorId : undefined}
           className={`input ${Icon ? "pl-10" : ""} ${isPassword ? "pr-10" : ""} ${
             error ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : ""
           }`}
@@ -44,7 +51,9 @@ export default function FormField({
         )}
       </div>
       {error ? (
-        <p className="mt-1.5 text-xs text-red-500">{error}</p>
+        <p id={errorId} className="mt-1.5 text-xs text-red-500">
+          {error}
+        </p>
       ) : hint ? (
         <p className="mt-1.5 text-xs text-muted">{hint}</p>
       ) : null}

@@ -17,18 +17,31 @@ export default function QuizView() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let ignore = false;
+    // Naye quiz par purana state clear karte hain (warna pichle quiz ka result dikh sakta hai).
+    setLoading(true);
+    setQuiz(null);
+    setResult(null);
+    setError("");
+    setSubmitting(false);
+    setAnswers([]);
+
     async function load() {
       try {
         const { data } = await api.get(`/quiz/${id}`);
+        if (ignore) return;
         setQuiz(data.quiz);
         setAnswers(new Array(data.quiz.questions.length).fill(-1));
       } catch (err) {
-        setError(apiError(err));
+        if (!ignore) setError(apiError(err));
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     }
     load();
+    return () => {
+      ignore = true;
+    };
   }, [id]);
 
   function choose(qIndex, optIndex) {
@@ -69,10 +82,10 @@ export default function QuizView() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate(quiz?.documentId ? `/document/${quiz.documentId}` : "/app")}
         className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"
       >
-        <IconArrowLeft width={16} height={16} /> Back
+        <IconArrowLeft width={16} height={16} /> Back to material
       </button>
 
       <div>

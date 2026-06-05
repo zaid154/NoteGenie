@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useAuth, apiError } from "../context/AuthContext.jsx";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+import { apiError } from "../api/client.js";
 import { useToast } from "../context/ToastContext.jsx";
 import AuthShell from "../components/AuthShell.jsx";
 import FormField from "../components/FormField.jsx";
@@ -12,6 +13,9 @@ const REMEMBER_KEY = "notegenie_last_email";
 export default function Login() {
   const { login } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/app";
   const [form, setForm] = useState({
     email: localStorage.getItem(REMEMBER_KEY) || "",
     password: "",
@@ -51,6 +55,7 @@ export default function Login() {
       if (remember) localStorage.setItem(REMEMBER_KEY, form.email);
       else localStorage.removeItem(REMEMBER_KEY);
       toast("Welcome back!", "success");
+      navigate(from, { replace: true });
     } catch (err) {
       setError(apiError(err));
     } finally {

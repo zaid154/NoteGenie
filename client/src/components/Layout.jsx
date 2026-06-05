@@ -94,6 +94,7 @@ export default function Layout({ children }) {
           <button
             onClick={handleLogout}
             title="Logout"
+            aria-label="Logout"
             className="rounded-lg p-1.5 text-muted hover:bg-ink/5 hover:text-red-500"
           >
             <IconLogout />
@@ -113,7 +114,11 @@ export default function Layout({ children }) {
       {/* Mobile topbar */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-surface/80 px-4 py-3 backdrop-blur lg:hidden">
         <Logo size={28} />
-        <button onClick={() => setMobileOpen(true)} className="btn-ghost p-2">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="btn-ghost p-2"
+          aria-label="Open menu"
+        >
           <IconMenu />
         </button>
       </header>
@@ -129,6 +134,7 @@ export default function Layout({ children }) {
             <button
               onClick={() => setMobileOpen(false)}
               className="absolute right-3 top-3 rounded-lg p-2 text-muted hover:bg-ink/5"
+              aria-label="Close menu"
             >
               <IconX />
             </button>

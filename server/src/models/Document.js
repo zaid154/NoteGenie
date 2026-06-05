@@ -31,4 +31,7 @@ const documentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Dashboard list: user ke docs latest-first — compound index isse fast karta hai.
+documentSchema.index({ userId: 1, createdAt: -1 });
+
 export const Document = mongoose.model("Document", documentSchema);

@@ -27,12 +27,19 @@ export const getHistory = asyncHandler(async (req, res) => {
   });
 });
 
+// Context ke liye DB se kitne purane messages lene hain (prompt bloat se bachne ke liye).
+const HISTORY_LIMIT = 20;
+const MAX_QUESTION_LEN = 2000;
+
 // POST /api/tutor/:documentId
 export async function chat(req, res, next) {
   try {
-    const { question, history = [] } = req.body;
-    if (!question?.trim()) {
+    const question = String(req.body?.question || "").trim();
+    if (!question) {
       return res.status(400).json({ message: "Please enter a question" });
+    }
+    if (question.length > MAX_QUESTION_LEN) {
+      return res.status(400).json({ message: "That question is too long." });
     }
 
     const doc = await Document.findOne({
@@ -41,12 +48,15 @@ export async function chat(req, res, next) {
     });
     if (!doc) return res.status(404).json({ message: "Document not found" });
 
-    await ChatMessage.create({
+    // History client se nahi, DB se laate hain (prompt injection se bachne ke liye).
+    const past = await ChatMessage.find({
       userId: req.user._id,
       documentId: doc._id,
-      role: "user",
-      content: question.trim(),
-    });
+    })
+      .sort({ createdAt: -1 })
+      .limit(HISTORY_LIMIT)
+      .select("role content");
+    const history = past.reverse().map((m) => ({ role: m.role, content: m.content }));
 
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache");
@@ -54,7 +64,7 @@ export async function chat(req, res, next) {
     let fullReply = "";
     const stream = tutorStream({
       context: doc.sourceText || doc.notes,
-      question: question.trim(),
+      question,
       history,
       meta: { userId: req.user._id, feature: "tutor" },
     });
@@ -65,16 +75,18 @@ export async function chat(req, res, next) {
     }
     res.end();
 
+    // Stream safal hone par hi dono messages save karte hain (consistent chat state).
     if (fullReply.trim()) {
-      await ChatMessage.create({
-        userId: req.user._id,
-        documentId: doc._id,
-        role: "assistant",
-        content: fullReply,
-      });
+      await ChatMessage.create([
+        { userId: req.user._id, documentId: doc._id, role: "user", content: question },
+        { userId: req.user._id, documentId: doc._id, role: "assistant", content: fullReply },
+      ]);
     }
   } catch (err) {
     if (res.headersSent) {
+      // Stream beech me toot gaya — client ko ek saaf notice bhej kar band karte hain.
+      console.error("[tutor] stream error:", err.message);
+      res.write("\n\n[The tutor response was interrupted. Please try again.]");
       res.end();
     } else {
       next(err);

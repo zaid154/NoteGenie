@@ -117,6 +117,16 @@ function parseJson(text) {
   try {
     return JSON.parse(text);
   } catch {
+    // Common failure: model ne ```json ... ``` code fence me wrap kar diya.
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced) {
+      try {
+        return JSON.parse(fenced[1].trim());
+      } catch {
+        // niche generic fallback try karte hain
+      }
+    }
+    // Pehle balanced object/array nikaalne ki koshish (greedy match galat data de sakta hai).
     const match = text.match(/[[{][\s\S]*[}\]]/);
     if (match) return JSON.parse(match[0]);
     throw new Error("AI returned invalid JSON. Please try again.");
@@ -124,14 +134,16 @@ function parseJson(text) {
 }
 
 // Admin: test a key without saving.
-export async function testApiKey(apiKey, model = "gemini-2.5-flash") {
+export async function testApiKey(apiKey, model = "gemini-2.5-flash", meta = {}) {
   if (!apiKey?.trim()) {
     throw new Error("API key is required");
   }
+  const trimmedModel = model.trim();
   const genAI = new GoogleGenerativeAI(apiKey.trim());
-  const m = genAI.getGenerativeModel({ model: model.trim() });
+  const m = genAI.getGenerativeModel({ model: trimmedModel });
   const result = await m.generateContent("Reply with exactly: OK");
   const text = result.response.text();
+  await recordUsage({ feature: "test", ...meta }, trimmedModel, result.response.usageMetadata);
   return { ok: true, reply: text?.slice(0, 50) || "OK" };
 }
 
@@ -139,7 +151,8 @@ export async function testApiKey(apiKey, model = "gemini-2.5-flash") {
 export async function listModels(apiKey) {
   const key = apiKey?.trim() || (await resolveConfig()).apiKey;
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`
+    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`,
+    { signal: AbortSignal.timeout(10000) }
   );
   if (!res.ok) {
     const body = await res.text();
@@ -177,7 +190,7 @@ Return JSON with:
 
   const parts = [{ text: prompt }, normalizeSource(source)];
   const result = await withRetry(() => instance.generateContent(parts));
-  recordUsage(meta, modelName, result.response.usageMetadata);
+  await recordUsage(meta, modelName, result.response.usageMetadata);
   return parseJson(result.response.text());
 }
 
@@ -215,7 +228,7 @@ Each question must have exactly 4 options, exactly one correct answer (correctIn
 
   const parts = [{ text: prompt }, normalizeSource(source)];
   const result = await withRetry(() => instance.generateContent(parts));
-  recordUsage(meta, modelName, result.response.usageMetadata);
+  await recordUsage(meta, modelName, result.response.usageMetadata);
   const quiz = parseJson(result.response.text());
   return quiz.filter(
     (q) => Array.isArray(q.options) && q.options.length >= 2 && q.correctIndex < q.options.length
@@ -245,7 +258,7 @@ export async function generateFlashcards(source, { count = 8, meta = {} } = {}) 
 
   const parts = [{ text: prompt }, normalizeSource(source)];
   const result = await withRetry(() => instance.generateContent(parts));
-  recordUsage(meta, modelName, result.response.usageMetadata);
+  await recordUsage(meta, modelName, result.response.usageMetadata);
   return parseJson(result.response.text());
 }
 
@@ -268,14 +281,15 @@ ${historyText}
 Student: ${question}
 Tutor:`;
 
-  const result = await instance.generateContentStream(prompt);
+  // Stream shuru hone se pehle transient errors par retry karte hain (chunks aane ke baad nahi).
+  const result = await withRetry(() => instance.generateContentStream(prompt));
   for await (const chunk of result.stream) {
     const text = chunk.text();
     if (text) yield text;
   }
 
   const response = await result.response;
-  recordUsage(meta, modelName, response.usageMetadata);
+  await recordUsage(meta, modelName, response.usageMetadata);
 }
 
 function normalizeSource(source) {

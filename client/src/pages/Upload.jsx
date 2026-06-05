@@ -14,10 +14,17 @@ export default function Upload() {
   const [error, setError] = useState("");
   const fileInput = useRef(null);
 
+  const MAX_BYTES = 15 * 1024 * 1024;
+
   function pickFile(f) {
     if (!f) return;
-    if (f.type !== "application/pdf") {
+    const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+    if (!isPdf) {
       setError("Only PDF files are allowed.");
+      return;
+    }
+    if (f.size > MAX_BYTES) {
+      setError("That PDF is larger than 15MB. Please choose a smaller file.");
       return;
     }
     setError("");
@@ -64,6 +71,9 @@ export default function Upload() {
             onClick={() => {
               setTab(id);
               setError("");
+              // Doosre tab ka data clear taaki galti se wrong input submit na ho.
+              setFile(null);
+              setUrl("");
             }}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
               tab === id

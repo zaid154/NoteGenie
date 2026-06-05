@@ -2,6 +2,9 @@ import { User } from "../models/User.js";
 import { signToken } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD = 8;
+
 // POST /api/auth/register
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
@@ -9,8 +12,14 @@ export const register = asyncHandler(async (req, res) => {
   if (!name || !email || !password) {
     return res.status(400).json({ message: "Name, email, and password are required" });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ message: "Password must be at least 6 characters" });
+  if (name.trim().length > 80) {
+    return res.status(400).json({ message: "Name is too long" });
+  }
+  if (email.length > 254 || !EMAIL_RE.test(email)) {
+    return res.status(400).json({ message: "Please enter a valid email address" });
+  }
+  if (password.length < MIN_PASSWORD) {
+    return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD} characters` });
   }
 
   const existing = await User.findOne({ email: email.toLowerCase() });
@@ -19,7 +28,7 @@ export const register = asyncHandler(async (req, res) => {
   }
 
   const passwordHash = await User.hashPassword(password);
-  const user = await User.create({ name, email, passwordHash });
+  const user = await User.create({ name: name.trim(), email, passwordHash });
 
   const token = signToken(user._id);
   res.status(201).json({ user: user.toSafeObject(), token });
@@ -64,8 +73,8 @@ export const changePassword = asyncHandler(async (req, res) => {
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ message: "Current and new password are required" });
   }
-  if (newPassword.length < 6) {
-    return res.status(400).json({ message: "New password must be at least 6 characters" });
+  if (newPassword.length < MIN_PASSWORD) {
+    return res.status(400).json({ message: `New password must be at least ${MIN_PASSWORD} characters` });
   }
   const ok = await req.user.comparePassword(currentPassword);
   if (!ok) {

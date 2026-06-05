@@ -18,6 +18,13 @@ function maskKey(key) {
   return `${key.slice(0, 4)}••••${key.slice(-4)}`;
 }
 
+// Query se safe page/limit nikaalta hai (clamp karke).
+function parsePaging(query, defaultLimit = 20, maxLimit = 100) {
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(maxLimit, Math.max(1, Number(query.limit) || defaultLimit));
+  return { page, limit, skip: (page - 1) * limit };
+}
+
 // GET /api/admin/stats
 export const getStats = asyncHandler(async (req, res) => {
   const [users, documents, quizzes, attempts, aiTotals] = await Promise.all([
@@ -174,13 +181,24 @@ export const getUsage = asyncHandler(async (req, res) => {
 
 // DELETE /api/admin/usage — clears the app's own API usage log (not Google's).
 export const resetUsage = asyncHandler(async (req, res) => {
+  // Destructive hai isliye explicit confirm flag maangte hain.
+  if (req.body?.confirm !== true) {
+    return res.status(400).json({ message: "Confirmation required to reset usage." });
+  }
   const { deletedCount } = await ApiUsage.deleteMany({});
+  console.log(`[admin] usage log reset by ${req.user.email} (${deletedCount} records)`);
   res.json({ message: "Usage log cleared", deletedCount });
 });
 
-// GET /api/admin/users
+// GET /api/admin/users?page=&limit=
 export const listUsers = asyncHandler(async (req, res) => {
-  const users = await User.find().select("name email role createdAt").sort({ createdAt: -1 });
+  const { page, limit, skip } = parsePaging(req.query);
+
+  const [users, total] = await Promise.all([
+    User.find().select("name email role createdAt").sort({ createdAt: -1 }).skip(skip).limit(limit),
+    User.countDocuments(),
+  ]);
+
   const counts = await Document.aggregate([
     { $group: { _id: "$userId", count: { $sum: 1 } } },
   ]);
@@ -195,6 +213,10 @@ export const listUsers = asyncHandler(async (req, res) => {
       createdAt: u.createdAt,
       documentCount: countMap[String(u._id)] || 0,
     })),
+    page,
+    limit,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
   });
 });
 
@@ -208,12 +230,13 @@ export const deleteUser = asyncHandler(async (req, res) => {
   const user = await User.findByIdAndDelete(targetId);
   if (!user) return res.status(404).json({ message: "User not found" });
 
-  const docs = await Document.find({ userId: targetId }).select("_id");
-  const docIds = docs.map((d) => d._id);
-  await ChatMessage.deleteMany({ userId: targetId });
-  await Quiz.deleteMany({ userId: targetId });
-  await QuizAttempt.deleteMany({ userId: targetId });
-  await Document.deleteMany({ userId: targetId });
+  await Promise.all([
+    ChatMessage.deleteMany({ userId: targetId }),
+    Quiz.deleteMany({ userId: targetId }),
+    QuizAttempt.deleteMany({ userId: targetId }),
+    Document.deleteMany({ userId: targetId }),
+    ApiUsage.deleteMany({ userId: targetId }),
+  ]);
 
   res.json({ message: "User and all their data deleted" });
 });
@@ -262,7 +285,7 @@ export const testSettings = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "No API key to test. Enter a key first." });
   }
 
-  const result = await testApiKey(apiKey, model);
+  const result = await testApiKey(apiKey, model, { userId: req.user._id });
   res.json({ message: "API key works", ...result });
 });
 
@@ -277,12 +300,19 @@ export const getModels = asyncHandler(async (req, res) => {
   res.json({ models });
 });
 
-// GET /api/admin/documents
+// GET /api/admin/documents?page=&limit=
 export const listAllDocuments = asyncHandler(async (req, res) => {
-  const docs = await Document.find()
-    .sort({ createdAt: -1 })
-    .populate("userId", "name email")
-    .select("title sourceType sourceName summary createdAt userId");
+  const { page, limit, skip } = parsePaging(req.query);
+
+  const [docs, total] = await Promise.all([
+    Document.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("userId", "name email")
+      .select("title sourceType sourceName summary createdAt userId"),
+    Document.countDocuments(),
+  ]);
 
   res.json({
     documents: docs.map((d) => ({
@@ -294,6 +324,10 @@ export const listAllDocuments = asyncHandler(async (req, res) => {
       createdAt: d.createdAt,
       user: d.userId ? { id: d.userId._id, name: d.userId.name, email: d.userId.email } : null,
     })),
+    page,
+    limit,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
   });
 });
 

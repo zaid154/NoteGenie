@@ -17,6 +17,12 @@ export const uploadDocument = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Koi PDF file nahi mili" });
   }
 
+  // MIME spoof na ho — actual PDF magic bytes (%PDF-) verify karte hain.
+  const header = req.file.buffer.slice(0, 5).toString("latin1");
+  if (header !== "%PDF-") {
+    return res.status(400).json({ message: "That file isn't a valid PDF." });
+  }
+
   const source = pdfPart(req.file.buffer);
   const userId = req.user._id;
   const [notesResult, flashcards] = await Promise.all([

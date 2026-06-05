@@ -35,21 +35,26 @@ export default function Dashboard() {
   const [filterType, setFilterType] = useState("all");
 
   useEffect(() => {
+    let ignore = false;
     async function load() {
       try {
         const [docsRes, statsRes] = await Promise.all([
           api.get("/documents"),
           api.get("/quiz/analytics/overview"),
         ]);
+        if (ignore) return;
         setDocs(docsRes.data.documents);
         setStats(statsRes.data);
       } catch (err) {
-        setError(apiError(err));
+        if (!ignore) setError(apiError(err));
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     }
     load();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const filtered = docs.filter((doc) => {
@@ -78,11 +83,25 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard icon={IconDoc} label="Study materials" value={docs.length} />
-        <StatCard icon={IconChart} label="Quizzes attempted" value={stats.totalAttempts} />
-        <StatCard icon={IconUpload} label="Average score" value={`${stats.avgScore}%`} />
-      </div>
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="card flex items-center gap-4 p-5">
+              <div className="skeleton h-11 w-11 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-6 w-16" />
+                <div className="skeleton h-4 w-24" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard icon={IconDoc} label="Study materials" value={docs.length} />
+          <StatCard icon={IconChart} label="Quizzes attempted" value={stats.totalAttempts} />
+          <StatCard icon={IconUpload} label="Average score" value={`${stats.avgScore}%`} />
+        </div>
+      )}
 
       {error && <Alert>{error}</Alert>}
 
@@ -90,7 +109,12 @@ export default function Dashboard() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <h2 className="font-display text-lg font-600 text-ink">Your library</h2>
           <div className="flex flex-wrap gap-2">
+            <label htmlFor="library-search" className="sr-only">
+              Search materials
+            </label>
             <input
+              id="library-search"
+              type="search"
               className="input w-48 py-2 text-sm"
               placeholder="Search materials..."
               value={search}

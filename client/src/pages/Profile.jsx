@@ -12,18 +12,19 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [savingPass, setSavingPass] = useState(false);
-  const [error, setError] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [passError, setPassError] = useState("");
 
   async function saveName(e) {
     e.preventDefault();
     setSavingName(true);
-    setError("");
+    setNameError("");
     try {
       await api.put("/auth/profile", { name });
       await refreshUser();
       toast("Profile updated", "success");
     } catch (err) {
-      setError(apiError(err));
+      setNameError(apiError(err));
     } finally {
       setSavingName(false);
     }
@@ -32,14 +33,14 @@ export default function Profile() {
   async function savePassword(e) {
     e.preventDefault();
     setSavingPass(true);
-    setError("");
+    setPassError("");
     try {
       await api.put("/auth/password", { currentPassword, newPassword });
       setCurrentPassword("");
       setNewPassword("");
       toast("Password updated", "success");
     } catch (err) {
-      setError(apiError(err));
+      setPassError(apiError(err));
     } finally {
       setSavingPass(false);
     }
@@ -52,10 +53,9 @@ export default function Profile() {
         <p className="mt-1 text-muted">Update your account details.</p>
       </div>
 
-      {error && <Alert>{error}</Alert>}
-
       <form onSubmit={saveName} className="card space-y-4 p-6">
         <h2 className="font-600 text-ink">Display name</h2>
+        {nameError && <Alert>{nameError}</Alert>}
         <div>
           <label className="label">Email</label>
           <input className="input bg-canvas" value={user?.email || ""} disabled />
@@ -76,6 +76,7 @@ export default function Profile() {
 
       <form onSubmit={savePassword} className="card space-y-4 p-6">
         <h2 className="font-600 text-ink">Change password</h2>
+        {passError && <Alert>{passError}</Alert>}
         <div>
           <label className="label">Current password</label>
           <input
@@ -93,7 +94,7 @@ export default function Profile() {
             className="input"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            minLength={6}
+            minLength={8}
             required
           />
         </div>

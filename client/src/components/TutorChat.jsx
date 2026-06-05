@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { api, getToken } from "../api/client.js";
+import { api, apiUrl, getToken, apiError } from "../api/client.js";
 import { IconSend, IconChat } from "./icons.jsx";
 import { Spinner } from "./ui.jsx";
 
@@ -8,20 +8,37 @@ export default function TutorChat({ documentId }) {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [historyError, setHistoryError] = useState("");
   const scrollRef = useRef(null);
+  const abortRef = useRef(null);
 
   useEffect(() => {
+    let ignore = false;
+    setLoadingHistory(true);
+    setHistoryError("");
+    setMessages([]);
+
     async function loadHistory() {
       try {
         const { data } = await api.get(`/tutor/${documentId}/history`);
-        setMessages(data.messages || []);
-      } catch {
-        setMessages([]);
+        if (!ignore) setMessages(data.messages || []);
+      } catch (err) {
+        // 404 = abhi tak koi chat nahi (normal); baaki errors dikhate hain.
+        if (!ignore && err?.response?.status !== 404) {
+          setHistoryError(apiError(err));
+        }
+        if (!ignore) setMessages([]);
       } finally {
-        setLoadingHistory(false);
+        if (!ignore) setLoadingHistory(false);
       }
     }
     loadHistory();
+
+    return () => {
+      ignore = true;
+      // Document change/unmount par chalu stream cancel.
+      abortRef.current?.abort();
+    };
   }, [documentId]);
 
   useEffect(() => {
@@ -33,20 +50,24 @@ export default function TutorChat({ documentId }) {
     const question = input.trim();
     if (!question || streaming) return;
 
-    const history = messages.map((m) => ({ role: m.role, content: m.content }));
     setMessages((m) => [...m, { role: "user", content: question }, { role: "assistant", content: "" }]);
     setInput("");
     setStreaming(true);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       // Streaming ke liye fetch use karte hain (axios stream handle nahi karta easily).
-      const res = await fetch(`/api/tutor/${documentId}`, {
+      // History server DB se leta hai, isliye yahan bhejne ki zaroorat nahi.
+      const res = await fetch(apiUrl(`/tutor/${documentId}`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ question, history }),
+        body: JSON.stringify({ question }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -79,6 +100,8 @@ export default function TutorChat({ documentId }) {
         });
       }
     } catch (err) {
+      // Abort (document change/unmount) par UI update mat karo.
+      if (err.name === "AbortError") return;
       setMessages((m) => {
         const copy = [...m];
         copy[copy.length - 1] = {
@@ -88,6 +111,7 @@ export default function TutorChat({ documentId }) {
         return copy;
       });
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setStreaming(false);
     }
   }
@@ -113,7 +137,7 @@ export default function TutorChat({ documentId }) {
         ) : (
           messages.map((m, i) => (
             <div
-              key={i}
+              key={m.createdAt || `${m.role}-${i}`}
               className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
@@ -130,15 +154,27 @@ export default function TutorChat({ documentId }) {
         )}
       </div>
 
+      {historyError && (
+        <p className="mt-2 text-xs text-red-500">{historyError}</p>
+      )}
+
       <form onSubmit={send} className="mt-3 flex items-center gap-2 border-t border-line pt-3">
+        <label htmlFor="tutor-input" className="sr-only">
+          Ask the tutor a question
+        </label>
         <input
+          id="tutor-input"
           className="input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Type your question..."
           disabled={streaming}
         />
-        <button className="btn-primary px-3" disabled={streaming || !input.trim()}>
+        <button
+          className="btn-primary px-3"
+          disabled={streaming || !input.trim()}
+          aria-label="Send message"
+        >
           <IconSend />
         </button>
       </form>

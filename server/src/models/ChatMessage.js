@@ -20,4 +20,7 @@ const chatMessageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// History queries hamesha user + document + time order par chalti hain.
+chatMessageSchema.index({ userId: 1, documentId: 1, createdAt: 1 });
+
 export const ChatMessage = mongoose.model("ChatMessage", chatMessageSchema);

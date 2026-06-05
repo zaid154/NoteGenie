@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useAuth, apiError } from "../context/AuthContext.jsx";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+import { apiError } from "../api/client.js";
 import { useToast } from "../context/ToastContext.jsx";
 import AuthShell from "../components/AuthShell.jsx";
 import FormField, { passwordStrength } from "../components/FormField.jsx";
@@ -10,6 +11,7 @@ import { IconUser, IconMail, IconLock } from "../components/icons.jsx";
 export default function Register() {
   const { register } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -34,8 +36,8 @@ export default function Register() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       errs.email = "Enter a valid email address.";
     }
-    if (form.password.length < 6) {
-      errs.password = "Password must be at least 6 characters.";
+    if (form.password.length < 8) {
+      errs.password = "Password must be at least 8 characters.";
     }
     if (form.confirm !== form.password) {
       errs.confirm = "Passwords do not match.";
@@ -52,6 +54,7 @@ export default function Register() {
     try {
       await register(form.name.trim(), form.email, form.password);
       toast("Account created. Welcome to NoteGenie!", "success");
+      navigate("/app", { replace: true });
     } catch (err) {
       setError(apiError(err));
     } finally {
@@ -98,7 +101,7 @@ export default function Register() {
             name="password"
             value={form.password}
             onChange={update}
-            placeholder="At least 6 characters"
+            placeholder="At least 8 characters"
             error={fieldErrors.password}
             autoComplete="new-password"
           />
@@ -109,7 +112,7 @@ export default function Register() {
                   <span
                     key={i}
                     className={`h-1.5 flex-1 rounded-full transition-colors ${
-                      strength.score >= i + 1 ? strength.color : "bg-line"
+                      strength.score >= i ? strength.color : "bg-line"
                     }`}
                   />
                 ))}

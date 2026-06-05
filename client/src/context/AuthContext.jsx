@@ -1,11 +1,17 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { api, setToken, getToken, apiError } from "../api/client.js";
+import { api, setToken, getToken, setUnauthorizedHandler, apiError } from "../api/client.js";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // 401 par (token expire/invalid) session saaf kar dete hain.
+  useEffect(() => {
+    setUnauthorizedHandler(() => setUser(null));
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   // App load hote hi: agar token hai to current user fetch karo.
   useEffect(() => {
@@ -19,6 +25,7 @@ export function AuthProvider({ children }) {
         setUser(data.user);
       } catch {
         setToken(null);
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -44,8 +51,13 @@ export function AuthProvider({ children }) {
   }
 
   async function refreshUser() {
-    const { data } = await api.get("/auth/me");
-    setUser(data.user);
+    try {
+      const { data } = await api.get("/auth/me");
+      setUser(data.user);
+      return data.user;
+    } catch {
+      return null;
+    }
   }
 
   return (
@@ -55,5 +67,12 @@ export function AuthProvider({ children }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (ctx === null) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return ctx;
+}
+
 export { apiError };

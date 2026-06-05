@@ -54,6 +54,15 @@ export default function AdminUsers() {
     );
   }
 
+  if (!users.length) {
+    return (
+      <div className="space-y-4">
+        {error && <Alert>{error}</Alert>}
+        <div className="card p-10 text-center text-muted">No users yet.</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {error && <Alert>{error}</Alert>}
@@ -88,6 +97,7 @@ export default function AdminUsers() {
                       disabled={deleting === u.id}
                       className="rounded-lg p-2 text-muted hover:bg-red-500/10 hover:text-red-600"
                       title="Delete user"
+                      aria-label={`Delete ${u.name}`}
                     >
                       {deleting === u.id ? <Spinner size={16} /> : <IconTrash width={16} height={16} />}
                     </button>

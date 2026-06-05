@@ -34,20 +34,31 @@ export default function DocumentView() {
   const [questionCount, setQuestionCount] = useState(10);
   const [makingQuiz, setMakingQuiz] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const confirm = useConfirm();
 
   useEffect(() => {
+    let ignore = false;
+    // Naye document par stale content flash na ho.
+    setLoading(true);
+    setDoc(null);
+    setError("");
+    setTab("notes");
+
     async function load() {
       try {
         const { data } = await api.get(`/documents/${id}`);
-        setDoc(data.document);
+        if (!ignore) setDoc(data.document);
       } catch (err) {
-        setError(apiError(err));
+        if (!ignore) setError(apiError(err));
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     }
     load();
+    return () => {
+      ignore = true;
+    };
   }, [id]);
 
   async function generateQuiz() {
@@ -96,6 +107,7 @@ export default function DocumentView() {
   }
 
   async function handleDelete() {
+    if (deleting) return;
     const ok = await confirm({
       title: "Delete this material?",
       message: "Its quizzes and chat history will be removed too. This cannot be undone.",
@@ -103,11 +115,14 @@ export default function DocumentView() {
       danger: true,
     });
     if (!ok) return;
+    setDeleting(true);
+    setError("");
     try {
       await api.delete(`/documents/${id}`);
       navigate("/app");
     } catch (err) {
       setError(apiError(err));
+      setDeleting(false);
     }
   }
 
@@ -163,9 +178,12 @@ export default function DocumentView() {
             </button>
             <button
               onClick={handleDelete}
+              disabled={deleting}
+              aria-label="Delete material"
+              title="Delete material"
               className="btn-outline text-red-500 hover:border-red-400 hover:text-red-600"
             >
-              <IconTrash width={16} height={16} />
+              {deleting ? <Spinner size={16} /> : <IconTrash width={16} height={16} />}
             </button>
           </div>
         </div>
