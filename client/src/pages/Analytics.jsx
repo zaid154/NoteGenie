@@ -2,14 +2,19 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiError } from "../api/client.js";
 import { Alert, EmptyState, PageLoader, Badge } from "../components/ui.jsx";
-import { IconChart, IconPlus } from "../components/icons.jsx";
+import { IconChart, IconPlus, IconCards, IconSparkles } from "../components/icons.jsx";
 
-function Stat({ label, value, hint }) {
+function Stat({ icon: Icon, label, value, hint }) {
   return (
-    <div className="card p-5">
-      <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1 text-3xl font-700 text-ink">{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+    <div className="card flex items-start gap-4 p-5">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-500/10 text-brand-600">
+        <Icon width={20} height={20} />
+      </span>
+      <div>
+        <p className="text-sm text-muted">{label}</p>
+        <p className="mt-0.5 text-2xl font-700 text-ink">{value}</p>
+        {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
+      </div>
     </div>
   );
 }
@@ -45,9 +50,10 @@ export default function Analytics() {
       {error && <Alert>{error}</Alert>}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Total attempts" value={data.totalAttempts} />
-        <Stat label="Average score" value={`${data.avgScore}%`} hint="Across all quizzes" />
+        <Stat icon={IconChart} label="Total attempts" value={data.totalAttempts} />
+        <Stat icon={IconCards} label="Average score" value={`${data.avgScore}%`} hint="Across all quizzes" />
         <Stat
+          icon={IconSparkles}
           label="Performance"
           value={data.avgScore >= 75 ? "Strong" : data.avgScore >= 50 ? "Okay" : "Needs work"}
         />

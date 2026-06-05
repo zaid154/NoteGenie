@@ -1,9 +1,52 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { env } from "../config/env.js";
 import { getAppSettings } from "../models/Settings.js";
+import { ApiUsage } from "../models/ApiUsage.js";
 
 const AI_NOT_CONFIGURED =
   "AI is not configured. Ask an admin to set the Gemini API key in Admin Settings.";
+
+// Approximate USD per 1M tokens (Google pricing — may change).
+const PRICE_PER_MILLION = {
+  "gemini-2.5-flash": { input: 0.3, output: 2.5 },
+  "gemini-2.5-pro": { input: 1.25, output: 10.0 },
+  "gemini-2.0-flash": { input: 0.1, output: 0.4 },
+  "gemini-1.5-flash": { input: 0.075, output: 0.3 },
+  "gemini-1.5-pro": { input: 1.25, output: 5.0 },
+};
+const DEFAULT_PRICING = { input: 0.3, output: 2.5 };
+
+function estimateCost(modelName, promptTokens, completionTokens) {
+  const pricing =
+    PRICE_PER_MILLION[modelName] ||
+    Object.entries(PRICE_PER_MILLION).find(([k]) => modelName.includes(k))?.[1] ||
+    DEFAULT_PRICING;
+  const inputCost = (promptTokens / 1_000_000) * pricing.input;
+  const outputCost = (completionTokens / 1_000_000) * pricing.output;
+  return Math.round((inputCost + outputCost) * 1_000_000) / 1_000_000;
+}
+
+// Fire-and-forget — logging failure must never break generation.
+async function recordUsage(meta, modelName, usageMetadata) {
+  if (!meta?.feature) return;
+  try {
+    const promptTokens = usageMetadata?.promptTokenCount || 0;
+    const completionTokens = usageMetadata?.candidatesTokenCount || 0;
+    const totalTokens =
+      usageMetadata?.totalTokenCount || promptTokens + completionTokens;
+    await ApiUsage.create({
+      userId: meta.userId || null,
+      feature: meta.feature,
+      model: modelName,
+      promptTokens,
+      completionTokens,
+      totalTokens,
+      estimatedCost: estimateCost(modelName, promptTokens, completionTokens),
+    });
+  } catch (err) {
+    console.warn("[gemini] usage log failed:", err.message);
+  }
+}
 
 // DB settings pehle, phir .env fallback.
 export async function resolveConfig(overrides = {}) {
@@ -30,7 +73,10 @@ export async function resolveConfig(overrides = {}) {
 async function getModel(config = {}, overrides = {}) {
   const { apiKey, model } = await resolveConfig(overrides);
   const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({ model, ...config });
+  return {
+    modelName: model,
+    instance: genAI.getGenerativeModel({ model, ...config }),
+  };
 }
 
 // Gemini kabhi-kabhi 503 (high demand) ya 429 (rate limit) deta hai - temporary.
@@ -101,8 +147,8 @@ export async function listModels(apiKey) {
     .sort();
 }
 
-export async function generateNotes(source) {
-  const model = await getModel({
+export async function generateNotes(source, meta = {}) {
+  const { modelName, instance } = await getModel({
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -124,12 +170,13 @@ Return JSON with:
 - "notes": well-structured study notes in GitHub-flavored Markdown. Use headings, bullet points, **bold** key terms, and short examples. Keep it clear and student-friendly.`;
 
   const parts = [{ text: prompt }, normalizeSource(source)];
-  const result = await withRetry(() => model.generateContent(parts));
+  const result = await withRetry(() => instance.generateContent(parts));
+  recordUsage(meta, modelName, result.response.usageMetadata);
   return parseJson(result.response.text());
 }
 
-export async function generateQuiz(source, { difficulty = "medium", count = 5 } = {}) {
-  const model = await getModel({
+export async function generateQuiz(source, { difficulty = "medium", count = 5, meta = {} } = {}) {
+  const { modelName, instance } = await getModel({
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -161,15 +208,16 @@ Cover different parts of the content so questions are varied (avoid repeating th
 Each question must have exactly 4 options, exactly one correct answer (correctIndex 0-3), and a short explanation of why it is correct.`;
 
   const parts = [{ text: prompt }, normalizeSource(source)];
-  const result = await withRetry(() => model.generateContent(parts));
+  const result = await withRetry(() => instance.generateContent(parts));
+  recordUsage(meta, modelName, result.response.usageMetadata);
   const quiz = parseJson(result.response.text());
   return quiz.filter(
     (q) => Array.isArray(q.options) && q.options.length >= 2 && q.correctIndex < q.options.length
   );
 }
 
-export async function generateFlashcards(source, { count = 8 } = {}) {
-  const model = await getModel({
+export async function generateFlashcards(source, { count = 8, meta = {} } = {}) {
+  const { modelName, instance } = await getModel({
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -190,12 +238,13 @@ export async function generateFlashcards(source, { count = 8 } = {}) {
 "front" = a concept, term, or question. "back" = a concise, clear answer/definition.`;
 
   const parts = [{ text: prompt }, normalizeSource(source)];
-  const result = await withRetry(() => model.generateContent(parts));
+  const result = await withRetry(() => instance.generateContent(parts));
+  recordUsage(meta, modelName, result.response.usageMetadata);
   return parseJson(result.response.text());
 }
 
-export async function* tutorStream({ context, question, history = [] }) {
-  const model = await getModel();
+export async function* tutorStream({ context, question, history = [], meta = {} }) {
+  const { modelName, instance } = await getModel();
 
   const historyText = history
     .map((m) => `${m.role === "user" ? "Student" : "Tutor"}: ${m.content}`)
@@ -213,11 +262,14 @@ ${historyText}
 Student: ${question}
 Tutor:`;
 
-  const result = await model.generateContentStream(prompt);
+  const result = await instance.generateContentStream(prompt);
   for await (const chunk of result.stream) {
     const text = chunk.text();
     if (text) yield text;
   }
+
+  const response = await result.response;
+  recordUsage(meta, modelName, response.usageMetadata);
 }
 
 function normalizeSource(source) {

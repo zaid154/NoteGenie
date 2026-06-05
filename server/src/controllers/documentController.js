@@ -18,9 +18,10 @@ export const uploadDocument = asyncHandler(async (req, res) => {
   }
 
   const source = pdfPart(req.file.buffer);
+  const userId = req.user._id;
   const [notesResult, flashcards] = await Promise.all([
-    generateNotes(source),
-    generateFlashcards(source),
+    generateNotes(source, { userId, feature: "notes" }),
+    generateFlashcards(source, { meta: { userId, feature: "flashcards" } }),
   ]);
 
   const doc = await Document.create({
@@ -45,9 +46,10 @@ export const createFromLink = asyncHandler(async (req, res) => {
   if (!url) return res.status(400).json({ message: "URL daalo" });
 
   const { text } = await extractTextFromUrl(url);
+  const userId = req.user._id;
   const [notesResult, flashcards] = await Promise.all([
-    generateNotes(text),
-    generateFlashcards(text),
+    generateNotes(text, { userId, feature: "notes" }),
+    generateFlashcards(text, { meta: { userId, feature: "flashcards" } }),
   ]);
 
   const doc = await Document.create({
@@ -112,9 +114,10 @@ export const regenerateDocument = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "No source content to regenerate from" });
   }
 
+  const userId = req.user._id;
   const [notesResult, flashcards] = await Promise.all([
-    generateNotes(source),
-    generateFlashcards(source),
+    generateNotes(source, { userId, feature: "notes" }),
+    generateFlashcards(source, { meta: { userId, feature: "flashcards" } }),
   ]);
 
   doc.title = notesResult.title || doc.title;

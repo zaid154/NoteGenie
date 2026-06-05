@@ -48,10 +48,9 @@ export default function Upload() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="font-display text-2xl font-700 text-ink">New study material</h1>
-      <p className="mt-1 text-muted">
-        Upload a PDF or paste a link, and AI will generate notes, flashcards,
-        and a quiz.
+      <h1 className="font-display text-2xl font-700 text-ink">Add material</h1>
+      <p className="mt-1 text-sm text-muted">
+        Drop a PDF or paste a link — notes and flashcards get generated in about 20 seconds.
       </p>
 
       {/* Tabs */}
@@ -136,11 +135,11 @@ export default function Upload() {
         <button className="btn-primary w-full" disabled={loading}>
           {loading ? (
             <>
-              <Spinner /> Generating with AI...
+              <Spinner /> Generating...
             </>
           ) : (
             <>
-              <IconSparkles /> Generate notes & quiz
+              <IconSparkles /> Generate notes
             </>
           )}
         </button>

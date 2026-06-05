@@ -3,6 +3,7 @@ import { Document } from "../models/Document.js";
 import { Quiz } from "../models/Quiz.js";
 import { QuizAttempt } from "../models/QuizAttempt.js";
 import { ChatMessage } from "../models/ChatMessage.js";
+import { ApiUsage } from "../models/ApiUsage.js";
 import { getAppSettings } from "../models/Settings.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { testApiKey, listModels } from "../services/gemini.js";
@@ -14,12 +15,23 @@ function maskKey(key) {
 
 // GET /api/admin/stats
 export const getStats = asyncHandler(async (req, res) => {
-  const [users, documents, quizzes, attempts] = await Promise.all([
+  const [users, documents, quizzes, attempts, aiTotals] = await Promise.all([
     User.countDocuments(),
     Document.countDocuments(),
     Quiz.countDocuments(),
     QuizAttempt.countDocuments(),
+    ApiUsage.aggregate([
+      {
+        $group: {
+          _id: null,
+          calls: { $sum: 1 },
+          cost: { $sum: "$estimatedCost" },
+        },
+      },
+    ]),
   ]);
+
+  const ai = aiTotals[0] || { calls: 0, cost: 0 };
 
   const recentDocs = await Document.find()
     .sort({ createdAt: -1 })
@@ -38,6 +50,8 @@ export const getStats = asyncHandler(async (req, res) => {
     documents,
     quizzes,
     attempts,
+    aiCalls: ai.calls,
+    aiCost: Math.round(ai.cost * 1_000_000) / 1_000_000,
     recentDocs: recentDocs.map((d) => ({
       id: d._id,
       title: d.title,
@@ -52,6 +66,103 @@ export const getStats = asyncHandler(async (req, res) => {
       createdAt: a.createdAt,
       user: a.userId ? { name: a.userId.name, email: a.userId.email } : null,
       documentTitle: a.documentId?.title || "—",
+    })),
+  });
+});
+
+// GET /api/admin/usage
+export const getUsage = asyncHandler(async (req, res) => {
+  const [totalsAgg, byFeature, byUser, recent] = await Promise.all([
+    ApiUsage.aggregate([
+      {
+        $group: {
+          _id: null,
+          calls: { $sum: 1 },
+          promptTokens: { $sum: "$promptTokens" },
+          completionTokens: { $sum: "$completionTokens" },
+          totalTokens: { $sum: "$totalTokens" },
+          cost: { $sum: "$estimatedCost" },
+        },
+      },
+    ]),
+    ApiUsage.aggregate([
+      {
+        $group: {
+          _id: "$feature",
+          calls: { $sum: 1 },
+          totalTokens: { $sum: "$totalTokens" },
+          cost: { $sum: "$estimatedCost" },
+        },
+      },
+      { $sort: { calls: -1 } },
+    ]),
+    ApiUsage.aggregate([
+      { $match: { userId: { $ne: null } } },
+      {
+        $group: {
+          _id: "$userId",
+          calls: { $sum: 1 },
+          totalTokens: { $sum: "$totalTokens" },
+          cost: { $sum: "$estimatedCost" },
+        },
+      },
+      { $sort: { calls: -1 } },
+      { $limit: 20 },
+    ]),
+    ApiUsage.find()
+      .sort({ createdAt: -1 })
+      .limit(15)
+      .populate("userId", "name email")
+      .select("feature model promptTokens completionTokens totalTokens estimatedCost createdAt userId"),
+  ]);
+
+  const totals = totalsAgg[0] || {
+    calls: 0,
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    cost: 0,
+  };
+
+  const userIds = byUser.map((u) => u._id);
+  const users = await User.find({ _id: { $in: userIds } }).select("name email");
+  const userMap = Object.fromEntries(users.map((u) => [String(u._id), u]));
+
+  res.json({
+    totals: {
+      calls: totals.calls,
+      promptTokens: totals.promptTokens,
+      completionTokens: totals.completionTokens,
+      totalTokens: totals.totalTokens,
+      cost: Math.round(totals.cost * 1_000_000) / 1_000_000,
+    },
+    byFeature: byFeature.map((f) => ({
+      feature: f._id,
+      calls: f.calls,
+      totalTokens: f.totalTokens,
+      cost: Math.round(f.cost * 1_000_000) / 1_000_000,
+    })),
+    byUser: byUser.map((u) => {
+      const user = userMap[String(u._id)];
+      return {
+        userId: u._id,
+        name: user?.name || "Unknown",
+        email: user?.email || "—",
+        calls: u.calls,
+        totalTokens: u.totalTokens,
+        cost: Math.round(u.cost * 1_000_000) / 1_000_000,
+      };
+    }),
+    recent: recent.map((r) => ({
+      id: r._id,
+      feature: r.feature,
+      model: r.model,
+      promptTokens: r.promptTokens,
+      completionTokens: r.completionTokens,
+      totalTokens: r.totalTokens,
+      cost: r.estimatedCost,
+      createdAt: r.createdAt,
+      user: r.userId ? { name: r.userId.name, email: r.userId.email } : null,
     })),
   });
 });

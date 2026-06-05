@@ -1,8 +1,9 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { IconChart, IconUsers, IconSettings, IconDoc } from "./icons.jsx";
+import { IconChart, IconUsers, IconSettings, IconDoc, IconActivity } from "./icons.jsx";
 
 const tabs = [
   { to: "/admin", label: "Overview", icon: IconChart, end: true },
+  { to: "/admin/usage", label: "Usage", icon: IconActivity },
   { to: "/admin/users", label: "Users", icon: IconUsers },
   { to: "/admin/settings", label: "AI Settings", icon: IconSettings },
   { to: "/admin/content", label: "Content", icon: IconDoc },

@@ -17,6 +17,7 @@ import AdminOverview from "./pages/admin/AdminOverview.jsx";
 import AdminUsers from "./pages/admin/AdminUsers.jsx";
 import AdminSettings from "./pages/admin/AdminSettings.jsx";
 import AdminContent from "./pages/admin/AdminContent.jsx";
+import AdminUsage from "./pages/admin/AdminUsage.jsx";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -70,6 +71,7 @@ export default function App() {
         }
       >
         <Route index element={<AdminOverview />} />
+        <Route path="usage" element={<AdminUsage />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="content" element={<AdminContent />} />

@@ -171,3 +171,15 @@ export const IconEyeOff = make(
     <path d="M3 3l18 18" />
   </>
 );
+export const IconActivity = make(
+  <>
+    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+  </>
+);
+export const IconCoins = make(
+  <>
+    <circle cx="8" cy="8" r="5" />
+    <path d="M13.5 13.5 19 19" />
+    <path d="M8 6v4M6 8h4" />
+  </>
+);

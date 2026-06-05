@@ -69,8 +69,8 @@ export default function Dashboard() {
           <h1 className="font-display text-2xl font-700 text-ink">
             Welcome back, {user?.name?.split(" ")[0]}
           </h1>
-          <p className="mt-1 text-muted">
-            Upload a PDF or paste a link to turn it into notes and quizzes.
+          <p className="mt-1 text-sm text-muted">
+            Your study materials and quiz scores in one place.
           </p>
         </div>
         <Link to="/upload" className="btn-primary">

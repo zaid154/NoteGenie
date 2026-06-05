@@ -41,8 +41,25 @@ app.use(errorHandler);
 
 async function start() {
   await connectDB();
-  app.listen(env.port, () => {
+
+  const server = app.listen(env.port, () => {
     console.log(`[server] NoteGenie API running on http://localhost:${env.port}`);
+  });
+
+  // Port already busy hone par saaf-saaf bataate hain (ugly crash ke bajaye).
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(
+        `\n[server] Port ${env.port} already in use.` +
+          `\n         Koi aur process is port pe chal raha hai. Do options:` +
+          `\n         1) Root .env me PORT badlo (e.g. PORT=5001) aur dubara chalao.` +
+          `\n         2) Ya purana process band karo:` +
+          `\n            Windows:  netstat -ano | findstr ":${env.port}"  →  taskkill /PID <PID> /F\n`
+      );
+    } else {
+      console.error("[server] Server error:", err.message);
+    }
+    process.exit(1);
   });
 }
 

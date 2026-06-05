@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, apiError } from "../../api/client.js";
 import { Alert, PageLoader } from "../../components/ui.jsx";
-
-function Stat({ label, value }) {
-  return (
-    <div className="card p-5">
-      <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1 text-3xl font-700 text-ink">{value}</p>
-    </div>
-  );
-}
+import AdminStatCard, { formatCost } from "../../components/AdminStatCard.jsx";
+import {
+  IconUsers,
+  IconDoc,
+  IconCards,
+  IconChart,
+  IconActivity,
+  IconCoins,
+} from "../../components/icons.jsx";
 
 export default function AdminOverview() {
   const [data, setData] = useState(null);
@@ -29,11 +30,24 @@ export default function AdminOverview() {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Users" value={data.users} />
-        <Stat label="Materials" value={data.documents} />
-        <Stat label="Quizzes" value={data.quizzes} />
-        <Stat label="Quiz attempts" value={data.attempts} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <AdminStatCard icon={IconUsers} label="Users" value={data.users} accent="brand" />
+        <AdminStatCard icon={IconDoc} label="Materials" value={data.documents} accent="brand" />
+        <AdminStatCard icon={IconCards} label="Quizzes" value={data.quizzes} accent="amber" />
+        <AdminStatCard icon={IconChart} label="Quiz attempts" value={data.attempts} accent="amber" />
+        <AdminStatCard
+          icon={IconActivity}
+          label="AI calls"
+          value={(data.aiCalls || 0).toLocaleString()}
+          accent="green"
+        />
+        <AdminStatCard
+          icon={IconCoins}
+          label="Est. AI cost"
+          value={formatCost(data.aiCost || 0)}
+          sub="approximate"
+          accent="green"
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -75,6 +89,13 @@ export default function AdminOverview() {
           </div>
         </div>
       </div>
+
+      <p className="text-sm text-muted">
+        Full API breakdown →{" "}
+        <Link to="/admin/usage" className="font-500 text-brand-600 hover:underline">
+          Usage page
+        </Link>
+      </p>
     </div>
   );
 }

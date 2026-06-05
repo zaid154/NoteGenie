@@ -25,6 +25,7 @@ export const createQuiz = asyncHandler(async (req, res) => {
   const questions = await generateQuiz(doc.sourceText || doc.notes, {
     difficulty,
     count,
+    meta: { userId: req.user._id, feature: "quiz" },
   });
   if (!questions.length) {
     return res.status(502).json({ message: "Could not generate the quiz. Please try again." });

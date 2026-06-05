@@ -56,6 +56,7 @@ export async function chat(req, res, next) {
       context: doc.sourceText || doc.notes,
       question: question.trim(),
       history,
+      meta: { userId: req.user._id, feature: "tutor" },
     });
 
     for await (const chunk of stream) {

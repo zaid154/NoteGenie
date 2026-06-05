@@ -1,6 +1,10 @@
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+// .env project root me rehti hai. Yahan se (server/src/config/) root teen level upar hai.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 // Saari environment values ek jagah, taaki poore app me consistent rahe.
 export const env = {
@@ -23,7 +27,7 @@ export function validateEnv() {
   if (missing.length) {
     console.warn(
       `\n[warn] Yeh env values set nahi hain: ${missing.join(", ")}.` +
-        `\n       server/.env file me inhe bharo, warna kuch features kaam nahi karenge.\n`
+        `\n       Root .env file me inhe bharo, warna kuch features kaam nahi karenge.\n`
     );
   }
 }

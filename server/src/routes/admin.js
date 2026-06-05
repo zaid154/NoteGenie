@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import {
   getStats,
+  getUsage,
   listUsers,
   deleteUser,
   getSettings,
@@ -17,6 +18,7 @@ const router = Router();
 router.use(requireAuth, requireAdmin);
 
 router.get("/stats", getStats);
+router.get("/usage", getUsage);
 router.get("/users", listUsers);
 router.delete("/users/:id", deleteUser);
 router.get("/settings", getSettings);
