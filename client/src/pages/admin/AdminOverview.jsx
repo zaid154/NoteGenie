@@ -30,25 +30,39 @@ export default function AdminOverview() {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <AdminStatCard icon={IconUsers} label="Users" value={data.users} accent="brand" />
-        <AdminStatCard icon={IconDoc} label="Materials" value={data.documents} accent="brand" />
-        <AdminStatCard icon={IconCards} label="Quizzes" value={data.quizzes} accent="amber" />
-        <AdminStatCard icon={IconChart} label="Quiz attempts" value={data.attempts} accent="amber" />
-        <AdminStatCard
-          icon={IconActivity}
-          label="AI calls"
-          value={(data.aiCalls || 0).toLocaleString()}
-          accent="green"
-        />
-        <AdminStatCard
-          icon={IconCoins}
-          label="Est. AI cost"
-          value={formatCost(data.aiCost || 0)}
-          sub="approximate"
-          accent="green"
-        />
-      </div>
+      <section>
+        <h2 className="mb-3 font-display text-lg font-600 text-ink">Platform</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <AdminStatCard icon={IconUsers} label="Users" value={data.users} accent="brand" />
+          <AdminStatCard icon={IconDoc} label="Materials" value={data.documents} accent="brand" />
+          <AdminStatCard icon={IconCards} label="Quizzes" value={data.quizzes} accent="amber" />
+          <AdminStatCard icon={IconChart} label="Quiz attempts" value={data.attempts} accent="amber" />
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-display text-lg font-600 text-ink">AI usage</h2>
+          <Link to="/admin/usage" className="text-sm font-500 text-brand-600 hover:underline">
+            View details →
+          </Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <AdminStatCard
+            icon={IconActivity}
+            label="AI calls"
+            value={(data.aiCalls || 0).toLocaleString()}
+            accent="green"
+          />
+          <AdminStatCard
+            icon={IconCoins}
+            label="Est. AI cost"
+            value={formatCost(data.aiCost || 0)}
+            sub="approximate USD"
+            accent="green"
+          />
+        </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
@@ -89,13 +103,6 @@ export default function AdminOverview() {
           </div>
         </div>
       </div>
-
-      <p className="text-sm text-muted">
-        Full API breakdown →{" "}
-        <Link to="/admin/usage" className="font-500 text-brand-600 hover:underline">
-          Usage page
-        </Link>
-      </p>
     </div>
   );
 }

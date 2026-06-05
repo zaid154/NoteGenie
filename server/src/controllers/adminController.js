@@ -6,7 +6,12 @@ import { ChatMessage } from "../models/ChatMessage.js";
 import { ApiUsage } from "../models/ApiUsage.js";
 import { getAppSettings } from "../models/Settings.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
-import { testApiKey, listModels } from "../services/gemini.js";
+import {
+  testApiKey,
+  listModels,
+  PRICE_PER_MILLION,
+  DEFAULT_PRICING,
+} from "../services/gemini.js";
 
 function maskKey(key) {
   if (!key || key.length < 8) return key ? "••••••••" : "";
@@ -167,6 +172,12 @@ export const getUsage = asyncHandler(async (req, res) => {
   });
 });
 
+// DELETE /api/admin/usage — clears the app's own API usage log (not Google's).
+export const resetUsage = asyncHandler(async (req, res) => {
+  const { deletedCount } = await ApiUsage.deleteMany({});
+  res.json({ message: "Usage log cleared", deletedCount });
+});
+
 // GET /api/admin/users
 export const listUsers = asyncHandler(async (req, res) => {
   const users = await User.find().select("name email role createdAt").sort({ createdAt: -1 });
@@ -215,6 +226,8 @@ export const getSettings = asyncHandler(async (req, res) => {
     hasApiKey: Boolean(settings.geminiApiKey?.trim()),
     geminiModel: settings.geminiModel || "gemini-2.5-flash",
     updatedAt: settings.updatedAt,
+    pricing: PRICE_PER_MILLION,
+    defaultPricing: DEFAULT_PRICING,
   });
 });
 

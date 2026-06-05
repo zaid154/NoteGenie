@@ -2,7 +2,17 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiError } from "../../api/client.js";
 import { Alert, Badge, Spinner } from "../../components/ui.jsx";
-import { IconSettings, IconSparkles } from "../../components/icons.jsx";
+import { IconSettings, IconSparkles, IconCoins, IconActivity } from "../../components/icons.jsx";
+
+const DEFAULT_RATE = { input: 0.3, output: 2.5 };
+
+// Backend ke jaisa hi lookup: exact match, phir substring, warna default.
+function rateForModel(model, pricing, fallback) {
+  if (!pricing) return fallback || DEFAULT_RATE;
+  if (pricing[model]) return pricing[model];
+  const partial = Object.keys(pricing).find((k) => model.includes(k));
+  return partial ? pricing[partial] : fallback || DEFAULT_RATE;
+}
 
 export default function AdminSettings() {
   const [apiKey, setApiKey] = useState("");
@@ -10,6 +20,8 @@ export default function AdminSettings() {
   const [masked, setMasked] = useState("");
   const [hasKey, setHasKey] = useState(false);
   const [models, setModels] = useState([]);
+  const [pricing, setPricing] = useState(null);
+  const [defaultPricing, setDefaultPricing] = useState(DEFAULT_RATE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -24,6 +36,8 @@ export default function AdminSettings() {
         setMasked(data.geminiApiKeyMasked);
         setHasKey(data.hasApiKey);
         setModel(data.geminiModel || "gemini-2.5-flash");
+        setPricing(data.pricing || null);
+        if (data.defaultPricing) setDefaultPricing(data.defaultPricing);
         if (data.hasApiKey) {
           const m = await api.get("/admin/models");
           setModels(m.data.models);
@@ -187,12 +201,57 @@ export default function AdminSettings() {
         </form>
       </div>
 
-      <p className="text-sm text-muted">
-        Track how many calls this key makes →{" "}
-        <Link to="/admin/usage" className="font-500 text-brand-600 hover:underline">
-          Usage page
-        </Link>
-      </p>
+      {/* Selected model ke rates — sirf dekhne ke liye (Google pricing). */}
+      {(() => {
+        const rate = rateForModel(model, pricing, defaultPricing);
+        return (
+          <div className="card p-6">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                <IconCoins width={20} height={20} />
+              </span>
+              <div className="min-w-0">
+                <h3 className="font-display text-base font-600 text-ink">
+                  Rates for <span className="font-mono text-sm">{model}</span>
+                </h3>
+                <p className="mt-0.5 text-sm text-muted">
+                  Approximate Google pricing, used to estimate cost. USD per 1M tokens.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-line bg-canvas/40 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted">Input</p>
+                <p className="mt-1 text-xl font-700 text-ink">
+                  ${rate.input}
+                  <span className="ml-1 text-sm font-400 text-muted">/ 1M tokens</span>
+                </p>
+              </div>
+              <div className="rounded-xl border border-line bg-canvas/40 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted">Output</p>
+                <p className="mt-1 text-xl font-700 text-ink">
+                  ${rate.output}
+                  <span className="ml-1 text-sm font-400 text-muted">/ 1M tokens</span>
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-4 text-xs text-muted">
+              Rates are estimates and may change on Google&apos;s side — actual billing comes from
+              your Google account.
+            </p>
+
+            <Link
+              to="/admin/usage"
+              className="btn-outline mt-5 inline-flex w-full justify-center sm:w-auto"
+            >
+              <IconActivity width={16} height={16} />
+              View usage &amp; cost
+            </Link>
+          </div>
+        );
+      })()}
     </div>
   );
 }

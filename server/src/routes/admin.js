@@ -3,6 +3,7 @@ import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import {
   getStats,
   getUsage,
+  resetUsage,
   listUsers,
   deleteUser,
   getSettings,
@@ -19,6 +20,7 @@ router.use(requireAuth, requireAdmin);
 
 router.get("/stats", getStats);
 router.get("/usage", getUsage);
+router.delete("/usage", resetUsage);
 router.get("/users", listUsers);
 router.delete("/users/:id", deleteUser);
 router.get("/settings", getSettings);

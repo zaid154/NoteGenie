@@ -7,20 +7,26 @@ const AI_NOT_CONFIGURED =
   "AI is not configured. Ask an admin to set the Gemini API key in Admin Settings.";
 
 // Approximate USD per 1M tokens (Google pricing — may change).
-const PRICE_PER_MILLION = {
+export const PRICE_PER_MILLION = {
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
   "gemini-2.5-pro": { input: 1.25, output: 10.0 },
   "gemini-2.0-flash": { input: 0.1, output: 0.4 },
   "gemini-1.5-flash": { input: 0.075, output: 0.3 },
   "gemini-1.5-pro": { input: 1.25, output: 5.0 },
 };
-const DEFAULT_PRICING = { input: 0.3, output: 2.5 };
+export const DEFAULT_PRICING = { input: 0.3, output: 2.5 };
 
-function estimateCost(modelName, promptTokens, completionTokens) {
-  const pricing =
+// Sabse exact match pehle, phir substring match, warna default.
+export function getPricing(modelName = "") {
+  return (
     PRICE_PER_MILLION[modelName] ||
     Object.entries(PRICE_PER_MILLION).find(([k]) => modelName.includes(k))?.[1] ||
-    DEFAULT_PRICING;
+    DEFAULT_PRICING
+  );
+}
+
+function estimateCost(modelName, promptTokens, completionTokens) {
+  const pricing = getPricing(modelName);
   const inputCost = (promptTokens / 1_000_000) * pricing.input;
   const outputCost = (completionTokens / 1_000_000) * pricing.output;
   return Math.round((inputCost + outputCost) * 1_000_000) / 1_000_000;
