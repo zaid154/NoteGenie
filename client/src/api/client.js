@@ -1,8 +1,12 @@
+// Yeh file backend se baat karne ka kaam karti hai.
+// axios ek library hai jo HTTP request (GET, POST, etc.) bhejti hai.
 import axios from "axios";
 
 // baseURL: production me VITE_API_URL set karo; dev me "/api" Vite proxy se backend pe jata hai.
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
+// "api" ek ready-made axios object hai. Iske through hum sab request bhejte hain.
+// Example: api.get("/documents") ya api.post("/auth/login", data)
 export const api = axios.create({ baseURL: API_BASE_URL });
 
 // Streaming fetch jaise cases ke liye full URL banata hai (axios instance bypass).

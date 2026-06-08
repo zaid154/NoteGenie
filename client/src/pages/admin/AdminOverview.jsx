@@ -1,3 +1,4 @@
+// AdminOverview: admin ka pehla page. Poore platform ke numbers + recent activity.
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiError } from "../../api/client.js";
@@ -17,6 +18,8 @@ export default function AdminOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Page khulte hi admin stats mangwao.
+  // (Yahan .then/.catch use hua hai — yeh async/await ka doosra tareeka hai.)
   useEffect(() => {
     api
       .get("/admin/stats")

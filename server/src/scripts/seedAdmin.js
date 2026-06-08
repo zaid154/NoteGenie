@@ -1,3 +1,5 @@
+// Yeh script ek baar chalao taaki admin + demo user account ban jayein.
+// Command: node src/scripts/seedAdmin.js (server folder ke andar se)
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";

@@ -1,20 +1,23 @@
 import { useId, useState } from "react";
 import { IconEye, IconEyeOff } from "./icons.jsx";
 
-// Reusable labelled input with a leading icon, inline error, and an
-// optional show/hide toggle for password fields.
+// Reusable input box. Ek label, ek icon, error message aur (password ke liye)
+// show/hide button deta hai. Login/Register forms me use hota hai.
 export default function FormField({
-  label,
-  icon: Icon,
+  label,        // upar dikhne wala naam, jaise "Email"
+  icon: Icon,   // input ke andar left side ka icon
   type = "text",
-  error,
-  hint,
-  ...inputProps
+  error,        // galti ka message (red color me dikhega)
+  hint,         // chhoti help line (jab error na ho)
+  ...inputProps // baaki saari props (value, onChange, placeholder...) input ko de do
 }) {
+  // show = password dikhana hai ya chhupana hai.
   const [show, setShow] = useState(false);
+  // useId har field ko ek unique id deta hai (label ko input se jodne ke liye).
   const fieldId = useId();
   const errorId = `${fieldId}-error`;
   const isPassword = type === "password";
+  // Password field me agar show true hai to text dikhao, warna dots (password).
   const inputType = isPassword ? (show ? "text" : "password") : type;
 
   return (
@@ -61,7 +64,8 @@ export default function FormField({
   );
 }
 
-// Simple password strength helper used by the register page.
+// passwordStrength: password kitna strong hai yeh batata hai (register page use karta hai).
+// Har achhi cheez par score +1 hota hai, fir us score ka label/color lautate hain.
 export function passwordStrength(password) {
   let score = 0;
   if (password.length >= 6) score++;

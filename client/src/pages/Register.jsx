@@ -1,3 +1,4 @@
+// Register page: naya user account banata hai.
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -12,6 +13,7 @@ export default function Register() {
   const { register } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  // form = saari input values.
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -22,14 +24,17 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // password kitna strong hai (bar dikhane ke liye).
   const strength = passwordStrength(form.password);
 
+  // update: koi field type kare to form update karo + us field ki galti hata do.
   function update(e) {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
     setFieldErrors((fe) => ({ ...fe, [name]: "" }));
   }
 
+  // validate: bhejne se pehle saari fields check karo.
   function validate() {
     const errs = {};
     if (form.name.trim().length < 2) errs.name = "Please enter your name.";
@@ -40,12 +45,13 @@ export default function Register() {
       errs.password = "Password must be at least 8 characters.";
     }
     if (form.confirm !== form.password) {
-      errs.confirm = "Passwords do not match.";
+      errs.confirm = "Passwords do not match."; // dono password same hone chahiye
     }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
+  // handleSubmit: account banao, fir app ke andar le jao.
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");

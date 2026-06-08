@@ -1,3 +1,4 @@
+// Dashboard: login ke baad ka home page. Yahan stats aur saari materials dikhti hain.
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiError } from "../api/client.js";
@@ -11,6 +12,7 @@ import {
   IconChart,
 } from "../components/icons.jsx";
 
+// Chhota card jo ek number dikhata hai (jaise "Study materials: 5").
 function StatCard({ icon: Icon, label, value }) {
   return (
     <div className="card flex items-center gap-4 p-5">
@@ -27,17 +29,19 @@ function StatCard({ icon: Icon, label, value }) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [docs, setDocs] = useState([]);
-  const [stats, setStats] = useState({ totalAttempts: 0, avgScore: 0 });
-  const [loading, setLoading] = useState(true);
+  const [docs, setDocs] = useState([]);            // saari study materials
+  const [stats, setStats] = useState({ totalAttempts: 0, avgScore: 0 }); // quiz stats
+  const [loading, setLoading] = useState(true);    // data load ho raha hai?
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState("all");
+  const [search, setSearch] = useState("");        // search box me likha hua
+  const [filterType, setFilterType] = useState("all"); // all / pdf / link filter
 
+  // Page khulte hi backend se documents aur stats ek saath mangwao.
   useEffect(() => {
-    let ignore = false;
+    let ignore = false; // page band ho jaye to purana data set na ho
     async function load() {
       try {
+        // Promise.all = dono request ek saath bhejo (jaldi ho jata hai).
         const [docsRes, statsRes] = await Promise.all([
           api.get("/documents"),
           api.get("/quiz/analytics/overview"),
@@ -52,11 +56,13 @@ export default function Dashboard() {
       }
     }
     load();
+    // Cleanup: agar user is page se chala jaye to ignore true kar do.
     return () => {
       ignore = true;
     };
   }, []);
 
+  // filtered = sirf wahi documents jo search + filter se match karte hain.
   const filtered = docs.filter((doc) => {
     const q = search.toLowerCase().trim();
     const matchSearch =
@@ -64,7 +70,7 @@ export default function Dashboard() {
       doc.title?.toLowerCase().includes(q) ||
       doc.summary?.toLowerCase().includes(q);
     const matchType = filterType === "all" || doc.sourceType === filterType;
-    return matchSearch && matchType;
+    return matchSearch && matchType; // dono sahi to hi dikhao
   });
 
   return (

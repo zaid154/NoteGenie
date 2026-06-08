@@ -1,3 +1,4 @@
+// Profile page: user apna naam aur password change kar sakta hai.
 import { useState } from "react";
 import { api, apiError } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -7,21 +8,23 @@ import { Alert, Spinner } from "../components/ui.jsx";
 export default function Profile() {
   const { user, refreshUser } = useAuth();
   const { toast } = useToast();
+  // Do alag forms hain, isliye alag-alag state.
   const [name, setName] = useState(user?.name || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [savingName, setSavingName] = useState(false);
-  const [savingPass, setSavingPass] = useState(false);
+  const [savingName, setSavingName] = useState(false); // naam save ho raha hai?
+  const [savingPass, setSavingPass] = useState(false); // password save ho raha hai?
   const [nameError, setNameError] = useState("");
   const [passError, setPassError] = useState("");
 
+  // saveName: naya naam backend ko bhejo, fir user info refresh karo.
   async function saveName(e) {
     e.preventDefault();
     setSavingName(true);
     setNameError("");
     try {
       await api.put("/auth/profile", { name });
-      await refreshUser();
+      await refreshUser(); // sidebar/profile me naya naam dikhe isliye
       toast("Profile updated", "success");
     } catch (err) {
       setNameError(apiError(err));
@@ -30,6 +33,7 @@ export default function Profile() {
     }
   }
 
+  // savePassword: purana + naya password bhejo. Success par fields khaali kar do.
   async function savePassword(e) {
     e.preventDefault();
     setSavingPass(true);

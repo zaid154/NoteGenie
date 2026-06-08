@@ -1,3 +1,5 @@
+// Yeh file admin area ki saari request handle karti hai:
+// stats, users, documents, AI settings, usage log, etc.
 import { User } from "../models/User.js";
 import { Document } from "../models/Document.js";
 import { Quiz } from "../models/Quiz.js";
@@ -13,6 +15,7 @@ import {
   DEFAULT_PRICING,
 } from "../services/gemini.js";
 
+// API key ko screen pe dikhane ke liye beech ka hissa chhupa do (jaise abcd••••wxyz).
 function maskKey(key) {
   if (!key || key.length < 8) return key ? "••••••••" : "";
   return `${key.slice(0, 4)}••••${key.slice(-4)}`;

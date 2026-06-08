@@ -1,9 +1,11 @@
+// AdminSettings: yahan admin Gemini AI ki key, model aur uska rate manage karta hai.
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiError } from "../../api/client.js";
 import { Alert, Badge, Spinner } from "../../components/ui.jsx";
 import { IconSettings, IconSparkles, IconCoins, IconActivity } from "../../components/icons.jsx";
 
+// Agar koi pricing na mile to yeh default rate (per 1M tokens) use hota hai.
 const DEFAULT_RATE = { input: 0.3, output: 2.5 };
 
 // Backend ke jaisa hi lookup: exact match, phir substring, warna default.
@@ -29,15 +31,17 @@ export default function AdminSettings() {
   const [success, setSuccess] = useState("");
   const [testOk, setTestOk] = useState(null);
 
+  // Page khulte hi current settings (key masked, model, pricing) le aao.
   useEffect(() => {
     async function load() {
       try {
         const { data } = await api.get("/admin/settings");
-        setMasked(data.geminiApiKeyMasked);
+        setMasked(data.geminiApiKeyMasked); // key chhupi hui form me (jaise ****abcd)
         setHasKey(data.hasApiKey);
         setModel(data.geminiModel || "gemini-2.5-flash");
         setPricing(data.pricing || null);
         if (data.defaultPricing) setDefaultPricing(data.defaultPricing);
+        // Key set hai to available models bhi le aao.
         if (data.hasApiKey) {
           const m = await api.get("/admin/models");
           setModels(m.data.models);
@@ -62,6 +66,7 @@ export default function AdminSettings() {
     }
   }
 
+  // handleSave: model (aur agar di gayi ho to nayi key) backend pe save karo.
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
@@ -69,6 +74,7 @@ export default function AdminSettings() {
     setSuccess("");
     try {
       const body = { geminiModel: model };
+      // Key tabhi bhejo jab user ne kuch type kiya ho (warna purani key bani rahe).
       if (apiKey.trim()) body.geminiApiKey = apiKey.trim();
       const { data } = await api.put("/admin/settings", body);
       setSuccess("Settings saved.");
@@ -83,6 +89,7 @@ export default function AdminSettings() {
     }
   }
 
+  // handleTest: key sach me kaam kar rahi hai ya nahi, yeh check karta hai.
   async function handleTest() {
     setTesting(true);
     setError("");

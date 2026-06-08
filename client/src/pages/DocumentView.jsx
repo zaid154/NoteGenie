@@ -1,7 +1,9 @@
+// DocumentView: ek material ka page. Notes, flashcards aur AI tutor dikhata hai,
+// aur yahin se quiz bhi generate hota hai.
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import ReactMarkdown from "react-markdown"; // notes markdown ko HTML me dikhata hai
+import remarkGfm from "remark-gfm";          // markdown me tables, lists, etc. support
 import { api, apiError } from "../api/client.js";
 import { Alert, Badge, NoteSkeleton, Spinner } from "../components/ui.jsx";
 import Flashcards from "../components/Flashcards.jsx";
@@ -17,6 +19,7 @@ import {
   IconChat,
 } from "../components/icons.jsx";
 
+// Page ke teen tabs.
 const tabs = [
   { id: "notes", label: "Notes", icon: IconDoc },
   { id: "flashcards", label: "Flashcards", icon: IconCards },
@@ -24,19 +27,21 @@ const tabs = [
 ];
 
 export default function DocumentView() {
+  // URL me /document/:id hai, wahi id yahan milti hai.
   const { id } = useParams();
   const navigate = useNavigate();
-  const [doc, setDoc] = useState(null);
+  const [doc, setDoc] = useState(null);          // is document ka data
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState("notes");
-  const [difficulty, setDifficulty] = useState("medium");
-  const [questionCount, setQuestionCount] = useState(10);
+  const [tab, setTab] = useState("notes");        // abhi kaunsa tab khula hai
+  const [difficulty, setDifficulty] = useState("medium"); // quiz ka level
+  const [questionCount, setQuestionCount] = useState(10);  // kitne sawal
   const [makingQuiz, setMakingQuiz] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const confirm = useConfirm();
+  const confirm = useConfirm(); // "Are you sure?" popup ke liye
 
+  // Jab bhi id badle (alag document khule) to naya data load karo.
   useEffect(() => {
     let ignore = false;
     // Naye document par stale content flash na ho.
@@ -61,6 +66,7 @@ export default function DocumentView() {
     };
   }, [id]);
 
+  // generateQuiz: chosen difficulty/count ke saath quiz banao, fir quiz page pe jao.
   async function generateQuiz() {
     setMakingQuiz(true);
     setError("");
@@ -87,13 +93,14 @@ export default function DocumentView() {
     URL.revokeObjectURL(url);
   }
 
+  // handleRegenerate: pehle confirm poochho, fir notes/flashcards dobara banwao.
   async function handleRegenerate() {
     const ok = await confirm({
       title: "Regenerate content?",
       message: "This replaces the current notes and flashcards with freshly generated ones.",
       confirmText: "Regenerate",
     });
-    if (!ok) return;
+    if (!ok) return; // user ne Cancel kiya
     setRegenerating(true);
     setError("");
     try {
@@ -106,6 +113,7 @@ export default function DocumentView() {
     }
   }
 
+  // handleDelete: confirm ke baad document delete karo, fir dashboard pe jao.
   async function handleDelete() {
     if (deleting) return;
     const ok = await confirm({
@@ -296,7 +304,7 @@ export default function DocumentView() {
         ))}
       </div>
 
-      {/* Tab content */}
+      {/* Tab content: jo tab chuna hai sirf wahi dikhao */}
       <div>
         {tab === "notes" && (
           <div className="card p-6 prose-notes max-w-none animate-fade-up">

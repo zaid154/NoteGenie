@@ -1,3 +1,4 @@
+// Yeh file documents (PDF/link se bane notes) se judi saari request handle karti hai.
 import { Document } from "../models/Document.js";
 import { Quiz } from "../models/Quiz.js";
 import { QuizAttempt } from "../models/QuizAttempt.js";
@@ -13,6 +14,7 @@ import { extractTextFromUrl } from "../services/linkExtractor.js";
 // PDF se notes + flashcards banakar ek naya Document save karta hai.
 // POST /api/documents/upload
 export const uploadDocument = asyncHandler(async (req, res) => {
+  // File aayi hi nahi? (multer file ko req.file me daalta hai.)
   if (!req.file) {
     return res.status(400).json({ message: "Koi PDF file nahi mili" });
   }
@@ -23,6 +25,7 @@ export const uploadDocument = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "That file isn't a valid PDF." });
   }
 
+  // AI ko PDF bhejne layak banao, fir notes aur flashcards ek saath generate karo.
   const source = pdfPart(req.file.buffer);
   const userId = req.user._id;
   const [notesResult, flashcards] = await Promise.all([

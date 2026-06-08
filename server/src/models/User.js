@@ -1,5 +1,7 @@
+// User model = database me ek user ka dhaancha (naam, email, password, role).
+// Schema matlab "ek document me kaun-kaun se fields honge".
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs"; // password ko surakshit (hash) karne ke liye
 
 const userSchema = new mongoose.Schema(
   {
@@ -7,18 +9,19 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: true,
-      unique: true,
-      lowercase: true,
+      unique: true,    // do users ka same email nahi ho sakta
+      lowercase: true, // hamesha chhote letters me save (Abc@x.com = abc@x.com)
       trim: true,
     },
+    // Hum kabhi plain password save nahi karte — sirf uska hash rakhte hain.
     passwordHash: { type: String, required: true },
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user", "admin"], // sirf yeh do values allowed hain
       default: "user",
     },
   },
-  { timestamps: true }
+  { timestamps: true } // createdAt / updatedAt apne aap add ho jate hain
 );
 
 // Plain password ko hash me badalne ka helper.

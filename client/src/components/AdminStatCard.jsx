@@ -1,5 +1,7 @@
-// Reusable stat card for admin pages — icon + accent colour.
+// Ek chhota card jo admin pages pe ek number/stat dikhata hai (icon + color ke saath).
+// Example: "Total Users: 120"
 export default function AdminStatCard({ icon: Icon, label, value, sub, accent = "brand" }) {
+  // accent ke hisaab se card ka color chunte hain.
   const accents = {
     brand: "bg-brand-500/10 text-brand-600",
     amber: "bg-accent-500/15 text-accent-600",
@@ -23,12 +25,14 @@ export default function AdminStatCard({ icon: Icon, label, value, sub, accent = 
   );
 }
 
+// formatCost: dollar amount ko padhne layak banata hai (jaise 0.0034 -> "~$0.0034").
 export function formatCost(usd) {
   if (!usd || usd === 0) return "~$0.00";
   if (usd < 0.01) return `~$${usd.toFixed(4)}`;
   return `~$${usd.toFixed(2)}`;
 }
 
+// formatTokens: bade number ko chhota karta hai (1500 -> "1.5K", 2000000 -> "2.0M").
 export function formatTokens(n) {
   if (!n) return "0";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;

@@ -1,18 +1,22 @@
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+// Yeh server ka entry point hai. Express app banata hai, security/rate-limit lagata hai,
+// saare routes jodta hai, DB se connect karta hai aur server chalu karta hai.
+import express from "express";        // web server banane ki library
+import cors from "cors";              // frontend (alag origin) se request allow karne ke liye
+import helmet from "helmet";          // security headers
+import rateLimit from "express-rate-limit"; // ek IP se zyada request rokne ke liye
 
 import { env, validateEnv } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
+// Har feature ke routes (URL groups).
 import authRoutes from "./routes/auth.js";
 import documentRoutes from "./routes/documents.js";
 import quizRoutes from "./routes/quiz.js";
 import tutorRoutes from "./routes/tutor.js";
 import adminRoutes from "./routes/admin.js";
 
+// Start hote hi check karo ki zaroori .env values set hain.
 validateEnv();
 
 const app = express();
@@ -65,17 +69,21 @@ const aiLimiter = rateLimit({
   message: { message: "You're generating a lot right now. Please wait a moment and try again." },
 });
 
+// Simple check route: server zinda hai ya nahi dekhne ke liye.
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
+// Har URL group ko uske routes file se jodte hain (aur upar wale limiters lagate hain).
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/documents", aiLimiter, documentRoutes);
 app.use("/api/quiz", aiLimiter, quizRoutes);
 app.use("/api/tutor", aiLimiter, tutorRoutes);
 app.use("/api/admin", adminRoutes);
 
-app.use(notFound);
-app.use(errorHandler);
+// Inhe sabse last me lagana zaroori hai:
+app.use(notFound);      // koi route match na ho to 404
+app.use(errorHandler);  // kahin bhi error aaye to use yahan handle karte hain
 
+// start: pehle DB connect, fir server ko port pe sunne lagao.
 async function start() {
   await connectDB();
 

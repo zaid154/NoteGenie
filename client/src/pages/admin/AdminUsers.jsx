@@ -1,3 +1,4 @@
+// AdminUsers: saare users ki table. Admin yahan se user delete kar sakta hai.
 import { useEffect, useState } from "react";
 import { api, apiError } from "../../api/client.js";
 import { Alert, Badge, Spinner } from "../../components/ui.jsx";
@@ -8,9 +9,10 @@ export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [deleting, setDeleting] = useState(null);
+  const [deleting, setDeleting] = useState(null); // kis user ki id abhi delete ho rahi hai
   const confirm = useConfirm();
 
+  // load: backend se users ki list le aao.
   async function load() {
     setError("");
     try {
@@ -23,10 +25,12 @@ export default function AdminUsers() {
     }
   }
 
+  // Page khulte hi ek baar load karo.
   useEffect(() => {
     load();
   }, []);
 
+  // remove: confirm ke baad ek user delete karo aur list me se bhi hata do.
   async function remove(id) {
     const ok = await confirm({
       title: "Delete this user?",
@@ -38,6 +42,7 @@ export default function AdminUsers() {
     setDeleting(id);
     try {
       await api.delete(`/admin/users/${id}`);
+      // List me se us user ko hata do (dobara load kiye bina).
       setUsers((u) => u.filter((x) => x.id !== id));
     } catch (e) {
       setError(apiError(e));

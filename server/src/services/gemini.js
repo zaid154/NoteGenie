@@ -1,8 +1,11 @@
+// Yeh file Google Gemini AI se baat karti hai.
+// Notes, quiz, flashcards aur tutor chat — sab yahan se generate hota hai.
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { env } from "../config/env.js";
 import { getAppSettings } from "../models/Settings.js";
 import { ApiUsage } from "../models/ApiUsage.js";
 
+// Agar API key set nahi hai to yeh message user ko dikhega.
 const AI_NOT_CONFIGURED =
   "AI is not configured. Ask an admin to set the Gemini API key in Admin Settings.";
 

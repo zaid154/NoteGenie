@@ -1,3 +1,4 @@
+// Admin routes: /api/admin/... — sirf admin role wale user ke liye.
 import { Router } from "express";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import {
@@ -16,6 +17,7 @@ import {
 
 const router = Router();
 
+// Pehle login check, phir admin role check — dono pass hone chahiye.
 router.use(requireAuth, requireAdmin);
 
 router.get("/stats", getStats);

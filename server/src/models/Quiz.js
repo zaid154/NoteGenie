@@ -1,13 +1,15 @@
+// Quiz model = ek document se bana hua MCQ quiz (sawal + options).
 import mongoose from "mongoose";
 
+// Ek single sawal ka dhaancha.
 const questionSchema = new mongoose.Schema(
   {
     question: { type: String, required: true },
-    options: { type: [String], required: true },
-    correctIndex: { type: Number, required: true },
-    explanation: { type: String, default: "" },
+    options: { type: [String], required: true }, // options ki list (strings)
+    correctIndex: { type: Number, required: true }, // sahi option ka number (0 se shuru)
+    explanation: { type: String, default: "" },      // jawab kyon sahi hai
   },
-  { _id: false }
+  { _id: false } // har sawal ko alag id ki zaroorat nahi
 );
 
 const quizSchema = new mongoose.Schema(

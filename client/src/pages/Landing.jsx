@@ -1,7 +1,9 @@
+// Landing page: pehla page jo logged-out user ko dikhta hai (app ka intro).
 import { Link } from "react-router-dom";
 import Logo from "../components/Logo.jsx";
 import { IconUpload, IconCards, IconChat, IconChart } from "../components/icons.jsx";
 
+// Neeche cards me dikhne wale features ki list. (text + icon)
 const features = [
   {
     icon: IconUpload,

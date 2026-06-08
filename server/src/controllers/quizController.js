@@ -1,3 +1,4 @@
+// Yeh file quiz banane, dikhane, submit karne aur analytics ki request handle karti hai.
 import { Document } from "../models/Document.js";
 import { Quiz } from "../models/Quiz.js";
 import { QuizAttempt } from "../models/QuizAttempt.js";
@@ -74,6 +75,7 @@ export const submitQuiz = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Please answer every question before submitting." });
   }
 
+  // Har sawal ke liye dekho user ka jawab sahi hai ya nahi, aur score badhao.
   let score = 0;
   const review = quiz.questions.map((q, i) => {
     // Out-of-range / non-number index ko -1 (galat) maan lete hain.

@@ -1,3 +1,4 @@
+// AdminUsage: AI ka istemal (calls, tokens, cost) feature aur user ke hisaab se dikhata hai.
 import { useEffect, useState } from "react";
 import { api, apiError } from "../../api/client.js";
 import { Alert, PageLoader, EmptyState, Spinner } from "../../components/ui.jsx";
@@ -37,6 +38,7 @@ export default function AdminUsage() {
   const [resetting, setResetting] = useState(false);
   const confirm = useConfirm();
 
+  // load: backend se usage ka pura data le aao.
   async function load() {
     try {
       const { data } = await api.get("/admin/usage");
@@ -52,6 +54,7 @@ export default function AdminUsage() {
     load();
   }, []);
 
+  // handleReset: app ka apna usage record saaf karta hai (Google billing par asar nahi).
   async function handleReset() {
     const ok = await confirm({
       title: "Reset usage log?",

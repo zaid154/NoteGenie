@@ -1,6 +1,9 @@
+// AdminLayout = admin area ka upar wala heading + tabs.
+// Outlet ke through andar ka admin page (Overview, Users, etc.) dikhta hai.
 import { NavLink, Outlet } from "react-router-dom";
 import { IconChart, IconUsers, IconSettings, IconDoc, IconActivity } from "./icons.jsx";
 
+// Admin ke top tabs ki list.
 const tabs = [
   { to: "/admin", label: "Overview", icon: IconChart, end: true },
   { to: "/admin/usage", label: "Usage", icon: IconActivity },
@@ -39,6 +42,7 @@ export default function AdminLayout() {
         ))}
       </div>
 
+      {/* Yahan andar wala chuna hua admin page dikhega */}
       <Outlet />
     </div>
   );

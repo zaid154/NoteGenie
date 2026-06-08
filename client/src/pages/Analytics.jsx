@@ -1,9 +1,11 @@
+// Analytics page: user ki quiz performance aur recent attempts dikhata hai.
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiError } from "../api/client.js";
 import { Alert, EmptyState, PageLoader, Badge } from "../components/ui.jsx";
 import { IconChart, IconPlus, IconCards, IconSparkles } from "../components/icons.jsx";
 
+// Ek number dikhane wala chhota card.
 function Stat({ icon: Icon, label, value, hint }) {
   return (
     <div className="card flex items-start gap-4 p-5">
@@ -20,10 +22,11 @@ function Stat({ icon: Icon, label, value, hint }) {
 }
 
 export default function Analytics() {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(null);   // backend se aaya analytics data
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Page khulte hi backend se analytics mangwao.
   useEffect(() => {
     let ignore = false;
     async function load() {
@@ -42,7 +45,9 @@ export default function Analytics() {
     };
   }, []);
 
+  // Jab tak data aa raha hai, loader dikhao.
   if (loading) return <PageLoader />;
+  // Data hi nahi mila to error dikhao.
   if (!data) return <Alert>{error || "Could not load analytics."}</Alert>;
 
   return (

@@ -1,3 +1,4 @@
+// AdminContent: platform ke saare documents ki list. Admin yahan se delete kar sakta hai.
 import { useEffect, useState } from "react";
 import { api, apiError } from "../../api/client.js";
 import { Alert, Badge, Spinner } from "../../components/ui.jsx";
@@ -8,9 +9,10 @@ export default function AdminContent() {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [deleting, setDeleting] = useState(null);
+  const [deleting, setDeleting] = useState(null); // kis document ki id delete ho rahi hai
   const confirm = useConfirm();
 
+  // Page khulte hi saare documents le aao.
   useEffect(() => {
     api
       .get("/admin/documents")
@@ -19,6 +21,7 @@ export default function AdminContent() {
       .finally(() => setLoading(false));
   }, []);
 
+  // remove: confirm ke baad document delete karo aur list se hata do.
   async function remove(id) {
     const ok = await confirm({
       title: "Delete this material?",

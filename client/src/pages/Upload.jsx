@@ -1,3 +1,4 @@
+// Upload page: PDF file ya link daal kar AI se notes banwane ke liye.
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, apiError } from "../api/client.js";
@@ -6,16 +7,18 @@ import { IconUpload, IconLink, IconDoc, IconSparkles } from "../components/icons
 
 export default function Upload() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState("pdf");
-  const [file, setFile] = useState(null);
-  const [url, setUrl] = useState("");
-  const [dragOver, setDragOver] = useState(false);
+  const [tab, setTab] = useState("pdf");      // abhi kaunsa tab khula hai: "pdf" ya "link"
+  const [file, setFile] = useState(null);      // chuni hui PDF file
+  const [url, setUrl] = useState("");           // daala gaya link
+  const [dragOver, setDragOver] = useState(false); // file drag karte waqt highlight ke liye
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const fileInput = useRef(null);
+  const fileInput = useRef(null);               // hidden <input type=file> ko click karne ke liye
 
+  // PDF ki max size = 15 MB (bytes me).
   const MAX_BYTES = 15 * 1024 * 1024;
 
+  // pickFile: file chunne par check karo ki PDF hai aur 15MB se chhoti hai.
   function pickFile(f) {
     if (!f) return;
     const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
@@ -31,6 +34,7 @@ export default function Upload() {
     setFile(f);
   }
 
+  // handleSubmit: file/link backend ko bhejo aur naye document page pe le jao.
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -38,14 +42,17 @@ export default function Upload() {
     try {
       let res;
       if (tab === "pdf") {
+        // PDF bhejne ke liye FormData chahiye (file ke saath aise hi bhejte hain).
         if (!file) throw new Error("Please choose a PDF first.");
         const formData = new FormData();
         formData.append("file", file);
         res = await api.post("/documents/upload", formData);
       } else {
+        // Link wala case.
         if (!url.trim()) throw new Error("Please enter a URL.");
         res = await api.post("/documents/link", { url: url.trim() });
       }
+      // Ban gaya -> us document ke page pe bhej do.
       navigate(`/document/${res.data.document._id}`);
     } catch (err) {
       setError(apiError(err));

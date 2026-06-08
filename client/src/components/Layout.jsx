@@ -1,3 +1,5 @@
+// Layout = har logged-in page ke around ka dhaancha (sidebar + main area).
+// "children" matlab jo bhi page andar dikhana hai.
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -16,6 +18,7 @@ import {
   IconUsers,
 } from "./icons.jsx";
 
+// Sidebar me dikhne wale menu links ki list. Naya link chahiye to yahan add karo.
 const navItems = [
   { to: "/app", label: "Dashboard", icon: IconHome, end: true },
   { to: "/upload", label: "New Material", icon: IconUpload },
@@ -27,19 +30,23 @@ export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  // mobileOpen = mobile pe side menu (drawer) khula hai ya nahi.
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Logout dabane par: session saaf karo aur login page pe le jao.
   function handleLogout() {
     logout();
     navigate("/login");
   }
 
+  // sidebar ek baar bana lete hain aur desktop + mobile dono jagah use karte hain.
   const sidebar = (
     <div className="flex h-full flex-col gap-1 p-4">
       <div className="mb-6 px-2 pt-2">
         <Logo />
       </div>
 
+      {/* Menu links: navItems list pe ghoom kar har link banate hain */}
       <nav className="flex flex-col gap-1">
         {navItems.map(({ to, label, icon: Icon, end }) => (
           <NavLink
@@ -59,6 +66,7 @@ export default function Layout({ children }) {
             {label}
           </NavLink>
         ))}
+        {/* Admin link sirf admin ko dikhega */}
         {user?.role === "admin" && (
           <NavLink
             to="/admin"
@@ -77,6 +85,7 @@ export default function Layout({ children }) {
         )}
       </nav>
 
+      {/* mt-auto isko neeche dhakel deta hai: theme button + user info */}
       <div className="mt-auto space-y-2">
         <button onClick={toggleTheme} className="btn-ghost w-full justify-start gap-3">
           {theme === "dark" ? <IconSun /> : <IconMoon />}
@@ -84,6 +93,7 @@ export default function Layout({ children }) {
         </button>
 
         <div className="flex items-center gap-3 rounded-xl border border-line p-3">
+          {/* User ke naam ka pehla letter ek circle me dikhate hain */}
           <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-600 text-white">
             {user?.name?.[0]?.toUpperCase() || "U"}
           </span>

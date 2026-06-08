@@ -1,3 +1,4 @@
+// Yeh file MongoDB database se connect karti hai (mongoose ke through).
 import mongoose from "mongoose";
 import { env } from "./env.js";
 

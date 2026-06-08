@@ -1,4 +1,6 @@
-import jwt from "jsonwebtoken";
+// Yeh file login se judi cheezein sambhalti hai: token banana aur routes ko protect karna.
+// "middleware" = ek function jo request aur final code ke beech me chalta hai (jaise guard).
+import jwt from "jsonwebtoken"; // login token (JWT) banane/check karne ke liye
 import { env } from "../config/env.js";
 import { User } from "../models/User.js";
 

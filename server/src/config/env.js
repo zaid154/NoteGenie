@@ -1,3 +1,5 @@
+// Yeh file .env ki saari values ek jagah load karti hai aur check karti hai
+// ki zaroori cheezein (DB, JWT secret, etc.) maujood hain.
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";

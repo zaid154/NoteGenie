@@ -1,3 +1,4 @@
+// Yeh file ek URL se text nikaalti hai — YouTube transcript ya web page ka content.
 import dns from "dns/promises";
 import net from "net";
 import { YoutubeTranscript } from "youtube-transcript";

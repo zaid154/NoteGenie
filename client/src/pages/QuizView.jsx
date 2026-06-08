@@ -1,17 +1,20 @@
+// QuizView: quiz solve karne ka page. Sawal dikhata hai, answer leta hai,
+// submit par score aur sahi/galat dikhata hai.
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api, apiError } from "../api/client.js";
 import { Alert, Spinner, PageLoader, Badge } from "../components/ui.jsx";
 import { IconCheck, IconX, IconArrowLeft, IconChart } from "../components/icons.jsx";
 
+// Difficulty ke hisaab se badge ka color.
 const DIFFICULTY_COLOR = { easy: "green", medium: "brand", hard: "amber" };
 
 export default function QuizView() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [quiz, setQuiz] = useState(null);
-  const [answers, setAnswers] = useState([]);
-  const [result, setResult] = useState(null);
+  const [quiz, setQuiz] = useState(null);     // quiz ke sawal
+  const [answers, setAnswers] = useState([]); // har sawal ka chosen option (-1 = abhi nahi)
+  const [result, setResult] = useState(null); // submit ke baad ka result
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -31,6 +34,7 @@ export default function QuizView() {
         const { data } = await api.get(`/quiz/${id}`);
         if (ignore) return;
         setQuiz(data.quiz);
+        // Har sawal ke liye -1 (matlab abhi koi option nahi chuna).
         setAnswers(new Array(data.quiz.questions.length).fill(-1));
       } catch (err) {
         if (!ignore) setError(apiError(err));
@@ -44,6 +48,7 @@ export default function QuizView() {
     };
   }, [id]);
 
+  // choose: ek sawal (qIndex) ke liye option (optIndex) select karo.
   function choose(qIndex, optIndex) {
     if (result) return; // submit ke baad change na ho
     setAnswers((a) => {
@@ -53,7 +58,9 @@ export default function QuizView() {
     });
   }
 
+  // submit: saare answers backend ko bhejo aur result lo.
   async function submit() {
+    // Pehle check: koi sawal khaali (-1) to nahi hai?
     if (answers.includes(-1)) {
       setError("Please answer all questions before submitting.");
       return;
@@ -63,7 +70,7 @@ export default function QuizView() {
     try {
       const { data } = await api.post(`/quiz/${id}/submit`, { answers });
       setResult(data);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: "smooth" }); // result dekhne ke liye upar scroll
     } catch (err) {
       setError(apiError(err));
     } finally {
@@ -74,8 +81,9 @@ export default function QuizView() {
   if (loading) return <PageLoader />;
   if (error && !quiz) return <Alert>{error}</Alert>;
 
+  // Result aur progress ke chhote hisaab (calculations).
   const percent = result ? Math.round((result.score / result.total) * 100) : 0;
-  const answered = answers.filter((a) => a !== -1).length;
+  const answered = answers.filter((a) => a !== -1).length; // kitne sawal ho gaye
   const total = quiz.questions.length;
   const progress = total ? Math.round((answered / total) * 100) : 0;
 

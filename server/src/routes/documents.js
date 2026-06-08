@@ -1,3 +1,4 @@
+// Document routes: /api/documents/... — PDF upload, link, list, delete, etc.
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { uploadPdf } from "../middleware/upload.js";

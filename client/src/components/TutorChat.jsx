@@ -1,16 +1,18 @@
+// TutorChat = AI tutor se chat karne wala box. Ek document ke baare me sawal poochho.
+// Khaas baat: jawab "streaming" me aata hai (thoda-thoda kar ke, jaise typing).
 import { useState, useRef, useEffect } from "react";
 import { api, apiUrl, getToken, apiError } from "../api/client.js";
 import { IconSend, IconChat } from "./icons.jsx";
 import { Spinner } from "./ui.jsx";
 
 export default function TutorChat({ documentId }) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [streaming, setStreaming] = useState(false);
-  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [messages, setMessages] = useState([]);   // poori chat (user + AI ke messages)
+  const [input, setInput] = useState("");          // text box me likha hua sawal
+  const [streaming, setStreaming] = useState(false); // AI abhi jawab de raha hai?
+  const [loadingHistory, setLoadingHistory] = useState(true); // purani chat load ho rahi hai?
   const [historyError, setHistoryError] = useState("");
-  const scrollRef = useRef(null);
-  const abortRef = useRef(null);
+  const scrollRef = useRef(null);   // chat ko apne aap neeche scroll karne ke liye
+  const abortRef = useRef(null);    // chalu request ko beech me rokne ke liye
 
   useEffect(() => {
     let ignore = false;
@@ -41,14 +43,16 @@ export default function TutorChat({ documentId }) {
     };
   }, [documentId]);
 
+  // Jab bhi naya message aaye, chat ko sabse neeche scroll kar do.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
+  // send: user ka sawal backend ko bhejo aur jawab thoda-thoda dikhate jao.
   async function send(e) {
-    e.preventDefault();
+    e.preventDefault(); // form submit par page reload na ho
     const question = input.trim();
-    if (!question || streaming) return;
+    if (!question || streaming) return; // khaali sawal ya pehle se chal raha hai to ruk jao
 
     setMessages((m) => [...m, { role: "user", content: question }, { role: "assistant", content: "" }]);
     setInput("");

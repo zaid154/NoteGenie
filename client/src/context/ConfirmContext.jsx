@@ -1,14 +1,18 @@
+// Yeh file ek "Are you sure?" wala popup banati hai (delete karne se pehle, etc.).
+// Khaas baat: yeh Promise deta hai, isliye hum aise likh sakte hain:
+//   const ok = await confirm({ title, message, confirmText, danger });
+//   if (!ok) return;   // user ne Cancel dabaya
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 const ConfirmContext = createContext(null);
 
-// Promise-based confirm dialog so callers can do:
-//   const ok = await confirm({ title, message, confirmText, danger });
-//   if (!ok) return;
 export function ConfirmProvider({ children }) {
+  // state = abhi dikhne wale dialog ki details (null matlab koi dialog nahi).
   const [state, setState] = useState(null);
+  // resolverRef = Promise ko baad me "answer" dene ke liye yaad rakhte hain.
   const resolverRef = useRef(null);
 
+  // confirm: dialog kholo aur ek Promise lautao jo user ke jawab ka wait karega.
   const confirm = useCallback((options = {}) => {
     // Agar koi pichla dialog abhi tak resolve nahi hua, use false de kar band karo.
     if (resolverRef.current) {
@@ -22,11 +26,13 @@ export function ConfirmProvider({ children }) {
       cancelText: options.cancelText || "Cancel",
       danger: options.danger ?? false,
     });
+    // Promise tab tak "ruka" rahega jab tak close() call nahi hota.
     return new Promise((resolve) => {
       resolverRef.current = resolve;
     });
   }, []);
 
+  // close: dialog band karo aur Promise ko jawab do (true = confirm, false = cancel).
   const close = useCallback((result) => {
     setState(null);
     if (resolverRef.current) {
@@ -116,6 +122,7 @@ export function ConfirmProvider({ children }) {
   );
 }
 
+// useConfirm: kahin bhi "const confirm = useConfirm()" likho, fir await confirm({...}).
 export function useConfirm() {
   const ctx = useContext(ConfirmContext);
   if (!ctx) throw new Error("useConfirm must be used within ConfirmProvider");
