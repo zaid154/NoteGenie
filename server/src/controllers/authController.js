@@ -65,13 +65,47 @@ export const me = asyncHandler(async (req, res) => {
   res.json({ user: req.user.toSafeObject() });
 });
 
-// PUT /api/auth/profile  body: { name }
+// PUT /api/auth/profile  body: { name?, bio?, avatar? }
+// Sirf wahi fields update hote hain jo body me bheje gaye (partial update).
+const MAX_BIO = 280;
+const MAX_AVATAR_CHARS = 700_000; // ~512KB base64 (1mb JSON limit ke andar)
+
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name } = req.body;
-  if (!name?.trim()) {
-    return res.status(400).json({ message: "Name is required" });
+  const { name, bio, avatar } = req.body;
+
+  if (name !== undefined) {
+    if (!name?.trim()) {
+      return res.status(400).json({ message: "Name is required" });
+    }
+    if (name.trim().length > 80) {
+      return res.status(400).json({ message: "Name is too long" });
+    }
+    req.user.name = name.trim();
   }
-  req.user.name = name.trim();
+
+  if (bio !== undefined) {
+    if (typeof bio !== "string") {
+      return res.status(400).json({ message: "Invalid bio" });
+    }
+    if (bio.length > MAX_BIO) {
+      return res.status(400).json({ message: `Bio must be ${MAX_BIO} characters or less` });
+    }
+    req.user.bio = bio.trim();
+  }
+
+  if (avatar !== undefined) {
+    // "" = photo hatao. Warna ek chhota image data URL hi accept karte hain.
+    if (avatar !== "") {
+      if (typeof avatar !== "string" || !/^data:image\/(png|jpe?g|webp);base64,/.test(avatar)) {
+        return res.status(400).json({ message: "Invalid image" });
+      }
+      if (avatar.length > MAX_AVATAR_CHARS) {
+        return res.status(400).json({ message: "Image is too large. Please pick a smaller one." });
+      }
+    }
+    req.user.avatar = avatar;
+  }
+
   await req.user.save();
   res.json({ user: req.user.toSafeObject() });
 });

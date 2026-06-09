@@ -1,0 +1,25 @@
+# Render Blueprint — dashboard se bhi same settings daal sakte ho.
+# Secrets (MONGO_URI, JWT_SECRET, GEMINI_API_KEY) Render dashboard me set karo, yahan mat likho.
+services:
+  - type: web
+    name: notegenie-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_URL
+        value: https://notegenie-d5199.web.app
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

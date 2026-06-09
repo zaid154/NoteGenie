@@ -70,3 +70,71 @@ export function Badge({ children, color = "brand" }) {
   };
   return <span className={`badge ${styles[color]}`}>{children}</span>;
 }
+
+// Editorial page header: chhota uppercase eyebrow + serif title (optional italic
+// accent) + subtitle, neeche ek hairline. Saare app pages ka ek jaisa top.
+export function PageHeader({ eyebrow, title, accent, subtitle, action }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-b border-line pb-6">
+      <div className="min-w-0">
+        {eyebrow && (
+          <p className="mb-2.5 text-xs font-600 uppercase tracking-[0.2em] text-accent-600">
+            {eyebrow}
+          </p>
+        )}
+        <h1 className="font-display text-3xl font-600 leading-[1.1] text-ink">
+          {title}
+          {accent && (
+            <>
+              {" "}
+              <em className="font-700 not-italic text-brand-600">{accent}</em>
+            </>
+          )}
+        </h1>
+        {subtitle && <p className="mt-2.5 max-w-xl leading-relaxed text-muted">{subtitle}</p>}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
+
+// Editorial stats row: hairline-separated cells, bade serif numbers.
+// items = [{ label, value, hint }]. cols = 2 | 3 | 4.
+const STAT_COLS = {
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "sm:grid-cols-4",
+};
+export function Stats({ items, cols = items.length }) {
+  return (
+    <dl
+      className={`grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line ${
+        STAT_COLS[cols] || "sm:grid-cols-3"
+      }`}
+    >
+      {items.map((it, i) => (
+        <div key={i} className="bg-surface px-5 py-5">
+          <dt className="text-[11px] font-600 uppercase tracking-[0.14em] text-muted">
+            {it.label}
+          </dt>
+          <dd className="mt-2 font-display text-3xl font-600 leading-none text-ink">
+            {it.value}
+          </dd>
+          {it.hint && <dd className="mt-1.5 text-xs text-muted">{it.hint}</dd>}
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+// Section heading editorial style — chhota label + optional right-side action.
+export function SectionTitle({ children, action }) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-xs font-600 uppercase tracking-[0.16em] text-muted">
+        {children}
+      </h2>
+      {action}
+    </div>
+  );
+}

@@ -15,6 +15,11 @@ const userSchema = new mongoose.Schema(
     },
     // Hum kabhi plain password save nahi karte — sirf uska hash rakhte hain.
     passwordHash: { type: String, required: true },
+    // Chhota intro/tagline jo user apne profile pe likh sakta hai.
+    bio: { type: String, default: "", trim: true, maxlength: 280 },
+    // Profile photo ek chhote (resized) data URL ke roop me store hota hai.
+    // File storage ki zaroorat nahi padti (free hosting ke liye ideal).
+    avatar: { type: String, default: "" },
     role: {
       type: String,
       enum: ["user", "admin"], // sirf yeh do values allowed hain
@@ -36,7 +41,15 @@ userSchema.methods.comparePassword = function (password) {
 
 // API response me kabhi passwordHash na jaye.
 userSchema.methods.toSafeObject = function () {
-  return { id: this._id, name: this.name, email: this.email, role: this.role };
+  return {
+    id: this._id,
+    name: this.name,
+    email: this.email,
+    role: this.role,
+    bio: this.bio || "",
+    avatar: this.avatar || "",
+    createdAt: this.createdAt,
+  };
 };
 
 export const User = mongoose.model("User", userSchema);

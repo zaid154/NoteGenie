@@ -5,19 +5,19 @@
 /* Theme tokens. Light + dark dono yahan define hote hain. */
 @layer base {
   :root {
-    --canvas: 247 248 251; /* page background */
-    --surface: 255 255 255; /* cards */
-    --line: 229 231 239; /* borders */
-    --ink: 17 24 39; /* main text */
-    --muted: 100 108 128; /* secondary text */
+    --canvas: 247 249 252; /* bright, slightly cool page background */
+    --surface: 255 255 255; /* pure white cards */
+    --line: 226 232 240; /* cool slate borders */
+    --ink: 15 23 42; /* slate-900 text */
+    --muted: 100 116 139; /* slate-500 secondary text */
   }
 
   .dark {
-    --canvas: 13 16 25;
-    --surface: 22 27 39;
-    --line: 39 45 61;
-    --ink: 233 237 245;
-    --muted: 148 158 178;
+    --canvas: 15 23 42; /* slate-900 */
+    --surface: 23 32 53;
+    --line: 40 51 74;
+    --ink: 226 232 240;
+    --muted: 148 163 184;
   }
 
   * {
@@ -74,31 +74,33 @@
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
   }
+  /* Flat, no floating shadows — zyada deliberate/editorial feel */
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm hover:shadow-lift active:scale-[0.98];
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800;
   }
   .btn-ghost {
     @apply btn bg-transparent text-ink hover:bg-ink/5;
   }
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow-lift active:scale-[0.98];
+    @apply btn bg-red-700 text-white hover:bg-red-800;
   }
   .btn-outline {
-    @apply btn border border-line bg-surface text-ink hover:border-brand-400 hover:text-brand-600;
+    @apply btn border border-ink/15 bg-transparent text-ink hover:bg-ink/5;
   }
+  /* Cards: hairline border + ek halki shadow (white pe clean depth) */
   .card {
-    @apply rounded-2xl border border-line bg-surface shadow-card;
+    @apply rounded-lg border border-line bg-surface shadow-card;
   }
   .input {
-    @apply w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10;
+    @apply w-full rounded-lg border border-ink/15 bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500;
   }
   .label {
     @apply block text-sm font-medium text-ink mb-1.5;
   }
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium;
   }
   /* Loading skeleton ke liye shimmer effect. */
   .skeleton {

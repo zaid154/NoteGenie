@@ -1,5 +1,7 @@
 import Logo from "./Logo.jsx";
 import { IconUpload, IconCards, IconChat, IconChart } from "./icons.jsx";
+import { SocialLinks } from "./Credit.jsx";
+import { developer } from "../config/developer.js";
 
 const features = [
   { icon: IconUpload, text: "Instant AI notes from a PDF or link" },
@@ -13,56 +15,43 @@ const features = [
 export default function AuthShell({ children }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Branding side */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-brand-700 p-12 text-white lg:flex">
-        {/* Subtle dot-grid texture instead of generic blur blobs */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.15]"
-          style={{
-            backgroundImage:
-              "radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "22px 22px",
-          }}
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-accent-500/20 blur-3xl"
-          aria-hidden
-        />
-        <div className="relative">
+      {/* Branding side — flat dark-green panel, editorial type, koi blur/gradient nahi */}
+      <div className="relative hidden flex-col justify-between bg-brand-800 p-12 text-white lg:flex">
+        <div className="flex items-center gap-3">
           <Logo />
         </div>
-        <div className="relative max-w-md">
-          <h1 className="font-display text-3xl font-700 leading-tight">
-            Study smarter, with AI.
-          </h1>
-          <p className="mt-3 text-brand-100">
-            Turn your PDFs and videos into notes, quizzes, and flashcards in
-            seconds.
+
+        <div className="max-w-md">
+          {/* Bada serif quote — hero ke jagah ek statement */}
+          <p className="text-xs font-600 uppercase tracking-[0.2em] text-accent-400">
+            Study smarter
           </p>
-          <ul className="mt-8 space-y-3">
+          <h1 className="mt-5 font-display text-4xl font-600 leading-[1.15]">
+            Your readings,{" "}
+            <span className="italic text-accent-400">rewritten</span> as notes,
+            quizzes &amp; flashcards.
+          </h1>
+
+          {/* Features ek clean divided list me */}
+          <ul className="mt-10 divide-y divide-white/10 border-y border-white/10">
             {features.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex items-center gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/10">
-                  <Icon />
-                </span>
-                <span className="text-sm text-brand-50">{text}</span>
+              <li key={text} className="flex items-center gap-3 py-3">
+                <Icon width={18} height={18} className="shrink-0 text-accent-400" />
+                <span className="text-sm text-white/85">{text}</span>
               </li>
             ))}
           </ul>
-
-          {/* Small testimonial card adds a human, product-like touch */}
-          <figure className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-            <blockquote className="text-sm text-brand-50">
-              "I uploaded my chapter PDF and had notes and a quiz ready before my
-              chai went cold."
-            </blockquote>
-            <figcaption className="mt-2 text-xs text-brand-200">
-              — A happy student
-            </figcaption>
-          </figure>
         </div>
-        <p className="relative text-xs text-brand-200">Powered by Google Gemini</p>
+
+        <div className="flex items-center justify-between gap-4">
+          <div className="text-xs text-white/50">
+            <p className="text-white/70">
+              Built by <span className="font-600 text-white/90">{developer.name}</span>
+            </p>
+            <p className="mt-0.5">{developer.role}</p>
+          </div>
+          <SocialLinks variant="light" size={16} />
+        </div>
       </div>
 
       {/* Form side */}

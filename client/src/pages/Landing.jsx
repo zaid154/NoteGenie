@@ -2,38 +2,43 @@
 import { Link } from "react-router-dom";
 import Logo from "../components/Logo.jsx";
 import { IconUpload, IconCards, IconChat, IconChart } from "../components/icons.jsx";
+import { SocialLinks } from "../components/Credit.jsx";
+import { developer } from "../config/developer.js";
 
-// Neeche cards me dikhne wale features ki list. (text + icon)
+// Neeche numbered steps me dikhne wale features ki list.
 const features = [
   {
     icon: IconUpload,
-    title: "PDF or link in",
-    desc: "Upload a PDF or paste a YouTube or article URL.",
+    title: "Drop it in",
+    desc: "Upload a PDF or paste a YouTube or article link.",
   },
   {
     icon: IconCards,
     title: "Notes & quizzes",
-    desc: "AI builds structured notes, flashcards, and MCQ quizzes.",
+    desc: "Structured notes, flashcards, and MCQ quizzes, built for you.",
   },
   {
     icon: IconChat,
-    title: "AI tutor",
-    desc: "Ask questions about your material with streaming answers.",
+    title: "Ask the tutor",
+    desc: "Chat about your material and get answers as they stream in.",
   },
   {
     icon: IconChart,
     title: "Track progress",
-    desc: "See quiz scores and improve over time.",
+    desc: "Watch your quiz scores climb over time.",
   },
 ];
 
 export default function Landing() {
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="border-b border-line bg-surface/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 lg:px-8">
+      {/* Patli accent line upar — chhota sa designed touch */}
+      <div className="h-1 w-full bg-brand-600" />
+
+      <header className="border-b border-line">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5 lg:px-8">
           <Logo />
-          <div className="flex gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
             <Link to="/login" className="btn-ghost">
               Log in
             </Link>
@@ -44,40 +49,72 @@ export default function Landing() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-16 lg:px-8 lg:py-24">
-        <div className="max-w-2xl">
-          <h1 className="font-display text-4xl font-700 leading-tight text-ink lg:text-5xl">
-            Turn any material into a study kit in seconds.
-          </h1>
-          <p className="mt-4 text-lg text-muted">
-            NoteGenie uses Google Gemini to generate notes, flashcards, quizzes,
-            and an AI tutor from your PDFs and links.
+      <main className="mx-auto max-w-5xl px-5 lg:px-8">
+        {/* Hero */}
+        <section className="border-b border-line py-20 lg:py-28">
+          <p className="mb-5 text-xs font-600 uppercase tracking-[0.2em] text-accent-600">
+            AI study assistant
           </p>
-          <div className="mt-8 flex flex-wrap gap-4">
+          <h1 className="max-w-3xl font-display text-4xl font-600 leading-[1.1] text-ink sm:text-5xl lg:text-6xl">
+            Turn any reading into a{" "}
+            <em className="font-700 not-italic text-brand-600">study kit</em>{" "}
+            <span className="italic">in seconds.</span>
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
+            Notes, flashcards, quizzes, and a tutor that actually knows your
+            material — generated from your PDFs and links.
+          </p>
+          <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link to="/register" className="btn-primary px-6 py-3 text-base">
               Create free account
             </Link>
             <Link to="/login" className="btn-outline px-6 py-3 text-base">
-              Log in
+              I already have one
             </Link>
           </div>
-        </div>
+        </section>
 
-        <div className="mt-20 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="card p-5">
-              <span className="mb-3 grid h-10 w-10 place-items-center rounded-xl bg-brand-500/10 text-brand-600">
-                <Icon />
-              </span>
-              <h3 className="font-600 text-ink">{title}</h3>
-              <p className="mt-1 text-sm text-muted">{desc}</p>
-            </div>
-          ))}
-        </div>
+        {/* Steps — numbered list feels more editorial than generic icon cards */}
+        <section className="py-16 lg:py-20">
+          <div className="grid gap-x-10 gap-y-10 sm:grid-cols-2">
+            {features.map(({ icon: Icon, title, desc }, i) => (
+              <div key={title} className="flex gap-4">
+                <span className="font-display text-2xl font-600 leading-none text-brand-600/40">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Icon width={18} height={18} className="text-accent-600" />
+                    <h3 className="font-display text-lg font-600 text-ink">{title}</h3>
+                  </div>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
 
-      <footer className="border-t border-line py-8 text-center text-sm text-muted">
-        NoteGenie — AI study assistant · Powered by Google Gemini
+      <footer className="border-t border-line">
+        <div className="mx-auto max-w-5xl px-5 py-10 lg:px-8">
+          <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
+            <div>
+              <p className="font-display text-base font-600 text-ink">
+                Built by {developer.name}
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                {developer.role} · {developer.location}
+              </p>
+            </div>
+            <SocialLinks />
+          </div>
+          <div className="mt-8 flex flex-col gap-2 border-t border-line pt-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
+            <p>NoteGenie · Powered by Google Gemini</p>
+            <p>
+              © {new Date().getFullYear()} {developer.name}. All rights reserved.
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   );

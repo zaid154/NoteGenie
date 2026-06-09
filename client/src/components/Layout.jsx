@@ -5,6 +5,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import Logo from "./Logo.jsx";
+import { MadeByLine, DeveloperFooter } from "./Credit.jsx";
 import {
   IconHome,
   IconUpload,
@@ -93,10 +94,18 @@ export default function Layout({ children }) {
         </button>
 
         <div className="flex items-center gap-3 rounded-xl border border-line p-3">
-          {/* User ke naam ka pehla letter ek circle me dikhate hain */}
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-600 text-white">
-            {user?.name?.[0]?.toUpperCase() || "U"}
-          </span>
+          {/* Photo hai to wahi, warna naam ka pehla letter ek circle me. */}
+          {user?.avatar ? (
+            <img
+              src={user.avatar}
+              alt={user.name}
+              className="h-9 w-9 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-600 text-sm font-600 text-white">
+              {user?.name?.[0]?.toUpperCase() || "U"}
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-500 text-ink">{user?.name}</p>
             <p className="truncate text-xs text-muted">{user?.email}</p>
@@ -110,6 +119,8 @@ export default function Layout({ children }) {
             <IconLogout />
           </button>
         </div>
+
+        <MadeByLine className="pt-1" />
       </div>
     </div>
   );
@@ -153,8 +164,13 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      <main className="lg:pl-64">
-        <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">{children}</div>
+      <main className="flex min-h-screen flex-col lg:pl-64">
+        <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-8 lg:py-8">
+          {children}
+        </div>
+        <div className="mx-auto w-full max-w-6xl px-4 pb-8 lg:px-8">
+          <DeveloperFooter />
+        </div>
       </main>
     </div>
   );

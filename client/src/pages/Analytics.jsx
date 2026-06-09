@@ -2,24 +2,16 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiError } from "../api/client.js";
-import { Alert, EmptyState, PageLoader, Badge } from "../components/ui.jsx";
-import { IconChart, IconPlus, IconCards, IconSparkles } from "../components/icons.jsx";
-
-// Ek number dikhane wala chhota card.
-function Stat({ icon: Icon, label, value, hint }) {
-  return (
-    <div className="card flex items-start gap-4 p-5">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-500/10 text-brand-600">
-        <Icon width={20} height={20} />
-      </span>
-      <div>
-        <p className="text-sm text-muted">{label}</p>
-        <p className="mt-0.5 text-2xl font-700 text-ink">{value}</p>
-        {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
-      </div>
-    </div>
-  );
-}
+import {
+  Alert,
+  EmptyState,
+  PageLoader,
+  Badge,
+  PageHeader,
+  Stats,
+  SectionTitle,
+} from "../components/ui.jsx";
+import { IconChart, IconPlus } from "../components/icons.jsx";
 
 export default function Analytics() {
   const [data, setData] = useState(null);   // backend se aaya analytics data
@@ -45,32 +37,34 @@ export default function Analytics() {
     };
   }, []);
 
-  // Jab tak data aa raha hai, loader dikhao.
   if (loading) return <PageLoader />;
-  // Data hi nahi mila to error dikhao.
   if (!data) return <Alert>{error || "Could not load analytics."}</Alert>;
+
+  const performance =
+    data.avgScore >= 75 ? "Strong" : data.avgScore >= 50 ? "Okay" : "Needs work";
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-2xl font-700 text-ink">Analytics</h1>
-        <p className="mt-1 text-muted">Track your progress and quiz performance.</p>
-      </div>
+      <PageHeader
+        eyebrow="Performance"
+        title="Your"
+        accent="analytics."
+        subtitle="A snapshot of every quiz you've taken and how your scores are trending."
+      />
 
       {error && <Alert>{error}</Alert>}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat icon={IconChart} label="Total attempts" value={data.totalAttempts} />
-        <Stat icon={IconCards} label="Average score" value={`${data.avgScore}%`} hint="Across all quizzes" />
-        <Stat
-          icon={IconSparkles}
-          label="Performance"
-          value={data.avgScore >= 75 ? "Strong" : data.avgScore >= 50 ? "Okay" : "Needs work"}
-        />
-      </div>
+      <Stats
+        cols={3}
+        items={[
+          { label: "Total attempts", value: data.totalAttempts },
+          { label: "Average score", value: `${data.avgScore}%`, hint: "Across all quizzes" },
+          { label: "Performance", value: performance },
+        ]}
+      />
 
       <div>
-        <h2 className="mb-4 font-display text-lg font-600 text-ink">Recent attempts</h2>
+        <SectionTitle>Recent attempts</SectionTitle>
         {data.recent.length === 0 ? (
           <EmptyState
             icon={IconChart}
@@ -84,20 +78,24 @@ export default function Analytics() {
           />
         ) : (
           <div className="card divide-y divide-line overflow-hidden">
-            {data.recent.map((a) => (
-              <div key={a.id} className="flex items-center justify-between gap-4 p-4">
-                <div className="min-w-0">
+            {data.recent.map((a, i) => (
+              <div
+                key={a.id}
+                className="flex items-center gap-4 px-5 py-4 transition hover:bg-ink/[0.02]"
+              >
+                <span className="w-6 shrink-0 font-display text-sm font-600 text-muted/60">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-500 text-ink">{a.title}</p>
                   <p className="text-xs text-muted">
                     {new Date(a.date).toLocaleString()}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted">
-                    {a.score}/{a.total}
-                  </span>
-                  <Badge color={a.percent >= 60 ? "green" : "amber"}>{a.percent}%</Badge>
-                </div>
+                <span className="text-sm tabular-nums text-muted">
+                  {a.score}/{a.total}
+                </span>
+                <Badge color={a.percent >= 60 ? "green" : "amber"}>{a.percent}%</Badge>
               </div>
             ))}
           </div>
