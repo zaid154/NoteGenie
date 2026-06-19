@@ -23,7 +23,37 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   geminiApiKey: process.env.GEMINI_API_KEY,
+  geminiApiKeys: (process.env.GEMINI_API_KEYS || "")
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean),
   geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+  encryptionSecret: process.env.ENCRYPTION_SECRET,
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+  stripePricePro: process.env.STRIPE_PRICE_PRO,
+  stripePriceTeam: process.env.STRIPE_PRICE_TEAM,
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
+  razorpayProAmount: Number(process.env.RAZORPAY_PRO_AMOUNT) || 74900,
+  razorpayTeamAmount: Number(process.env.RAZORPAY_TEAM_AMOUNT) || 249900,
+  smtpHost: process.env.SMTP_HOST,
+  smtpPort: Number(process.env.SMTP_PORT) || 587,
+  smtpSecure:
+    process.env.SMTP_SECURE === "true"
+      ? true
+      : process.env.SMTP_SECURE === "false"
+        ? false
+        : undefined,
+  smtpUser: process.env.SMTP_USER,
+  smtpPass: process.env.SMTP_PASS,
+  emailFrom: process.env.SMTP_FROM || process.env.EMAIL_FROM,
+  otpExpiresMin: Number(process.env.OTP_EXPIRES_MIN) || 10,
+  otpLength: Number(process.env.OTP_LENGTH) || 6,
+  supportEmail: process.env.SUPPORT_EMAIL || "",
+  sentryDsn: process.env.SENTRY_DSN,
+  aiRateLimitMax: Number(process.env.AI_RATE_LIMIT_MAX) || 120,
+  aiRateLimitWindowMinutes: Number(process.env.AI_RATE_LIMIT_WINDOW_MIN) || 15,
 };
 
 // Pehla origin default/primary client URL ke roop me (CORS, links, etc.).

@@ -60,7 +60,7 @@ Almost all code-level issues below have been fixed. Highlights:
 | S9 | `server/src/middleware/errorHandler.js` | Medium | Returns raw `err.message`; Mongoose errors can leak schema details. | Map known errors to generic messages; log full error server-side. |
 | S10 | `server/src/controllers/tutorController.js` | Medium | Tutor uses client-supplied `history` (prompt injection). | Load history from DB; cap/validate any client input. |
 | S11 | `.env` | Medium | `JWT_SECRET=...change_me...` is a weak placeholder-style secret. | Replace with `openssl rand -hex 32`. |
-| S12 | `server/src/scripts/seedAdmin.js` | Medium | Falls back to hardcoded creds; prints passwords to stdout. | Require env vars in prod; never log passwords. |
+| S12 | `server/src/scripts/seedData.js` | Medium | Falls back to hardcoded creds; prints passwords to stdout. | Require env vars in prod; never log passwords. |
 | S13 | `server/src/middleware/auth.js` | Low | No check that `jwtSecret` is set before signing. | Validate in `validateEnv`. |
 | S14 | `server/src/index.js` | Low | No `helmet` (missing security headers). | Add `helmet()`. |
 | S15 | `server/src/index.js` | Low | No `trust proxy` for deployments behind a reverse proxy. | `app.set('trust proxy', 1)` when applicable. |

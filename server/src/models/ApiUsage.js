@@ -11,6 +11,7 @@ const apiUsageSchema = new mongoose.Schema(
       required: true,
     },
     model: { type: String, default: "gemini-2.5-flash" },
+    keyId: { type: String, default: "" },
     promptTokens: { type: Number, default: 0 },     // input tokens
     completionTokens: { type: Number, default: 0 }, // output tokens
     totalTokens: { type: Number, default: 0 },

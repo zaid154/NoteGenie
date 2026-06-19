@@ -1,121 +1,216 @@
-// Landing page: pehla page jo logged-out user ko dikhta hai (app ka intro).
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { api } from "../api/client.js";
 import Logo from "../components/Logo.jsx";
-import { IconUpload, IconCards, IconChat, IconChart } from "../components/icons.jsx";
-import { SocialLinks } from "../components/Credit.jsx";
-import { developer } from "../config/developer.js";
+import { MarketingFooter } from "../components/MarketingShell.jsx";
+import { ScrollReveal, StaggerContainer, StaggerItem } from "../components/motion.jsx";
 
-// Neeche numbered steps me dikhne wale features ki list.
 const features = [
-  {
-    icon: IconUpload,
-    title: "Drop it in",
-    desc: "Upload a PDF or paste a YouTube or article link.",
-  },
-  {
-    icon: IconCards,
-    title: "Notes & quizzes",
-    desc: "Structured notes, flashcards, and MCQ quizzes, built for you.",
-  },
-  {
-    icon: IconChat,
-    title: "Ask the tutor",
-    desc: "Chat about your material and get answers as they stream in.",
-  },
-  {
-    icon: IconChart,
-    title: "Track progress",
-    desc: "Watch your quiz scores climb over time.",
-  },
+  { n: "01", title: "Upload", desc: "PDF, article, or YouTube — we extract the content." },
+  { n: "02", title: "Study", desc: "Notes, flashcards with spaced repetition, and practice quizzes." },
+  { n: "03", title: "Ask", desc: "Chat with a tutor grounded in your uploaded material." },
+  { n: "04", title: "Track", desc: "See quiz scores and what needs review." },
 ];
 
-export default function Landing() {
+const benefits = [
+  "Structured notes from any source",
+  "Spaced-repetition flashcards",
+  "AI tutor that read your material",
+];
+
+function ProductPreview() {
   return (
-    <div className="min-h-screen bg-canvas">
-      {/* Patli accent line upar — chhota sa designed touch */}
-      <div className="h-1 w-full bg-brand-600" />
-
-      <header className="border-b border-line">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5 lg:px-8">
-          <Logo />
-          <div className="flex items-center gap-1 sm:gap-3">
-            <Link to="/login" className="btn-ghost">
-              Log in
-            </Link>
-            <Link to="/register" className="btn-primary">
-              Get started
-            </Link>
-          </div>
+    <div className="panel overflow-hidden shadow-soft">
+      <div className="border-b border-line bg-canvas/60 px-4 py-2">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+          <span className="ml-2 text-xs text-muted">NoteGenie — Dashboard</span>
         </div>
-      </header>
-
-      <main className="mx-auto max-w-5xl px-5 lg:px-8">
-        {/* Hero */}
-        <section className="border-b border-line py-20 lg:py-28">
-          <p className="mb-5 text-xs font-600 uppercase tracking-[0.2em] text-accent-600">
-            AI study assistant
-          </p>
-          <h1 className="max-w-3xl font-display text-4xl font-600 leading-[1.1] text-ink sm:text-5xl lg:text-6xl">
-            Turn any reading into a{" "}
-            <em className="font-700 not-italic text-brand-600">study kit</em>{" "}
-            <span className="italic">in seconds.</span>
-          </h1>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
-            Notes, flashcards, quizzes, and a tutor that actually knows your
-            material — generated from your PDFs and links.
-          </p>
-          <div className="mt-9 flex flex-wrap items-center gap-3">
-            <Link to="/register" className="btn-primary px-6 py-3 text-base">
-              Create free account
-            </Link>
-            <Link to="/login" className="btn-outline px-6 py-3 text-base">
-              I already have one
-            </Link>
-          </div>
-        </section>
-
-        {/* Steps — numbered list feels more editorial than generic icon cards */}
-        <section className="py-16 lg:py-20">
-          <div className="grid gap-x-10 gap-y-10 sm:grid-cols-2">
-            {features.map(({ icon: Icon, title, desc }, i) => (
-              <div key={title} className="flex gap-4">
-                <span className="font-display text-2xl font-600 leading-none text-brand-600/40">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Icon width={18} height={18} className="text-accent-600" />
-                    <h3 className="font-display text-lg font-600 text-ink">{title}</h3>
-                  </div>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted">{desc}</p>
-                </div>
+      </div>
+      <div className="grid gap-px bg-line lg:grid-cols-3">
+        <div className="space-y-3 bg-surface p-5 lg:col-span-2">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              { label: "Materials", value: "12" },
+              { label: "Avg score", value: "84%" },
+              { label: "Due cards", value: "7" },
+            ].map((s) => (
+              <div key={s.label} className="stat-card py-3">
+                <p className="text-xs text-muted">{s.label}</p>
+                <p className="mt-1 text-xl font-bold text-ink">{s.value}</p>
               </div>
             ))}
           </div>
-        </section>
-      </main>
-
-      <footer className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-10 lg:px-8">
-          <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
-            <div>
-              <p className="font-display text-base font-600 text-ink">
-                Built by {developer.name}
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                {developer.role} · {developer.location}
-              </p>
-            </div>
-            <SocialLinks />
-          </div>
-          <div className="mt-8 flex flex-col gap-2 border-t border-line pt-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
-            <p>NoteGenie · Powered by Google Gemini</p>
-            <p>
-              © {new Date().getFullYear()} {developer.name}. All rights reserved.
-            </p>
+          <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50/50 px-4 py-8 text-center dark:border-indigo-900 dark:bg-indigo-950/20">
+            <p className="text-sm font-medium text-ink">Drop PDF or paste a link</p>
+            <p className="mt-1 text-xs text-muted">Notes · flashcards · quiz in minutes</p>
           </div>
         </div>
-      </footer>
+        <div className="space-y-3 bg-surface p-5">
+          <p className="text-xs font-semibold uppercase text-muted">Quiz preview</p>
+          <div className="rounded-lg border border-line p-3">
+            <p className="text-sm font-medium text-ink">What is photosynthesis?</p>
+            <div className="mt-3 space-y-1.5">
+              {["Converting light to energy", "Cell division", "Water evaporation"].map((opt, i) => (
+                <div
+                  key={opt}
+                  className={`rounded-md border px-2 py-1.5 text-xs ${
+                    i === 0 ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40" : "border-line text-muted"
+                  }`}
+                >
+                  {opt}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Landing() {
+  const [prices, setPrices] = useState({ pro: "₹749", team: "₹2,499" });
+
+  useEffect(() => {
+    api
+      .get("/billing/public-config")
+      .then((r) => {
+        const pro = r.data.plans?.find((p) => p.id === "pro");
+        const team = r.data.plans?.find((p) => p.id === "team");
+        setPrices({
+          pro: pro?.displayPrice || "₹749",
+          team: team?.displayPrice || "₹2,499",
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="relative min-h-screen">
+      <div className="mesh-bg" aria-hidden="true" />
+
+      <header className="relative mx-auto flex max-w-5xl items-center justify-between px-5 py-5">
+        <Logo />
+        <div className="flex items-center gap-2">
+          <Link to="/pricing" className="btn-ghost hidden sm:inline-flex">
+            Pricing
+          </Link>
+          <Link to="/login" className="btn-ghost">
+            Log in
+          </Link>
+          <Link to="/register" className="btn-primary">
+            Get started
+          </Link>
+        </div>
+      </header>
+
+      <main className="relative mx-auto max-w-5xl px-5 pb-24 pt-8">
+        <div className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-12">
+          <section>
+            <StaggerContainer>
+              <StaggerItem>
+                <p className="text-sm font-medium uppercase tracking-widest text-muted">For students & self-learners</p>
+              </StaggerItem>
+              <StaggerItem>
+                <h1 className="font-display mt-4 text-5xl leading-[1.1] text-ink lg:text-6xl">
+                  Turn any source into a study kit
+                </h1>
+              </StaggerItem>
+              <StaggerItem>
+                <p className="mt-6 text-lg leading-relaxed text-muted">
+                  Drop in a PDF or link. NoteGenie writes structured notes, builds flashcards,
+                  generates quizzes, and gives you an AI tutor that actually read your material.
+                </p>
+              </StaggerItem>
+              <StaggerItem>
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <Link to="/register" className="btn-primary px-6 py-3">
+                    Start free — no card needed
+                  </Link>
+                  <Link to="/login" className="btn-outline px-6 py-3">
+                    I have an account
+                  </Link>
+                </div>
+              </StaggerItem>
+            </StaggerContainer>
+          </section>
+
+          <ScrollReveal delay={0.15} className="mt-12 lg:mt-0">
+            <ProductPreview />
+          </ScrollReveal>
+        </div>
+
+        <ScrollReveal delay={0.05}>
+          <section className="mt-16 rounded-xl border border-line bg-surface px-6 py-5">
+            <p className="text-center text-xs font-semibold uppercase tracking-widest text-muted">
+              PDF · YouTube · Articles
+            </p>
+            <ul className="mt-4 flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-ink">
+              {benefits.map((b) => (
+                <li key={b} className="flex items-center gap-2">
+                  <span className="text-indigo-600">✓</span> {b}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </ScrollReveal>
+
+        <section className="mt-20 overflow-hidden rounded-xl border border-line bg-line shadow-soft sm:grid sm:grid-cols-2 sm:gap-px">
+          {features.map(({ n, title, desc }, i) => (
+            <ScrollReveal key={n} delay={i * 0.08}>
+              <div className="bg-surface p-8">
+                <span className="text-xs font-semibold tabular-nums text-muted">{n}</span>
+                <h3 className="mt-3 font-semibold text-ink">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{desc}</p>
+              </div>
+            </ScrollReveal>
+          ))}
+        </section>
+
+        <ScrollReveal delay={0.1}>
+          <section className="mt-16 grid gap-4 sm:grid-cols-2">
+            <div className="panel p-6">
+              <p className="text-xs font-semibold uppercase text-muted">Pro</p>
+              <p className="mt-2 text-3xl font-bold text-ink">
+                {prices.pro}
+                <span className="text-base font-normal text-muted"> / 30 days</span>
+              </p>
+              <p className="mt-2 text-sm text-muted">50 uploads · unlimited tutor & quizzes</p>
+              <Link to="/pricing" className="btn-outline mt-4 inline-flex text-sm">
+                View Pro
+              </Link>
+            </div>
+            <div className="panel p-6">
+              <p className="text-xs font-semibold uppercase text-muted">Team</p>
+              <p className="mt-2 text-3xl font-bold text-ink">
+                {prices.team}
+                <span className="text-base font-normal text-muted"> / 30 days</span>
+              </p>
+              <p className="mt-2 text-sm text-muted">200 uploads · shared library (soon)</p>
+              <Link to="/pricing" className="btn-outline mt-4 inline-flex text-sm">
+                View Team
+              </Link>
+            </div>
+          </section>
+        </ScrollReveal>
+
+        <ScrollReveal delay={0.1}>
+          <section className="cta-glow mt-16 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-indigo-100 bg-indigo-50/50 px-8 py-10 dark:border-indigo-900 dark:bg-indigo-950/30">
+            <div>
+              <h2 className="text-2xl font-semibold text-ink">Free to start</h2>
+              <p className="mt-1 text-muted">3 uploads/month. Upgrade when you need more.</p>
+            </div>
+            <Link to="/pricing" className="btn-outline">
+              See pricing
+            </Link>
+          </section>
+        </ScrollReveal>
+      </main>
+
+      <MarketingFooter />
     </div>
   );
 }

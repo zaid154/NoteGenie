@@ -23,6 +23,7 @@ export default function Register() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // password kitna strong hai (bar dikhane ke liye).
   const strength = passwordStrength(form.password);
@@ -47,6 +48,9 @@ export default function Register() {
     if (form.confirm !== form.password) {
       errs.confirm = "Passwords do not match."; // dono password same hone chahiye
     }
+    if (!acceptedTerms) {
+      errs.terms = "You must accept the Terms and Privacy Policy.";
+    }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -59,8 +63,8 @@ export default function Register() {
     setLoading(true);
     try {
       await register(form.name.trim(), form.email, form.password);
-      toast("Account created. Welcome to NoteGenie!", "success");
-      navigate("/app", { replace: true });
+      toast("Account created — enter the OTP sent to your email.", "success");
+      navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, { replace: true });
     } catch (err) {
       setError(apiError(err));
     } finally {
@@ -70,7 +74,7 @@ export default function Register() {
 
   return (
     <AuthShell>
-      <h2 className="font-display text-2xl font-700 text-ink">Create your account</h2>
+      <h2 className="text-2xl font-semibold tracking-tight text-ink">Create your account</h2>
       <p className="mt-1 text-sm text-muted">It's free and takes about 30 seconds.</p>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
@@ -144,6 +148,25 @@ export default function Register() {
           autoComplete="new-password"
         />
 
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-muted">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => {
+              setAcceptedTerms(e.target.checked);
+              setFieldErrors((fe) => ({ ...fe, terms: "" }));
+            }}
+            className="mt-0.5 h-4 w-4 rounded border-line accent-indigo-600"
+          />
+          <span>
+            I agree to the{" "}
+            <Link to="/terms" className="text-indigo-600 underline underline-offset-2 dark:text-indigo-400">Terms</Link>
+            {" "}and{" "}
+            <Link to="/privacy" className="text-indigo-600 underline underline-offset-2 dark:text-indigo-400">Privacy Policy</Link>
+          </span>
+        </label>
+        {fieldErrors.terms && <p className="text-xs text-red-600">{fieldErrors.terms}</p>}
+
         <button className="btn-primary w-full" disabled={loading}>
           {loading ? <Spinner /> : "Create account"}
         </button>
@@ -151,7 +174,7 @@ export default function Register() {
 
       <p className="mt-6 text-center text-sm text-muted">
         Already have an account?{" "}
-        <Link to="/login" className="font-500 text-brand-600 hover:underline">
+        <Link to="/login" className="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-700 dark:text-indigo-400">
           Log in
         </Link>
       </p>

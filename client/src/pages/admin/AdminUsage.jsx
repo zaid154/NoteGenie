@@ -1,14 +1,14 @@
 // AdminUsage: AI ka istemal (calls, tokens, cost) feature aur user ke hisaab se dikhata hai.
 import { useEffect, useState } from "react";
 import { api, apiError } from "../../api/client.js";
-import { Alert, PageLoader, EmptyState, Spinner } from "../../components/ui.jsx";
+import { Alert, PageLoader, EmptyState, Spinner, PageHeader } from "../../components/ui.jsx";
 import AdminStatCard, { formatCost, formatTokens } from "../../components/AdminStatCard.jsx";
 import { useConfirm } from "../../context/ConfirmContext.jsx";
 import { IconActivity, IconCoins, IconSparkles, IconTrash } from "../../components/icons.jsx";
 
 // Har feature ka label + ek consistent accent colour (badge aur bar dono ke liye).
 const FEATURE_META = {
-  notes: { label: "Notes", dot: "bg-brand-500", bar: "bg-brand-500", soft: "bg-brand-500/10 text-brand-700 dark:text-brand-300" },
+  notes: { label: "Notes", dot: "bg-stone-800", bar: "bg-stone-800", soft: "bg-stone-800/10 text-stone-800 dark:text-stone-300" },
   flashcards: { label: "Flashcards", dot: "bg-accent-500", bar: "bg-accent-500", soft: "bg-accent-500/15 text-accent-600" },
   quiz: { label: "Quiz", dot: "bg-emerald-500", bar: "bg-emerald-500", soft: "bg-emerald-500/10 text-emerald-600" },
   tutor: { label: "Tutor chat", dot: "bg-sky-500", bar: "bg-sky-500", soft: "bg-sky-500/10 text-sky-600" },
@@ -20,7 +20,7 @@ function meta(feature) {
 }
 
 // Patli proportion bar — relative share dikhane ke liye.
-function ShareBar({ pct, className = "bg-brand-500" }) {
+function ShareBar({ pct, className = "bg-stone-800" }) {
   return (
     <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink/[0.06]">
       <div
@@ -79,8 +79,9 @@ export default function AdminUsage() {
   if (loading) return <PageLoader />;
   if (error) return <Alert>{error}</Alert>;
 
-  const { totals, byFeature, byUser, recent } = data;
+  const { totals, byFeature, byUser, byKey = [], recent } = data;
   const hasData = totals.calls > 0;
+  const maxKeyCost = Math.max(...byKey.map((k) => k.cost), 0.000001);
 
   // Bars ko sabse bade item ke hisaab se scale karte hain (cost, warna calls).
   const maxFeatureCost = Math.max(...byFeature.map((f) => f.cost), 0.000001);
@@ -88,23 +89,22 @@ export default function AdminUsage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="max-w-xl text-sm text-muted">
-          Gemini API usage tracked per call. Costs are estimates based on token counts — not
-          actual billing. These are this app&apos;s own records, separate from your Google console.
-        </p>
-        {hasData && (
-          <button
-            type="button"
-            onClick={handleReset}
-            className="btn-danger shrink-0"
-            disabled={resetting}
-          >
-            {resetting ? <Spinner size={16} /> : <IconTrash width={16} height={16} />}
-            Reset usage
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="AI usage"
+        subtitle="Gemini API calls, tokens, and estimated costs tracked per feature and user."
+        action={
+          hasData ? (
+            <button
+              type="button"
+              onClick={handleReset}
+              className="btn-danger shrink-0 text-sm"
+              disabled={resetting}
+            >
+              {resetting ? <Spinner size={16} /> : "Reset usage data"}
+            </button>
+          ) : null
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <AdminStatCard
@@ -164,6 +164,33 @@ export default function AdminUsage() {
             </section>
 
             <section>
+              <h2 className="mb-3 font-display text-lg font-600 text-ink">By API key</h2>
+              <div className="card space-y-4 p-5">
+                {byKey.length === 0 ? (
+                  <p className="text-sm text-muted">No key-level data yet.</p>
+                ) : (
+                  byKey.map((k) => {
+                    const pct = (k.cost / maxKeyCost) * 100;
+                    return (
+                      <div key={k.keyId}>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-mono text-sm font-500 text-ink">{k.keyId}</span>
+                          <span className="text-sm font-600 text-ink">{formatCost(k.cost)}</span>
+                        </div>
+                        <ShareBar pct={pct} className="bg-violet-500" />
+                        <p className="mt-1.5 text-xs text-muted">
+                          {k.calls} call{k.calls !== 1 ? "s" : ""} · {formatTokens(k.totalTokens)} tokens
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <section>
               <h2 className="mb-3 font-display text-lg font-600 text-ink">By user</h2>
               <div className="card space-y-4 p-5">
                 {byUser.length === 0 ? (
@@ -182,7 +209,7 @@ export default function AdminUsage() {
                             {formatCost(u.cost)}
                           </span>
                         </div>
-                        <ShareBar pct={pct} className="bg-brand-500" />
+                        <ShareBar pct={pct} className="bg-stone-800" />
                         <p className="mt-1.5 text-xs text-muted">
                           {u.calls} call{u.calls !== 1 ? "s" : ""} · {formatTokens(u.totalTokens)} tokens
                         </p>
@@ -201,6 +228,7 @@ export default function AdminUsage() {
                 <thead className="border-b border-line bg-canvas/50">
                   <tr className="text-xs uppercase tracking-wide text-muted">
                     <th className="px-4 py-3 font-600">Feature</th>
+                    <th className="px-4 py-3 font-600">Key</th>
                     <th className="px-4 py-3 font-600">User</th>
                     <th className="px-4 py-3 font-600 text-right">Tokens</th>
                     <th className="px-4 py-3 font-600 text-right">Cost</th>
@@ -215,6 +243,7 @@ export default function AdminUsage() {
                         <td className="px-4 py-3">
                           <span className={`badge ${m.soft}`}>{m.label}</span>
                         </td>
+                        <td className="px-4 py-3 font-mono text-xs text-muted">{r.keyId || "—"}</td>
                         <td className="px-4 py-3 text-muted">{r.user?.email || "—"}</td>
                         <td className="px-4 py-3 text-right tabular-nums">
                           {formatTokens(r.totalTokens)}

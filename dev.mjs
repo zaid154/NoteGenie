@@ -166,7 +166,9 @@ async function main() {
       cwd,
       env,
       stdio: ["ignore", "pipe", "pipe"],
-      detached: true,
+      // Detached only on Unix (process-group kill). On Windows it flashes extra
+      // CMD windows and can leave orphan server/client processes after the parent exits.
+      detached: !isWin,
       windowsHide: true,
     });
 
@@ -184,8 +186,27 @@ async function main() {
       if (failed || signal) {
         const reason = signal ? `signal ${signal}` : `code ${code}`;
         console.error(`[${label}] exited unexpectedly (${reason})`);
+        if (label === "server") {
+          console.error("");
+          console.error("  Common fixes:");
+          console.error("  - Port busy: close other NoteGenie windows or run start-dev.bat again");
+          console.error("  - MongoDB: check MONGO_URI in .env and Atlas IP whitelist");
+          console.error("  - Missing deps: npm run install:all");
+          console.error("");
+        }
         shutdown(failed ? code || 1 : 0);
       }
+    });
+
+    child.on("error", (err) => {
+      console.error(`[${label}] failed to start: ${err.message}`);
+      if (label === "server" && err.code === "ENOENT") {
+        console.error("  Run: npm install --prefix server");
+      }
+      if (label === "client" && err.code === "ENOENT") {
+        console.error("  Run: npm install --prefix client");
+      }
+      shutdown(1);
     });
 
     children.push(child);
@@ -227,5 +248,8 @@ async function main() {
 
 main().catch((err) => {
   console.error("[dev] Failed to start:", err.message);
+  if (isWin) {
+    console.error("\n  Tip: Double-click start-dev.bat in the project folder so errors stay visible.");
+  }
   process.exit(1);
 });

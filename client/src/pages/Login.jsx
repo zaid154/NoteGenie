@@ -1,8 +1,8 @@
 // Login page: user email/password daal kar andar aata hai.
 import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { apiError } from "../api/client.js";
+import { apiError, isRateLimitError } from "../api/client.js";
 import { useToast } from "../context/ToastContext.jsx";
 import AuthShell from "../components/AuthShell.jsx";
 import FormField from "../components/FormField.jsx";
@@ -17,8 +17,8 @@ export default function Login() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  // from = login ke baad kahan jana hai (jis page se aaya tha wahin, warna /app).
-  const from = location.state?.from?.pathname || "/app";
+  const [searchParams] = useSearchParams();
+  const from = location.state?.from?.pathname || searchParams.get("redirect") || "/app";
 
   // form = input fields ki value. email pehle se bhar do agar yaad hai.
   const [form, setForm] = useState({
@@ -29,8 +29,9 @@ export default function Login() {
     Boolean(localStorage.getItem(REMEMBER_KEY))
   );
   const [fieldErrors, setFieldErrors] = useState({}); // har field ki alag galti
-  const [error, setError] = useState("");              // upar dikhne wali badi galti
-  const [loading, setLoading] = useState(false);       // login chal raha hai?
+  const [error, setError] = useState("");
+  const [rateLimited, setRateLimited] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // update: jab user kuch type kare to form me wahi field update karo.
   function update(e) {
@@ -56,6 +57,7 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault(); // page reload mat karo
     setError("");
+    setRateLimited(false);
     if (!validate()) return; // galti hai to ruk jao
     setLoading(true);
     try {
@@ -66,7 +68,9 @@ export default function Login() {
       toast("Welcome back!", "success");
       navigate(from, { replace: true }); // andar le jao
     } catch (err) {
-      setError(apiError(err)); // galat password, etc. dikhao
+      const limited = isRateLimitError(err);
+      setRateLimited(limited);
+      setError(apiError(err));
     } finally {
       setLoading(false);
     }
@@ -74,11 +78,17 @@ export default function Login() {
 
   return (
     <AuthShell>
-      <h2 className="font-display text-2xl font-700 text-ink">Welcome back</h2>
+      <h2 className="text-2xl font-semibold tracking-tight text-ink">Welcome back</h2>
       <p className="mt-1 text-sm text-muted">Log in to continue to NoteGenie.</p>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
-        {error && <Alert>{error}</Alert>}
+        {error && <Alert type={rateLimited ? "warning" : "error"}>{error}</Alert>}
+        {rateLimited && import.meta.env.DEV && (
+          <p className="text-xs text-muted">
+            Dev tip: restart the API server to reset the limit. Demo login credentials are in your{" "}
+            <code className="text-xs">.env</code> file.
+          </p>
+        )}
 
         <FormField
           label="Email"
@@ -109,19 +119,23 @@ export default function Login() {
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="h-4 w-4 rounded border-line accent-brand-600"
+            className="h-4 w-4 rounded border-line accent-indigo-600"
           />
           Remember my email
         </label>
 
-        <button className="btn-primary w-full" disabled={loading}>
-          {loading ? <Spinner /> : "Log in"}
+        <p className="text-right text-sm">
+          <Link to="/forgot-password" className="text-indigo-600 underline underline-offset-2 hover:text-indigo-700 dark:text-indigo-400">Forgot password?</Link>
+        </p>
+
+        <button className="btn-primary w-full" disabled={loading || rateLimited}>
+          {loading ? <Spinner /> : rateLimited ? "Try again later" : "Log in"}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-muted">
         New here?{" "}
-        <Link to="/register" className="font-500 text-brand-600 hover:underline">
+        <Link to="/register" className="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-700 dark:text-indigo-400">
           Create an account
         </Link>
       </p>

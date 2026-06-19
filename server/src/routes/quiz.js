@@ -1,6 +1,8 @@
 // Quiz routes: /api/quiz/... — quiz banana, solve karna, analytics.
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
+import { requireQuota } from "../middleware/quota.js";
+import { aiRateLimitMiddleware } from "../middleware/aiRateLimit.js";
 import {
   createQuiz,
   getQuiz,
@@ -9,12 +11,10 @@ import {
 } from "../controllers/quizController.js";
 
 const router = Router();
+router.use(requireAuth);
 
-router.use(requireAuth); // saare quiz routes login-protected
-
-// "/analytics/overview" ko "/:id" se pehle rakho (warna "analytics" ko id samajh lega).
 router.get("/analytics/overview", getAnalytics);
-router.post("/document/:documentId", createQuiz);
+router.post("/document/:documentId", aiRateLimitMiddleware, requireQuota("quizzes"), createQuiz);
 router.get("/:id", getQuiz);
 router.post("/:id/submit", submitQuiz);
 

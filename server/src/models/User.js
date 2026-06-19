@@ -1,7 +1,16 @@
-// User model = database me ek user ka dhaancha (naam, email, password, role).
-// Schema matlab "ek document me kaun-kaun se fields honge".
+// User model — account, plan, and monthly usage tracking.
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs"; // password ko surakshit (hash) karne ke liye
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+
+const usageSchema = new mongoose.Schema(
+  {
+    documents: { type: Number, default: 0 },
+    tutorMessages: { type: Number, default: 0 },
+    quizzes: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
 
 const userSchema = new mongoose.Schema(
   {
@@ -9,45 +18,66 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: true,
-      unique: true,    // do users ka same email nahi ho sakta
-      lowercase: true, // hamesha chhote letters me save (Abc@x.com = abc@x.com)
+      unique: true,
+      lowercase: true,
       trim: true,
     },
-    // Hum kabhi plain password save nahi karte — sirf uska hash rakhte hain.
     passwordHash: { type: String, required: true },
-    // Chhota intro/tagline jo user apne profile pe likh sakta hai.
     bio: { type: String, default: "", trim: true, maxlength: 280 },
-    // Profile photo ek chhote (resized) data URL ke roop me store hota hai.
-    // File storage ki zaroorat nahi padti (free hosting ke liye ideal).
     avatar: { type: String, default: "" },
-    role: {
-      type: String,
-      enum: ["user", "admin"], // sirf yeh do values allowed hain
-      default: "user",
-    },
+    role: { type: String, enum: ["user", "admin"], default: "user" },
+    plan: { type: String, default: "free" },
+    stripeCustomerId: { type: String, default: "" },
+    stripeSubscriptionId: { type: String, default: "" },
+    planExpiresAt: { type: Date, default: null },
+    usageThisMonth: { type: usageSchema, default: () => ({}) },
+    usageResetAt: { type: Date, default: null },
+    emailVerified: { type: Boolean, default: false },
+    emailVerifyToken: { type: String, default: "" },
+    emailVerifyOtpExpires: { type: Date, default: null },
+    passwordResetToken: { type: String, default: "" },
+    passwordResetExpires: { type: Date, default: null },
+    onboardingComplete: { type: Boolean, default: false },
   },
-  { timestamps: true } // createdAt / updatedAt apne aap add ho jate hain
+  { timestamps: true }
 );
 
-// Plain password ko hash me badalne ka helper.
 userSchema.statics.hashPassword = function (password) {
   return bcrypt.hash(password, 10);
 };
 
-// Login ke time password check karne ke liye.
 userSchema.methods.comparePassword = function (password) {
   return bcrypt.compare(password, this.passwordHash);
 };
 
-// API response me kabhi passwordHash na jaye.
+userSchema.methods.createEmailVerifyOtp = function (length = 6, expiresMin = 10) {
+  const min = 10 ** (length - 1);
+  const max = 10 ** length - 1;
+  const otp = String(Math.floor(min + Math.random() * (max - min + 1)));
+  this.emailVerifyToken = crypto.createHash("sha256").update(otp).digest("hex");
+  this.emailVerifyOtpExpires = new Date(Date.now() + expiresMin * 60 * 1000);
+  return otp;
+};
+
+userSchema.methods.createPasswordResetToken = function () {
+  const token = crypto.randomBytes(32).toString("hex");
+  this.passwordResetToken = crypto.createHash("sha256").update(token).digest("hex");
+  this.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000);
+  return token;
+};
+
 userSchema.methods.toSafeObject = function () {
   return {
     id: this._id,
     name: this.name,
     email: this.email,
     role: this.role,
+    plan: this.plan || "free",
     bio: this.bio || "",
     avatar: this.avatar || "",
+    emailVerified: this.emailVerified,
+    onboardingComplete: this.onboardingComplete,
+    planExpiresAt: this.planExpiresAt || null,
     createdAt: this.createdAt,
   };
 };

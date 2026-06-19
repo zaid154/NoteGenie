@@ -1,13 +1,12 @@
 // Developer credit + social links. App ki saari jagah (Landing footer, auth panel,
 // sidebar) yahi component use karti hai, taaki ek hi jagah se manage ho.
 import { developer } from "../config/developer.js";
-import { IconGithub, IconLinkedin, IconGlobe, IconMail } from "./icons.jsx";
+import { IconGithub, IconLinkedin, IconGlobe } from "./icons.jsx";
 
 const links = [
   { href: developer.github, label: "GitHub", icon: IconGithub },
   { href: developer.linkedin, label: "LinkedIn", icon: IconLinkedin },
   { href: developer.portfolio, label: "Portfolio", icon: IconGlobe },
-  { href: `mailto:${developer.email}`, label: "Email", icon: IconMail },
 ];
 
 // Sirf icon-buttons ki ek row. variant: "light" (dark backgrounds ke liye).
@@ -15,7 +14,7 @@ export function SocialLinks({ size = 18, variant = "default", className = "" }) 
   const base =
     variant === "light"
       ? "text-white/60 hover:bg-white/10 hover:text-white"
-      : "text-muted hover:bg-ink/5 hover:text-brand-600";
+      : "text-muted hover:bg-ink/5 hover:text-stone-700";
   return (
     <div className={`flex items-center gap-1 ${className}`}>
       {links.map(({ href, label, icon: Icon }) => (
@@ -65,7 +64,7 @@ export function MadeByLine({ className = "" }) {
       href={developer.portfolio}
       target="_blank"
       rel="noreferrer noopener"
-      className={`block text-center text-xs text-muted transition hover:text-brand-600 ${className}`}
+      className={`block text-center text-xs text-muted transition hover:text-stone-700 ${className}`}
     >
       Built by <span className="font-600">{developer.name}</span>
     </a>

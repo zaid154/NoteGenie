@@ -3,6 +3,7 @@ import { Document } from "../models/Document.js";
 import { ChatMessage } from "../models/ChatMessage.js";
 import { tutorStream } from "../services/gemini.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+import { incrementUsage } from "../middleware/quota.js";
 
 // GET /api/tutor/:documentId/history
 export const getHistory = asyncHandler(async (req, res) => {
@@ -82,6 +83,7 @@ export async function chat(req, res, next) {
         { userId: req.user._id, documentId: doc._id, role: "user", content: question },
         { userId: req.user._id, documentId: doc._id, role: "assistant", content: fullReply },
       ]);
+      await incrementUsage(req.user, "tutorMessages");
     }
   } catch (err) {
     if (res.headersSent) {

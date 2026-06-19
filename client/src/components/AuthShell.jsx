@@ -1,66 +1,46 @@
 import Logo from "./Logo.jsx";
-import { IconUpload, IconCards, IconChat, IconChart } from "./icons.jsx";
-import { SocialLinks } from "./Credit.jsx";
-import { developer } from "../config/developer.js";
+import { IconUpload, IconCards, IconChat } from "./icons.jsx";
+import { PageTransition, StaggerContainer, StaggerItem } from "./motion.jsx";
 
-const features = [
-  { icon: IconUpload, text: "Instant AI notes from a PDF or link" },
-  { icon: IconCards, text: "Auto-generated quizzes and flashcards" },
-  { icon: IconChat, text: "Chat with an AI tutor about your material" },
-  { icon: IconChart, text: "Track your progress and scores" },
+const steps = [
+  { icon: IconUpload, text: "Upload a PDF or paste a link" },
+  { icon: IconCards, text: "Get structured notes and flashcards" },
+  { icon: IconChat, text: "Quiz yourself or ask the AI tutor" },
 ];
 
-// Login/Register dono ke liye split-screen shell.
-// Left: branding panel. Right: form (children).
 export default function AuthShell({ children }) {
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Branding side — flat dark-green panel, editorial type, koi blur/gradient nahi */}
-      <div className="relative hidden flex-col justify-between bg-brand-800 p-12 text-white lg:flex">
-        <div className="flex items-center gap-3">
-          <Logo />
-        </div>
+    <div className="relative grid min-h-screen lg:grid-cols-2">
+      <div className="mesh-bg" aria-hidden="true" />
 
-        <div className="max-w-md">
-          {/* Bada serif quote — hero ke jagah ek statement */}
-          <p className="text-xs font-600 uppercase tracking-[0.2em] text-accent-400">
-            Study smarter
-          </p>
-          <h1 className="mt-5 font-display text-4xl font-600 leading-[1.15]">
-            Your readings,{" "}
-            <span className="italic text-accent-400">rewritten</span> as notes,
-            quizzes &amp; flashcards.
-          </h1>
-
-          {/* Features ek clean divided list me */}
-          <ul className="mt-10 divide-y divide-white/10 border-y border-white/10">
-            {features.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex items-center gap-3 py-3">
-                <Icon width={18} height={18} className="shrink-0 text-accent-400" />
-                <span className="text-sm text-white/85">{text}</span>
-              </li>
+      <div className="relative hidden flex-col justify-between bg-gradient-to-br from-indigo-600 to-indigo-800 p-12 text-white lg:flex">
+        <Logo variant="light" />
+        <div>
+          <h2 className="text-3xl font-semibold leading-snug text-white/95">
+            Your readings, turned into study kits
+          </h2>
+          <StaggerContainer className="mt-10 space-y-4">
+            {steps.map(({ icon: Icon, text }) => (
+              <StaggerItem key={text} className="flex items-center gap-3 text-sm text-white/85">
+                <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/15">
+                  <Icon width={16} height={16} />
+                </span>
+                {text}
+              </StaggerItem>
             ))}
-          </ul>
+          </StaggerContainer>
         </div>
-
-        <div className="flex items-center justify-between gap-4">
-          <div className="text-xs text-white/50">
-            <p className="text-white/70">
-              Built by <span className="font-600 text-white/90">{developer.name}</span>
-            </p>
-            <p className="mt-0.5">{developer.role}</p>
-          </div>
-          <SocialLinks variant="light" size={16} />
-        </div>
+        <p className="text-xs text-white/40">© NoteGenie</p>
       </div>
 
-      {/* Form side */}
-      <div className="flex items-center justify-center bg-canvas px-5 py-12">
-        <div className="w-full max-w-sm animate-fade-up">
-          <div className="mb-8 lg:hidden">
+      <div className="relative flex items-center justify-center bg-canvas px-5 py-12">
+        <div className="w-full max-w-sm">
+          <div className="card-solid mb-8 p-8 lg:hidden">
             <Logo />
           </div>
-          {children}
+          <PageTransition className="card-solid p-8 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+            {children}
+          </PageTransition>
         </div>
       </div>
     </div>

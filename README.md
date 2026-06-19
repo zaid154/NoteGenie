@@ -53,7 +53,7 @@ learning/
 │       ├── controllers/ # the actual logic for each route
 │       ├── services/    # gemini.js (AI calls), linkExtractor.js
 │       ├── middleware/  # auth checks, file upload, error handling
-│       └── scripts/     # seedAdmin.js (creates the first accounts)
+│       └── scripts/     # seedData.js (admin + demo user + sample content)
 └── client/              # the React app
     └── src/
         ├── main.jsx     # app entry, wraps all the context providers
@@ -91,13 +91,13 @@ Then open `.env` and put in your MongoDB URI, a JWT secret (any long random stri
 From the project root:
 
 ```bash
-npm run seed:admin
+npm run seed
 ```
 
 This creates an admin and a demo user using the credentials from `.env`:
 
-- Admin — `admin@notegenie.local` / `admin123456`
-- User — `user@notegenie.local` / `user123456`
+- Admin — `admin@notegenie.local` / `admin123456` (email verified)
+- Demo user — from `USER_EMAIL` / `USER_PASSWORD` in `.env`
 
 **4. Start it**
 
@@ -106,6 +106,8 @@ From the project root:
 ```bash
 npm run dev
 ```
+
+**Windows:** Double-click [`start-dev.bat`](start-dev.bat) in the project folder (keeps the CMD window open if something fails). Do not close that window while using the app.
 
 This runs `dev.mjs`, which starts both the API and the React app together using the ports from your `.env` (`PORT` for the API, `CLIENT_PORT` for the app — `5001` and `3000` in the example). If a port is busy, it automatically picks the next free one and prints the real URLs in the terminal — open the frontend URL it shows (e.g. **http://localhost:3000**).
 
@@ -126,8 +128,48 @@ Everything goes in a single `.env` at the project root. Here's what each line is
 | `GEMINI_MODEL` | Which Gemini model to use (gemini-2.5-flash). |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` | The admin account the seed script makes. |
 | `USER_EMAIL` / `USER_PASSWORD` / `USER_NAME` | The demo user the seed script makes. |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Razorpay test/live keys for paid plans. |
+| `RAZORPAY_PRO_AMOUNT` / `RAZORPAY_TEAM_AMOUNT` | Default prices in **paise** (74900 = ₹749). Admin can override in **Admin → Billing**. |
+| `SUPPORT_EMAIL` | Shown on the Pricing page for help contact. |
+| `SMTP_*` / `SMTP_FROM` | Email OTP verification and password reset. |
 
 The `.env` is git-ignored, so your keys never get pushed. Only `.env.example` (the blank template) is in the repo.
+
+## Razorpay test payments
+
+Use **test keys** only (`rzp_test_...`) in `.env`. Real cards do not work in test mode.
+
+### UPI (easiest)
+
+1. At checkout, choose **UPI**.
+2. Enter `success@razorpay` for a successful payment, or `failure@razorpay` to simulate failure.
+
+### Domestic cards (India)
+
+Use only these in test mode if your Razorpay account does not support international cards:
+
+| Network | Type | Card number |
+|---------|------|-------------|
+| Mastercard | Domestic | `5267 3181 8797 5449` |
+| Visa | Domestic | `4111 1111 1111 1111` |
+
+- Expiry: any future date (e.g. `12/30`)
+- CVV: any 3 digits (e.g. `123`)
+- On the mock bank page, click **Success**
+
+### Netbanking
+
+Pick any bank → Razorpay shows a mock page → click **Success**.
+
+### Do not use (international test cards)
+
+These often fail with *"International cards are not supported"* on India-only accounts:
+
+- `4012 8888 8888 1881`
+- `5104 0600 0000 0008`
+- `5555 5555 5555 4444`
+
+Official docs: [Razorpay test integration](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/test-integration/)
 
 ## The main API routes
 

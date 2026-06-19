@@ -1,13 +1,15 @@
 import mongoose from "mongoose";
 
-// Ek "Document" = user ka koi uploaded PDF ya paste kiya hua link,
-// jisse hum notes + flashcards generate karte hain.
 const flashcardSchema = new mongoose.Schema(
   {
     front: { type: String, required: true },
     back: { type: String, required: true },
+    easeFactor: { type: Number, default: 2.5 },
+    interval: { type: Number, default: 0 },
+    repetitions: { type: Number, default: 0 },
+    nextReviewAt: { type: Date, default: null },
   },
-  { _id: false }
+  { _id: true }
 );
 
 const documentSchema = new mongoose.Schema(
@@ -19,19 +21,22 @@ const documentSchema = new mongoose.Schema(
       index: true,
     },
     title: { type: String, required: true },
-    // "pdf" ya "link" - source kaha se aaya.
     sourceType: { type: String, enum: ["pdf", "link"], required: true },
-    sourceName: { type: String }, // file name ya URL
-    notes: { type: String, default: "" }, // markdown notes
-    summary: { type: String, default: "" }, // chhota summary
+    sourceName: { type: String },
+    folder: { type: String, default: "", trim: true, index: true },
+    tags: { type: [String], default: [] },
+    notes: { type: String, default: "" },
+    summary: { type: String, default: "" },
     flashcards: { type: [flashcardSchema], default: [] },
-    // Tutor chat aur quiz generation ke liye raw text rakhte hain.
     sourceText: { type: String, default: "" },
+    shareToken: { type: String, default: "" },
+    shareEnabled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-// Dashboard list: user ke docs latest-first — compound index isse fast karta hai.
 documentSchema.index({ userId: 1, createdAt: -1 });
+documentSchema.index({ title: "text", notes: "text", summary: "text" });
+documentSchema.index({ shareToken: 1 }, { sparse: true });
 
 export const Document = mongoose.model("Document", documentSchema);

@@ -1,17 +1,33 @@
-// Auth routes: /api/auth/... URLs ko authController se jodta hai.
 import { Router } from "express";
-import { register, login, me, updateProfile, changePassword } from "../controllers/authController.js";
+import {
+  register,
+  login,
+  me,
+  verifyEmail,
+  resendVerification,
+  forgotPassword,
+  resetPassword,
+  completeOnboarding,
+  updateProfile,
+  changePassword,
+  deleteAccount,
+} from "../controllers/authController.js";
 import { requireAuth } from "../middleware/auth.js";
+import { loginRegisterLimiter, passwordResetLimiter } from "../middleware/authRateLimit.js";
 
 const router = Router();
 
-// Public routes (login ki zaroorat nahi).
-router.post("/register", register);
-router.post("/login", login);
+router.post("/register", loginRegisterLimiter, register);
+router.post("/login", loginRegisterLimiter, login);
+router.post("/verify-email", loginRegisterLimiter, verifyEmail);
+router.post("/forgot-password", passwordResetLimiter, forgotPassword);
+router.post("/reset-password", passwordResetLimiter, resetPassword);
 
-// Protected routes (requireAuth = pehle login check).
 router.get("/me", requireAuth, me);
+router.post("/resend-verification", requireAuth, resendVerification);
+router.post("/onboarding/complete", requireAuth, completeOnboarding);
 router.put("/profile", requireAuth, updateProfile);
 router.put("/password", requireAuth, changePassword);
+router.delete("/account", requireAuth, deleteAccount);
 
 export default router;

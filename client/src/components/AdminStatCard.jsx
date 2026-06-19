@@ -3,7 +3,7 @@
 export default function AdminStatCard({ icon: Icon, label, value, sub, accent = "brand" }) {
   // accent ke hisaab se card ka color chunte hain.
   const accents = {
-    brand: "bg-brand-500/10 text-brand-600",
+    brand: "bg-stone-800/10 text-stone-700",
     amber: "bg-accent-500/15 text-accent-600",
     green: "bg-emerald-500/10 text-emerald-600",
     red: "bg-red-500/10 text-red-600",

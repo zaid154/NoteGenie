@@ -51,8 +51,24 @@ api.interceptors.response.use(
 );
 
 // Backend ki error message ko aasaani se nikaalne ka helper (alag-alag shapes handle karta hai).
+export function isQuotaError(err) {
+  return err?.response?.status === 402 || err?.response?.data?.code === "QUOTA_EXCEEDED";
+}
+
+export function isRateLimitError(err) {
+  return err?.response?.status === 429;
+}
+
 export function apiError(err) {
   const data = err?.response?.data;
+  if (isRateLimitError(err)) {
+    const retryAfter = err?.response?.headers?.["retry-after"];
+    const base = data?.message || "Too many attempts. Please wait a few minutes and try again.";
+    return retryAfter ? `${base} Try again in about ${retryAfter} seconds.` : base;
+  }
+  if (isQuotaError(err)) {
+    return data?.message || "You've reached your plan limit. Upgrade for more.";
+  }
   if (data) {
     if (typeof data === "string") return data;
     if (data.message) return data.message;

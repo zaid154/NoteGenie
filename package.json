@@ -11,6 +11,7 @@
     "server": "npm run dev --prefix server",
     "client": "npm run dev --prefix client",
     "dev": "node dev.mjs",
-    "seed:admin": "npm run seed:admin --prefix server"
+    "seed": "npm run seed --prefix server",
+    "seed:data": "npm run seed:data --prefix server"
   }
 }

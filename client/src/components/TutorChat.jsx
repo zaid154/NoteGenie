@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { api, apiUrl, getToken, apiError } from "../api/client.js";
 import { IconSend, IconChat } from "./icons.jsx";
 import { Spinner } from "./ui.jsx";
+import MarkdownContent from "./MarkdownContent.jsx";
 
 export default function TutorChat({ documentId }) {
   const [messages, setMessages] = useState([]);   // poori chat (user + AI ke messages)
@@ -121,15 +122,15 @@ export default function TutorChat({ documentId }) {
   }
 
   return (
-    <div className="flex h-[28rem] flex-col">
-      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-1">
+    <div className="flex min-h-[32rem] flex-col lg:min-h-[calc(100vh-22rem)]">
+      <div ref={scrollRef} className="chat-scroll flex-1 space-y-4 overflow-y-auto p-1">
         {loadingHistory ? (
           <div className="flex h-full items-center justify-center">
             <Spinner size={24} />
           </div>
         ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center text-muted">
-            <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-500/10 text-brand-600">
+            <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
               <IconChat />
             </span>
             <p className="font-500 text-ink">Ask the AI tutor</p>
@@ -145,13 +146,19 @@ export default function TutorChat({ documentId }) {
               className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm ${
+                className={`rounded-2xl px-4 py-2.5 text-sm ${
                   m.role === "user"
-                    ? "bg-brand-600 text-white"
-                    : "border border-line bg-canvas text-ink"
+                    ? "max-w-[85%] whitespace-pre-wrap bg-indigo-600 text-white"
+                    : "max-w-[92%] border border-line bg-white text-ink shadow-sm lg:max-w-[85%]"
                 }`}
               >
-                {m.content || <Spinner size={14} />}
+                {m.role === "user" ? (
+                  m.content
+                ) : m.content ? (
+                  <MarkdownContent compact>{m.content}</MarkdownContent>
+                ) : (
+                  <Spinner size={14} />
+                )}
               </div>
             </div>
           ))

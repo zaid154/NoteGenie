@@ -1,5 +1,4 @@
-# Render Blueprint — dashboard se bhi same settings daal sakte ho.
-# Secrets (MONGO_URI, JWT_SECRET, GEMINI_API_KEY) Render dashboard me set karo, yahan mat likho.
+# Render Blueprint — upgrade to starter plan to avoid cold starts.
 services:
   - type: web
     name: notegenie-api
@@ -7,7 +6,7 @@ services:
     rootDir: server
     buildCommand: npm install
     startCommand: npm start
-    plan: free
+    plan: starter
     envVars:
       - key: NODE_ENV
         value: production
@@ -22,4 +21,16 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEYS
+        sync: false
+      - key: ENCRYPTION_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_PRO
+        sync: false
+      - key: STRIPE_PRICE_TEAM
         sync: false

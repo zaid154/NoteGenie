@@ -1,25 +1,36 @@
-// Document routes: /api/documents/... — PDF upload, link, list, delete, etc.
+// Document routes with quota enforcement on AI endpoints.
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
+import { requireQuota } from "../middleware/quota.js";
+import { aiRateLimitMiddleware } from "../middleware/aiRateLimit.js";
 import { uploadPdf } from "../middleware/upload.js";
 import {
   uploadDocument,
   createFromLink,
   listDocuments,
+  listFolders,
+  getDueCards,
   getDocument,
   deleteDocument,
   regenerateDocument,
+  updateDocumentMeta,
+  rateFlashcard,
+  toggleShare,
 } from "../controllers/documentController.js";
 
 const router = Router();
+router.use(requireAuth);
 
-router.use(requireAuth); // saare document routes login-protected hain
-
-router.post("/upload", uploadPdf, uploadDocument);
-router.post("/link", createFromLink);
+router.get("/review/due", getDueCards);
+router.get("/folders/list", listFolders);
+router.post("/upload", aiRateLimitMiddleware, requireQuota("documents"), uploadPdf, uploadDocument);
+router.post("/link", aiRateLimitMiddleware, requireQuota("documents"), createFromLink);
 router.get("/", listDocuments);
 router.get("/:id", getDocument);
-router.post("/:id/regenerate", regenerateDocument);
+router.patch("/:id/meta", updateDocumentMeta);
+router.post("/:id/share", toggleShare);
+router.post("/:id/flashcards/:cardId/rate", rateFlashcard);
+router.post("/:id/regenerate", aiRateLimitMiddleware, regenerateDocument);
 router.delete("/:id", deleteDocument);
 
 export default router;

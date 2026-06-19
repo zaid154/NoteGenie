@@ -1,186 +1,479 @@
-// Dashboard: login ke baad ka home page. Yahan stats aur saari materials dikhti hain.
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { api, apiError } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import OnboardingWizard from "../components/OnboardingWizard.jsx";
 import {
   EmptyState,
   Alert,
-  PageHeader,
-  Stats,
-  SectionTitle,
+  Badge,
+  StatSkeleton,
+  MaterialCardSkeleton,
+  UsageMeter,
+  StatCard,
 } from "../components/ui.jsx";
-import { IconPlus, IconDoc, IconLink } from "../components/icons.jsx";
+import { StaggerContainer, StaggerItem, MotionDiv } from "../components/motion.jsx";
+import {
+  IconPlus,
+  IconDoc,
+  IconLink,
+  IconCards,
+  IconChart,
+  IconUpload,
+  IconCheck,
+  IconActivity,
+  IconLayers,
+  IconChevronRight,
+  IconCalendar,
+} from "../components/icons.jsx";
 
-// Loading ke time stat value ki jagah ek chhota shimmer.
-const Loadingbar = () => (
-  <span className="skeleton inline-block h-7 w-14 align-middle" />
-);
+function MaterialCard({ doc }) {
+  const date = new Date(doc.createdAt).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const isPdf = doc.sourceType === "pdf";
+
+  return (
+    <MotionDiv whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
+      <Link to={`/document/${doc._id}`} className="material-card group block h-full">
+        <div className="flex items-start gap-3">
+          <span
+            className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${
+              isPdf
+                ? "bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400"
+                : "bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400"
+            }`}
+          >
+            {isPdf ? <IconDoc width={18} height={18} /> : <IconLink width={18} height={18} />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge color={isPdf ? "red" : "blue"}>{isPdf ? "PDF" : "Link"}</Badge>
+              {doc.folder && <Badge color="gray">{doc.folder}</Badge>}
+              {doc.tags?.slice(0, 3).map((tag) => (
+                <Badge key={tag} color="gray">{tag}</Badge>
+              ))}
+            </div>
+            <h3 className="mt-2 line-clamp-2 font-semibold leading-snug text-ink group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+              {doc.title}
+            </h3>
+            {doc.summary && (
+              <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted">{doc.summary}</p>
+            )}
+          </div>
+        </div>
+        <div className="mt-4 flex items-center justify-between text-xs text-muted">
+          <span className="flex items-center gap-1">
+            <IconCalendar width={13} height={13} />
+            {date}
+          </span>
+          {doc.flashcardCount != null && (
+            <span className="flex items-center gap-1">
+              <IconCards width={14} height={14} />
+              {doc.flashcardCount} cards
+            </span>
+          )}
+        </div>
+        <span className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-50 py-2.5 text-sm font-semibold text-indigo-600 transition group-hover:bg-indigo-600 group-hover:text-white dark:bg-indigo-950/50 dark:text-indigo-300 dark:group-hover:bg-indigo-600 dark:group-hover:text-white">
+          Open material
+          <IconChevronRight width={14} height={14} />
+        </span>
+      </Link>
+    </MotionDiv>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [docs, setDocs] = useState([]);            // saari study materials
-  const [stats, setStats] = useState({ totalAttempts: 0, avgScore: 0 }); // quiz stats
-  const [loading, setLoading] = useState(true);    // data load ho raha hai?
+  const [docs, setDocs] = useState([]);
+  const [stats, setStats] = useState({ totalAttempts: 0, avgScore: 0, recent: [] });
+  const [loadingDocs, setLoadingDocs] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");        // search box me likha hua
-  const [filterType, setFilterType] = useState("all"); // all / pdf / link filter
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [folderFilter, setFolderFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
+  const [folders, setFolders] = useState([]);
+  const [dueCount, setDueCount] = useState(0);
+  const [dueItems, setDueItems] = useState([]);
+  const [usage, setUsage] = useState(null);
 
-  // Page khulte hi backend se documents aur stats ek saath mangwao.
   useEffect(() => {
-    let ignore = false; // page band ho jaye to purana data set na ho
-    async function load() {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadDocs() {
+      setLoadingDocs(true);
       try {
-        const [docsRes, statsRes] = await Promise.all([
-          api.get("/documents"),
-          api.get("/quiz/analytics/overview"),
+        const params = new URLSearchParams();
+        if (debouncedSearch.trim()) params.set("q", debouncedSearch.trim());
+        if (folderFilter) params.set("folder", folderFilter);
+        const qs = params.toString();
+        const [docsRes, foldersRes] = await Promise.all([
+          api.get(`/documents${qs ? `?${qs}` : ""}`),
+          api.get("/documents/folders/list").catch(() => ({ data: { folders: [] } })),
         ]);
         if (ignore) return;
         setDocs(docsRes.data.documents);
-        setStats(statsRes.data);
+        setFolders(foldersRes.data.folders || []);
       } catch (err) {
         if (!ignore) setError(apiError(err));
       } finally {
-        if (!ignore) setLoading(false);
+        if (!ignore) setLoadingDocs(false);
       }
     }
-    load();
-    return () => {
-      ignore = true;
-    };
+
+    loadDocs();
+    return () => { ignore = true; };
+  }, [debouncedSearch, folderFilter]);
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadStats() {
+      try {
+        const [statsRes, dueRes, usageRes] = await Promise.all([
+          api.get("/quiz/analytics/overview"),
+          api.get("/documents/review/due").catch(() => ({ data: { count: 0, due: [] } })),
+          api.get("/billing/usage").catch(() => ({ data: null })),
+        ]);
+        if (ignore) return;
+        setStats(statsRes.data);
+        setDueCount(dueRes.data.count || 0);
+        setDueItems(dueRes.data.due?.slice(0, 5) || []);
+        setUsage(usageRes.data?.usage);
+      } catch {
+        if (!ignore) {
+          setStats({ totalAttempts: 0, avgScore: 0, recent: [] });
+          setDueCount(0);
+          setDueItems([]);
+        }
+      } finally {
+        if (!ignore) setLoadingStats(false);
+      }
+    }
+    loadStats();
+    return () => { ignore = true; };
   }, []);
 
-  // filtered = sirf wahi documents jo search + filter se match karte hain.
+  const allTags = [...new Set(docs.flatMap((d) => d.tags || []))].sort();
+
   const filtered = docs.filter((doc) => {
-    const q = search.toLowerCase().trim();
-    const matchSearch =
-      !q ||
-      doc.title?.toLowerCase().includes(q) ||
-      doc.summary?.toLowerCase().includes(q);
     const matchType = filterType === "all" || doc.sourceType === filterType;
-    return matchSearch && matchType;
+    const matchTag = !tagFilter || (doc.tags || []).includes(tagFilter);
+    return matchType && matchTag;
   });
 
-  return (
-    <div className="space-y-8">
-      <PageHeader
-        eyebrow="Your workspace"
-        title={`Welcome back,`}
-        accent={user?.name?.split(" ")[0] + "."}
-        subtitle="Your study materials and quiz scores, all in one place."
-        action={
-          <Link to="/upload" className="btn-primary">
-            <IconPlus /> New material
-          </Link>
-        }
-      />
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const firstName = user?.name?.split(" ")[0] || "there";
 
-      <Stats
-        cols={3}
-        items={[
-          {
-            label: "Study materials",
-            value: loading ? <Loadingbar /> : docs.length,
-          },
-          {
-            label: "Quizzes attempted",
-            value: loading ? <Loadingbar /> : stats.totalAttempts,
-          },
-          {
-            label: "Average score",
-            value: loading ? <Loadingbar /> : `${stats.avgScore}%`,
-          },
-        ]}
-      />
+  const statItems = [
+    { label: "Materials", numericValue: docs.length, icon: IconDoc, color: "indigo" },
+    { label: "Quizzes taken", numericValue: stats.totalAttempts, icon: IconCheck, color: "violet" },
+    {
+      label: "Avg. score",
+      value: stats.totalAttempts ? `${stats.avgScore}%` : "—",
+      numericValue: stats.totalAttempts ? stats.avgScore : undefined,
+      suffix: stats.totalAttempts ? "%" : undefined,
+      icon: IconActivity,
+      color: "emerald",
+    },
+    {
+      label: "Cards due",
+      value: dueCount ? String(dueCount) : "—",
+      numericValue: dueCount || undefined,
+      icon: IconLayers,
+      color: "amber",
+    },
+  ];
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-6">
+      {!user?.onboardingComplete && <OnboardingWizard />}
+
+      <StaggerContainer className="space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <StaggerItem>
+            <p className="text-sm text-muted">{greeting}, {firstName}</p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink lg:text-3xl">Your library</h1>
+          </StaggerItem>
+          <StaggerItem>
+            <Link to="/upload" className="btn-primary">
+              <IconPlus width={16} height={16} /> Add material
+            </Link>
+          </StaggerItem>
+        </div>
+
+        {loadingStats ? (
+          <StatSkeleton count={4} />
+        ) : (
+          <StaggerContainer className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {statItems.map((item) => (
+              <StaggerItem key={item.label}>
+                <StatCard {...item} />
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
+        )}
+      </StaggerContainer>
 
       {error && <Alert>{error}</Alert>}
 
-      <div>
-        <SectionTitle
-          action={
-            <div className="flex flex-wrap gap-2">
-              <label htmlFor="library-search" className="sr-only">
-                Search materials
-              </label>
-              <input
-                id="library-search"
-                type="search"
-                className="input w-48 py-2 text-sm"
-                placeholder="Search materials..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <select
-                className="input w-auto py-2 text-sm"
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-              >
-                <option value="all">All types</option>
-                <option value="pdf">PDF</option>
-                <option value="link">Link</option>
-              </select>
-            </div>
-          }
-        >
-          Your library
-        </SectionTitle>
-
-        {loading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="card space-y-3 p-5">
-                <div className="skeleton h-5 w-2/3" />
-                <div className="skeleton h-4 w-full" />
-                <div className="skeleton h-4 w-1/2" />
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          <div className="panel">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
+              <p className="text-sm font-semibold text-ink">
+                {loadingDocs ? "Loading…" : `${filtered.length} material${filtered.length !== 1 ? "s" : ""}`}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="search"
+                  className="input w-44 py-2 text-sm"
+                  placeholder="Search materials…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <select
+                  className="input w-auto py-2 text-sm"
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                >
+                  <option value="all">All types</option>
+                  <option value="pdf">PDF</option>
+                  <option value="link">Link</option>
+                </select>
               </div>
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          docs.length === 0 ? (
-            <EmptyState
-              icon={IconDoc}
-              title="No materials yet"
-              subtitle="Upload a PDF or paste a YouTube/web link, and AI will generate notes, flashcards, and a quiz for you."
-              action={
-                <Link to="/upload" className="btn-primary">
-                  <IconPlus /> Add your first material
-                </Link>
-              }
-            />
-          ) : (
-            <p className="text-sm text-muted">No materials match your search.</p>
-          )
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((doc) => (
-              <Link
-                key={doc._id}
-                to={`/document/${doc._id}`}
-                className="card group flex flex-col gap-3 p-5 transition hover:border-brand-300 hover:shadow-lift"
-              >
-                <div className="flex items-center justify-between text-muted">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-600 uppercase tracking-[0.12em]">
-                    {doc.sourceType === "pdf" ? (
-                      <IconDoc width={14} height={14} />
-                    ) : (
-                      <IconLink width={14} height={14} />
-                    )}
-                    {doc.sourceType === "pdf" ? "PDF" : "Link"}
-                  </span>
-                  <span className="text-xs">
-                    {new Date(doc.createdAt).toLocaleDateString()}
-                  </span>
+            </div>
+
+            {folders.length > 0 && (
+              <div className="flex flex-wrap gap-2 border-b border-line px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setFolderFilter("")}
+                  className={folderFilter === "" ? "chip-active" : "chip"}
+                >
+                  All folders
+                </button>
+                {folders.map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFolderFilter(f)}
+                    className={folderFilter === f ? "chip-active" : "chip"}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {allTags.length > 0 && (
+              <div className="flex flex-wrap gap-2 border-b border-line px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setTagFilter("")}
+                  className={tagFilter === "" ? "chip-active" : "chip"}
+                >
+                  All tags
+                </button>
+                {allTags.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTagFilter(t)}
+                    className={tagFilter === t ? "chip-active" : "chip"}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="p-4">
+              {loadingDocs ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[0, 1, 2, 3].map((i) => (
+                    <MaterialCardSkeleton key={i} />
+                  ))}
                 </div>
-                <h3 className="line-clamp-2 font-display text-lg font-600 leading-snug text-ink group-hover:text-brand-600">
-                  {doc.title}
-                </h3>
-                <p className="line-clamp-3 text-sm leading-relaxed text-muted">
-                  {doc.summary}
-                </p>
-              </Link>
-            ))}
+              ) : filtered.length === 0 ? (
+                docs.length === 0 ? (
+                  <EmptyState
+                    icon={IconDoc}
+                    title="Nothing here yet"
+                    subtitle="Upload a PDF or paste a link. Notes, flashcards, and quizzes are generated automatically."
+                    action={
+                      <Link to="/upload" className="btn-primary">
+                        <IconPlus width={16} height={16} /> Upload your first source
+                      </Link>
+                    }
+                  />
+                ) : (
+                  <EmptyState
+                    icon={IconDoc}
+                    title="No matches"
+                    subtitle="Try clearing your search or filters."
+                    action={
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        onClick={() => { setSearch(""); setFolderFilter(""); setTagFilter(""); setFilterType("all"); }}
+                      >
+                        Clear filters
+                      </button>
+                    }
+                  />
+                )
+              ) : (
+                <StaggerContainer className="grid gap-4 sm:grid-cols-2">
+                  {filtered.map((doc) => (
+                    <StaggerItem key={doc._id}>
+                      <MaterialCard doc={doc} />
+                    </StaggerItem>
+                  ))}
+                </StaggerContainer>
+              )}
+            </div>
           </div>
-        )}
+        </div>
+
+        <StaggerContainer className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
+          {dueCount > 0 && (
+            <StaggerItem>
+              <div className="rail-card">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                    <IconCards width={16} height={16} />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-ink">Review queue</p>
+                    <p className="text-xs text-muted">{dueCount} card{dueCount !== 1 ? "s" : ""} due</p>
+                  </div>
+                </div>
+                <ul className="mt-3 space-y-1.5">
+                  {dueItems.map((item, i) => (
+                    <StaggerItem key={item.cardId}>
+                      <Link
+                        to={`/document/${item.documentId}?study=due`}
+                        className="group flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                      >
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-1 font-medium text-ink">{item.front}</p>
+                          <p className="line-clamp-1 text-xs text-muted">{item.documentTitle}</p>
+                        </div>
+                        <motion.span whileHover={{ x: 2 }} className="shrink-0 text-muted opacity-0 transition group-hover:opacity-100">
+                          <IconChevronRight width={14} height={14} />
+                        </motion.span>
+                      </Link>
+                    </StaggerItem>
+                  ))}
+                </ul>
+                {dueItems[0] && (
+                  <Link to="/review" className="btn-primary mt-3 w-full py-2 text-xs">
+                    Start review
+                  </Link>
+                )}
+              </div>
+            </StaggerItem>
+          )}
+
+          <StaggerItem>
+            <div className="rail-card">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <p className="font-semibold text-ink">Recent quizzes</p>
+                <Link to="/analytics" className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">
+                  View all
+                </Link>
+              </div>
+              {loadingStats ? (
+                <div className="mt-3 space-y-2">
+                  <div className="skeleton h-10 w-full" />
+                  <div className="skeleton h-10 w-full" />
+                </div>
+              ) : stats.recent?.length === 0 ? (
+                <div className="mt-3">
+                  <EmptyState
+                    compact
+                    icon={IconChart}
+                    title="No quizzes yet"
+                    subtitle="Take a quiz from any material."
+                    action={
+                      <Link to="/app" className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                        Browse library
+                      </Link>
+                    }
+                  />
+                </div>
+              ) : (
+                <ul className="mt-3 space-y-1.5">
+                  {stats.recent.slice(0, 4).map((a) => (
+                    <li key={a.id}>
+                      <Link
+                        to={a.documentId ? `/document/${a.documentId}` : "/analytics"}
+                        className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      >
+                      <div className="min-w-0 pr-2">
+                        <p className="truncate font-medium text-ink">{a.title}</p>
+                        <p className="text-xs text-muted">
+                          {new Date(a.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                        a.percent >= 60
+                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                          : "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+                      }`}>
+                        {a.percent}%
+                      </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </StaggerItem>
+
+          {usage?.limits?.documents != null && (
+            <StaggerItem>
+              <div className="rail-card">
+                <p className="font-semibold text-ink">Monthly usage</p>
+                <div className="mt-3 space-y-3">
+                  <UsageMeter label="Uploads" used={usage.used.documents} limit={usage.limits.documents} />
+                  {user?.plan === "free" && (
+                    <Link to="/pricing" className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">
+                      Upgrade for more →
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </StaggerItem>
+          )}
+
+          <StaggerItem>
+            <div className="rail-card">
+              <p className="mb-3 font-semibold text-ink">Quick actions</p>
+              <div className="grid gap-2">
+                <Link to="/upload" className="btn-outline w-full justify-start text-sm">
+                  <IconUpload width={16} height={16} /> Upload material
+                </Link>
+                <Link to="/analytics" className="btn-outline w-full justify-start text-sm">
+                  <IconChart width={16} height={16} /> View analytics
+                </Link>
+              </div>
+            </div>
+          </StaggerItem>
+        </StaggerContainer>
       </div>
     </div>
   );

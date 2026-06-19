@@ -1,14 +1,12 @@
-// AdminSettings: yahan admin Gemini AI ki key, model aur uska rate manage karta hai.
+// AdminSettings: Gemini key pool, model, audit log, and rate limits.
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import { api, apiError } from "../../api/client.js";
-import { Alert, Badge, Spinner } from "../../components/ui.jsx";
-import { IconSettings, IconSparkles, IconCoins, IconActivity } from "../../components/icons.jsx";
+import { Alert, Badge, Spinner, PageLoader, PageHeader, SectionTitle } from "../../components/ui.jsx";
+import { IconSettings, IconSparkles, IconCoins, IconActivity, IconTrash, IconPlus } from "../../components/icons.jsx";
 
-// Agar koi pricing na mile to yeh default rate (per 1M tokens) use hota hai.
 const DEFAULT_RATE = { input: 0.3, output: 2.5 };
 
-// Backend ke jaisa hi lookup: exact match, phir substring, warna default.
 function rateForModel(model, pricing, fallback) {
   if (!pricing) return fallback || DEFAULT_RATE;
   if (pricing[model]) return pricing[model];
@@ -16,72 +14,159 @@ function rateForModel(model, pricing, fallback) {
   return partial ? pricing[partial] : fallback || DEFAULT_RATE;
 }
 
+function statusBadge(status) {
+  const map = {
+    ok: { color: "green", label: "OK" },
+    cooldown: { color: "amber", label: "Cooldown" },
+    failed: { color: "amber", label: "Failed" },
+    disabled: { color: "gray", label: "Disabled" },
+  };
+  const s = map[status] || map.ok;
+  return <Badge color={s.color}>{s.label}</Badge>;
+}
+
+const SECTIONS = {
+  keys: { title: "AI keys", subtitle: "Gemini API key pool, model selection, and failover." },
+  audit: { title: "Audit log", subtitle: "Admin actions across the platform." },
+  "rate-limit": { title: "Rate limits", subtitle: "AI generation limits per user." },
+};
+
 export default function AdminSettings() {
-  const [apiKey, setApiKey] = useState("");
+  const { section: sectionParam = "keys" } = useParams();
+  const invalidSection = sectionParam && !SECTIONS[sectionParam];
+  const section = SECTIONS[sectionParam] ? sectionParam : "keys";
+  const { title, subtitle } = SECTIONS[section];
+  const [newKey, setNewKey] = useState("");
+  const [newLabel, setNewLabel] = useState("");
   const [model, setModel] = useState("gemini-2.5-flash");
-  const [masked, setMasked] = useState("");
-  const [hasKey, setHasKey] = useState(false);
+  const [apiKeys, setApiKeys] = useState([]);
+  const [poolSize, setPoolSize] = useState(0);
   const [models, setModels] = useState([]);
   const [pricing, setPricing] = useState(null);
   const [defaultPricing, setDefaultPricing] = useState(DEFAULT_RATE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [testingAll, setTestingAll] = useState(false);
+  const [testResults, setTestResults] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [testOk, setTestOk] = useState(null);
+  const [aiRateLimitMax, setAiRateLimitMax] = useState("120");
+  const [aiRateLimitWindowMinutes, setAiRateLimitWindowMinutes] = useState("15");
+  const [savingRateLimit, setSavingRateLimit] = useState(false);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditTotalPages, setAuditTotalPages] = useState(1);
+  const [editingKeyId, setEditingKeyId] = useState(null);
+  const [editLabel, setEditLabel] = useState("");
 
-  // Page khulte hi current settings (key masked, model, pricing) le aao.
-  useEffect(() => {
-    async function load() {
-      try {
-        const { data } = await api.get("/admin/settings");
-        setMasked(data.geminiApiKeyMasked); // key chhupi hui form me (jaise ****abcd)
-        setHasKey(data.hasApiKey);
-        setModel(data.geminiModel || "gemini-2.5-flash");
-        setPricing(data.pricing || null);
-        if (data.defaultPricing) setDefaultPricing(data.defaultPricing);
-        // Key set hai to available models bhi le aao.
-        if (data.hasApiKey) {
+  async function load() {
+    try {
+      const { data } = await api.get("/admin/settings");
+      setApiKeys(data.apiKeys || []);
+      setPoolSize(data.poolSize || 0);
+      setModel(data.geminiModel || "gemini-2.5-flash");
+      setPricing(data.pricing || null);
+      if (data.defaultPricing) setDefaultPricing(data.defaultPricing);
+      setAiRateLimitMax(String(data.aiRateLimitMax ?? 120));
+      setAiRateLimitWindowMinutes(String(data.aiRateLimitWindowMinutes ?? 15));
+      if (data.hasApiKey) {
+        try {
           const m = await api.get("/admin/models");
           setModels(m.data.models);
+        } catch {
+          setModels(["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro"]);
         }
-      } catch (e) {
-        setError(apiError(e));
-      } finally {
-        setLoading(false);
       }
-    }
-    load();
-  }, []);
-
-  async function loadModels(key) {
-    try {
-      const { data } = await api.get("/admin/models", {
-        params: key ? { key } : {},
-      });
-      setModels(data.models);
-    } catch {
-      setModels(["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro"]);
+    } catch (e) {
+      setError(apiError(e));
+    } finally {
+      setLoading(false);
     }
   }
 
-  // handleSave: model (aur agar di gayi ho to nayi key) backend pe save karo.
-  async function handleSave(e) {
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function loadAudit(p = 1) {
+    try {
+      const { data } = await api.get("/admin/audit-log", { params: { page: p, limit: 20 } });
+      setAuditLogs(data.logs);
+      setAuditPage(data.page);
+      setAuditTotalPages(data.totalPages || 1);
+    } catch (e) {
+      setError(apiError(e));
+    }
+  }
+
+  useEffect(() => {
+    if (section === "audit") loadAudit(auditPage);
+  }, [section, auditPage]);
+
+  async function patchKey(keyId, patch) {
+    try {
+      const { data } = await api.patch(`/admin/settings/keys/${keyId}`, patch);
+      setApiKeys(data.apiKeys);
+      setSuccess("Key updated.");
+    } catch (err) {
+      setError(apiError(err));
+    }
+  }
+
+  async function moveKeyPriority(keyId, direction) {
+    const sorted = [...apiKeys].sort((a, b) => a.priority - b.priority);
+    const idx = sorted.findIndex((k) => k.id === keyId);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const a = sorted[idx];
+    const b = sorted[swapIdx];
+    await patchKey(a.id, { priority: b.priority });
+    await patchKey(b.id, { priority: a.priority });
+    await load();
+  }
+
+  async function handleResetRateLimit() {
+    setSavingRateLimit(true);
+    setError("");
+    try {
+      const { data } = await api.post("/admin/settings/reset-rate-limit");
+      setAiRateLimitMax(String(data.aiRateLimitMax));
+      setAiRateLimitWindowMinutes(String(data.aiRateLimitWindowMinutes));
+      setSuccess("Rate limit reset to defaults.");
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setSavingRateLimit(false);
+    }
+  }
+
+  async function handleSaveRateLimit(e) {
+    e.preventDefault();
+    setSavingRateLimit(true);
+    setError("");
+    setSuccess("");
+    try {
+      await api.put("/admin/settings", {
+        aiRateLimitMax: Number(aiRateLimitMax),
+        aiRateLimitWindowMinutes: Number(aiRateLimitWindowMinutes),
+      });
+      setSuccess("AI rate limit updated.");
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setSavingRateLimit(false);
+    }
+  }
+
+  async function handleSaveModel(e) {
     e.preventDefault();
     setSaving(true);
     setError("");
     setSuccess("");
     try {
-      const body = { geminiModel: model };
-      // Key tabhi bhejo jab user ne kuch type kiya ho (warna purani key bani rahe).
-      if (apiKey.trim()) body.geminiApiKey = apiKey.trim();
-      const { data } = await api.put("/admin/settings", body);
-      setSuccess("Settings saved.");
-      setMasked(data.geminiApiKeyMasked);
-      setHasKey(data.hasApiKey);
-      setApiKey("");
-      await loadModels();
+      await api.put("/admin/settings", { geminiModel: model });
+      setSuccess("Model saved.");
     } catch (err) {
       setError(apiError(err));
     } finally {
@@ -89,176 +174,323 @@ export default function AdminSettings() {
     }
   }
 
-  // handleTest: key sach me kaam kar rahi hai ya nahi, yeh check karta hai.
-  async function handleTest() {
+  async function handleAddKey(e) {
+    e.preventDefault();
+    if (!newKey.trim()) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const { data } = await api.post("/admin/settings/keys", {
+        key: newKey.trim(),
+        label: newLabel.trim() || undefined,
+      });
+      setApiKeys(data.apiKeys);
+      setPoolSize(data.apiKeys.filter((k) => !k.disabled && k.status !== "cooldown").length);
+      setNewKey("");
+      setNewLabel("");
+      setSuccess("API key added to pool.");
+      const m = await api.get("/admin/models");
+      setModels(m.data.models);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRemoveKey(id) {
+    setError("");
+    try {
+      const { data } = await api.delete(`/admin/settings/keys/${id}`);
+      setApiKeys(data.apiKeys);
+      setPoolSize(data.apiKeys.length);
+      setSuccess("Key removed.");
+    } catch (err) {
+      setError(apiError(err));
+    }
+  }
+
+  async function handleTestAll() {
+    setTestingAll(true);
+    setError("");
+    setTestResults(null);
+    try {
+      const { data } = await api.post("/admin/settings/test-all");
+      setTestResults(data);
+      setSuccess(`${data.passed}/${data.total} keys passed.`);
+      await load();
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setTestingAll(false);
+    }
+  }
+
+  async function handleTestNew() {
+    if (!newKey.trim()) return;
     setTesting(true);
     setError("");
-    setTestOk(null);
     try {
-      const body = { geminiModel: model };
-      if (apiKey.trim()) body.geminiApiKey = apiKey.trim();
-      await api.post("/admin/settings/test", body);
-      setTestOk(true);
-      setSuccess("API key is valid and working.");
-      if (apiKey.trim()) await loadModels(apiKey.trim());
+      await api.post("/admin/settings/test", { geminiApiKey: newKey.trim(), geminiModel: model });
+      setSuccess("New key is valid.");
     } catch (err) {
-      setTestOk(false);
       setError(apiError(err));
     } finally {
       setTesting(false);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size={24} />
-      </div>
-    );
-  }
+  if (loading && section !== "audit") return <PageLoader />;
+
+  const rate = rateForModel(model, pricing, defaultPricing);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* Header block */}
+    <div className="mx-auto max-w-3xl space-y-6">
+      {invalidSection && <Navigate to="/admin/settings/keys" replace />}
+      <PageHeader title={title} subtitle={subtitle} />
+
+      {section === "audit" ? (
+        <div className="card overflow-hidden">
+          {error && <Alert>{error}</Alert>}
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-line bg-canvas/50">
+              <tr>
+                <th className="px-4 py-3">Action</th>
+                <th className="px-4 py-3">Admin</th>
+                <th className="px-4 py-3">Target</th>
+                <th className="px-4 py-3">Time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {auditLogs.map((l) => (
+                <tr key={l.id}>
+                  <td className="px-4 py-3 font-mono text-xs">{l.action}</td>
+                  <td className="px-4 py-3 text-muted">{l.admin?.email}</td>
+                  <td className="px-4 py-3 text-xs">{l.targetType} {l.targetId?.slice?.(0, 8)}</td>
+                  <td className="px-4 py-3 text-muted">{new Date(l.createdAt).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {auditTotalPages > 1 && (
+            <div className="flex justify-center gap-3 p-4">
+              <button type="button" className="btn-outline text-sm" disabled={auditPage <= 1} onClick={() => setAuditPage((p) => p - 1)}>Previous</button>
+              <span className="text-sm text-muted">Page {auditPage} of {auditTotalPages}</span>
+              <button type="button" className="btn-outline text-sm" disabled={auditPage >= auditTotalPages} onClick={() => setAuditPage((p) => p + 1)}>Next</button>
+            </div>
+          )}
+        </div>
+      ) : section === "rate-limit" ? (
+        <>
+          {error && <Alert>{error}</Alert>}
+          {success && <Alert type="success">{success}</Alert>}
+          <form onSubmit={handleSaveRateLimit} className="card space-y-4 p-6">
+            <SectionTitle>AI generation rate limit</SectionTitle>
+            <p className="text-sm text-muted">
+              Max AI actions per user per window (upload, regenerate, quiz, tutor). Admin accounts skip this limit.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="aiRateLimitMax">Max requests</label>
+                <input
+                  id="aiRateLimitMax"
+                  type="number"
+                  min="1"
+                  max="10000"
+                  className="input"
+                  value={aiRateLimitMax}
+                  onChange={(e) => setAiRateLimitMax(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label className="label" htmlFor="aiRateLimitWindowMinutes">Window (minutes)</label>
+                <input
+                  id="aiRateLimitWindowMinutes"
+                  type="number"
+                  min="1"
+                  max="1440"
+                  className="input"
+                  value={aiRateLimitWindowMinutes}
+                  onChange={(e) => setAiRateLimitWindowMinutes(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button type="submit" className="btn-primary" disabled={savingRateLimit}>
+                {savingRateLimit ? <Spinner /> : "Save rate limit"}
+              </button>
+              <button type="button" className="btn-outline" onClick={handleResetRateLimit} disabled={savingRateLimit}>
+                Reset to defaults
+              </button>
+            </div>
+          </form>
+        </>
+      ) : (
+      <>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-500/10 text-brand-600">
+          <span className="grid h-11 w-11 place-items-center rounded-xl bg-stone-800/10 text-stone-700">
             <IconSettings width={22} height={22} />
           </span>
           <div>
-            <h2 className="font-display text-lg font-600 text-ink">Gemini API</h2>
+            <SectionTitle>Gemini API Key Pool</SectionTitle>
             <p className="mt-0.5 text-sm text-muted">
-              Powers notes, quizzes, flashcards, and the tutor.
+              Multiple keys with automatic failover — if one hits quota, the next takes over.
             </p>
           </div>
         </div>
-        <Badge color={hasKey ? "green" : "amber"}>
-          {hasKey ? "Key configured" : "Using .env fallback"}
+        <Badge color={poolSize > 0 ? "green" : "amber"}>
+          {poolSize > 0 ? `${poolSize} active key${poolSize !== 1 ? "s" : ""}` : "No keys configured"}
         </Badge>
       </div>
 
+      {error && <Alert>{error}</Alert>}
+      {success && <Alert type="success">{success}</Alert>}
+
       <div className="card overflow-hidden">
-        {hasKey && (
-          <div className="border-b border-line bg-canvas/40 px-6 py-3">
-            <p className="text-xs text-muted">Active key</p>
-            <p className="mt-0.5 font-mono text-sm text-ink">{masked || "••••••••"}</p>
+        <div className="border-b border-line bg-canvas/40 px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-display font-600 text-ink">Key pool</h3>
+            <button type="button" onClick={handleTestAll} className="btn-outline text-sm" disabled={testingAll || !apiKeys.length}>
+              {testingAll ? <Spinner size={14} /> : <IconSparkles width={14} height={14} />}
+              Test all keys
+            </button>
+          </div>
+        </div>
+
+        <div className="divide-y divide-line">
+          {apiKeys.length === 0 ? (
+            <p className="p-6 text-sm text-muted">No keys in pool. Add keys below or set GEMINI_API_KEYS in .env.</p>
+          ) : (
+            apiKeys.map((k) => (
+              <div key={k.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {editingKeyId === k.id ? (
+                      <input
+                        className="input py-1 text-sm"
+                        value={editLabel}
+                        onChange={(e) => setEditLabel(e.target.value)}
+                        onBlur={() => {
+                          patchKey(k.id, { label: editLabel });
+                          setEditingKeyId(null);
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <button type="button" className="font-500 text-ink hover:underline" onClick={() => { setEditingKeyId(k.id); setEditLabel(k.label); }}>
+                        {k.label}
+                      </button>
+                    )}
+                    {statusBadge(k.status)}
+                    <span className="text-xs text-muted">priority {k.priority}</span>
+                  </div>
+                  <p className="mt-0.5 font-mono text-sm text-muted">{k.masked}</p>
+                  {k.lastError && <p className="mt-1 text-xs text-red-600">{k.lastError}</p>}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" className="btn-ghost text-xs" onClick={() => moveKeyPriority(k.id, "up")}>↑</button>
+                  <button type="button" className="btn-ghost text-xs" onClick={() => moveKeyPriority(k.id, "down")}>↓</button>
+                  <label className="flex items-center gap-1 text-xs">
+                    <input type="checkbox" checked={!k.disabled} onChange={(e) => patchKey(k.id, { disabled: !e.target.checked })} />
+                    Enabled
+                  </label>
+                  <button type="button" onClick={() => handleRemoveKey(k.id)} className="btn-ghost p-2 text-red-500" title="Remove key">
+                    <IconTrash width={16} height={16} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {testResults && (
+          <div className="border-t border-line bg-canvas/30 px-6 py-4">
+            <p className="text-xs font-600 uppercase text-muted">Test results</p>
+            <ul className="mt-2 space-y-1 text-sm">
+              {testResults.results.map((r) => (
+                <li key={r.id} className={r.ok ? "text-emerald-600" : "text-red-600"}>
+                  {r.label}: {r.ok ? "OK" : r.error}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
-
-        <form onSubmit={handleSave} className="space-y-5 p-6">
-          {error && <Alert>{error}</Alert>}
-          {success && <Alert type="success">{success}</Alert>}
-          {testOk === true && !success && (
-            <Alert type="success">API key test passed.</Alert>
-          )}
-
-          <div>
-            <label className="label">API key</label>
-            <input
-              type="password"
-              className="input font-mono text-sm"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={hasKey ? "Leave blank to keep current key" : "Paste your Gemini key"}
-              autoComplete="off"
-            />
-            <p className="mt-1.5 text-xs text-muted">
-              If left empty here, the server uses{" "}
-              <code className="rounded bg-ink/5 px-1 py-0.5 text-xs">GEMINI_API_KEY</code> from
-              the root <code className="rounded bg-ink/5 px-1 py-0.5 text-xs">.env</code> file.
-            </p>
-          </div>
-
-          <div className="border-t border-line pt-5">
-            <label className="label">Model</label>
-            {models.length > 0 ? (
-              <select
-                className="input"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-              >
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                className="input"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="gemini-2.5-flash"
-              />
-            )}
-            <p className="mt-1.5 text-xs text-muted">
-              Flash models are cheaper. Pro models cost more per token.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3 border-t border-line pt-5">
-            <button type="button" onClick={handleTest} className="btn-outline" disabled={testing}>
-              {testing ? <Spinner /> : <IconSparkles width={16} height={16} />}
-              Test key
-            </button>
-            <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? <Spinner /> : "Save"}
-            </button>
-          </div>
-        </form>
       </div>
 
-      {/* Selected model ke rates — sirf dekhne ke liye (Google pricing). */}
-      {(() => {
-        const rate = rateForModel(model, pricing, defaultPricing);
-        return (
-          <div className="card p-6">
-            <div className="flex items-start gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600">
-                <IconCoins width={20} height={20} />
-              </span>
-              <div className="min-w-0">
-                <h3 className="font-display text-base font-600 text-ink">
-                  Rates for <span className="font-mono text-sm">{model}</span>
-                </h3>
-                <p className="mt-0.5 text-sm text-muted">
-                  Approximate Google pricing, used to estimate cost. USD per 1M tokens.
-                </p>
+      <form onSubmit={handleAddKey} className="card space-y-4 p-6">
+        <h3 className="font-display font-600 text-ink">Add API key</h3>
+        <div>
+          <label className="label">Label (optional)</label>
+          <input className="input" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Backup 1" />
+        </div>
+        <div>
+          <label className="label">Gemini API key</label>
+          <input
+            type="password"
+            className="input font-mono text-sm"
+            value={newKey}
+            onChange={(e) => setNewKey(e.target.value)}
+            placeholder="Paste key"
+            autoComplete="off"
+          />
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" onClick={handleTestNew} className="btn-outline" disabled={testing || !newKey.trim()}>
+            {testing ? <Spinner /> : "Test key"}
+          </button>
+          <button type="submit" className="btn-primary" disabled={saving || !newKey.trim()}>
+            {saving ? <Spinner /> : <IconPlus width={16} height={16} />}
+            Add to pool
+          </button>
+        </div>
+      </form>
+
+      <form onSubmit={handleSaveModel} className="card space-y-4 p-6">
+        <label className="label">Model</label>
+        {models.length > 0 ? (
+          <select className="input" value={model} onChange={(e) => setModel(e.target.value)}>
+            {models.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        ) : (
+          <input className="input" value={model} onChange={(e) => setModel(e.target.value)} />
+        )}
+        <button type="submit" className="btn-primary" disabled={saving}>
+          {saving ? <Spinner /> : "Save model"}
+        </button>
+      </form>
+
+      <div className="card p-6">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600">
+            <IconCoins width={20} height={20} />
+          </span>
+          <div>
+            <h3 className="font-display text-base font-600 text-ink">Rates for {model}</h3>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-line bg-canvas/40 p-4">
+                <p className="text-xs uppercase text-muted">Input</p>
+                <p className="mt-1 text-xl font-700">${rate.input} <span className="text-sm font-400 text-muted">/ 1M</span></p>
+              </div>
+              <div className="rounded-xl border border-line bg-canvas/40 p-4">
+                <p className="text-xs uppercase text-muted">Output</p>
+                <p className="mt-1 text-xl font-700">${rate.output} <span className="text-sm font-400 text-muted">/ 1M</span></p>
               </div>
             </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-line bg-canvas/40 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted">Input</p>
-                <p className="mt-1 text-xl font-700 text-ink">
-                  ${rate.input}
-                  <span className="ml-1 text-sm font-400 text-muted">/ 1M tokens</span>
-                </p>
-              </div>
-              <div className="rounded-xl border border-line bg-canvas/40 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted">Output</p>
-                <p className="mt-1 text-xl font-700 text-ink">
-                  ${rate.output}
-                  <span className="ml-1 text-sm font-400 text-muted">/ 1M tokens</span>
-                </p>
-              </div>
-            </div>
-
-            <p className="mt-4 text-xs text-muted">
-              Rates are estimates and may change on Google&apos;s side — actual billing comes from
-              your Google account.
-            </p>
-
-            <Link
-              to="/admin/usage"
-              className="btn-outline mt-5 inline-flex w-full justify-center sm:w-auto"
-            >
+            <Link to="/admin/usage" className="btn-outline mt-5 inline-flex">
               <IconActivity width={16} height={16} />
-              View usage &amp; cost
+              View usage by key
             </Link>
           </div>
-        );
-      })()}
+        </div>
+      </div>
+      </>
+      )}
     </div>
   );
 }

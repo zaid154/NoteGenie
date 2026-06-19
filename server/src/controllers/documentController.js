@@ -8,8 +8,30 @@ import {
   generateNotes,
   generateFlashcards,
   pdfPart,
+  pickKeyForSlot,
 } from "../services/gemini.js";
 import { extractTextFromUrl } from "../services/linkExtractor.js";
+import { incrementUsage } from "../middleware/quota.js";
+import { sm2, initFlashcard } from "../services/spacedRepetition.js";
+import { sanitizeFlashcards } from "../utils/textClean.js";
+import crypto from "crypto";
+
+function parseTags(body) {
+  if (Array.isArray(body.tags)) {
+    return body.tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 10);
+  }
+  if (typeof body.tags === "string" && body.tags.trim()) {
+    try {
+      const parsed = JSON.parse(body.tags);
+      if (Array.isArray(parsed)) {
+        return parsed.map((t) => String(t).trim()).filter(Boolean).slice(0, 10);
+      }
+    } catch {
+      return body.tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 10);
+    }
+  }
+  return [];
+}
 
 // PDF se notes + flashcards banakar ek naya Document save karta hai.
 // POST /api/documents/upload
@@ -28,22 +50,29 @@ export const uploadDocument = asyncHandler(async (req, res) => {
   // AI ko PDF bhejne layak banao, fir notes aur flashcards ek saath generate karo.
   const source = pdfPart(req.file.buffer);
   const userId = req.user._id;
+  const notesKey = await pickKeyForSlot(0);
+  const flashKey = await pickKeyForSlot(1);
   const [notesResult, flashcards] = await Promise.all([
-    generateNotes(source, { userId, feature: "notes" }),
-    generateFlashcards(source, { meta: { userId, feature: "flashcards" } }),
+    generateNotes(source, { userId, feature: "notes", preferredKeyId: notesKey.id }),
+    generateFlashcards(source, { userId, feature: "flashcards", preferredKeyId: flashKey.id }),
   ]);
+
+  const cleanCards = sanitizeFlashcards(flashcards);
 
   const doc = await Document.create({
     userId: req.user._id,
     title: notesResult.title || req.file.originalname,
     sourceType: "pdf",
     sourceName: req.file.originalname,
+    folder: req.body.folder?.trim() || "",
+    tags: parseTags(req.body),
     notes: notesResult.notes,
     summary: notesResult.summary,
-    flashcards,
-    // Quiz/tutor ke liye notes ko hi context bana lete hain (PDF store nahi karte).
-    sourceText: notesResult.notes,
+    flashcards: cleanCards.map(initFlashcard),
+    sourceText: (notesResult.sourceExcerpt || notesResult.notes || "").slice(0, 15000),
   });
+
+  await incrementUsage(req.user, "documents");
 
   res.status(201).json({ document: doc });
 });
@@ -56,32 +85,134 @@ export const createFromLink = asyncHandler(async (req, res) => {
 
   const { text } = await extractTextFromUrl(url);
   const userId = req.user._id;
+  const notesKey = await pickKeyForSlot(0);
+  const flashKey = await pickKeyForSlot(1);
   const [notesResult, flashcards] = await Promise.all([
-    generateNotes(text, { userId, feature: "notes" }),
-    generateFlashcards(text, { meta: { userId, feature: "flashcards" } }),
+    generateNotes(text, { userId, feature: "notes", preferredKeyId: notesKey.id }),
+    generateFlashcards(text, { userId, feature: "flashcards", preferredKeyId: flashKey.id }),
   ]);
+
+  const cleanCards = sanitizeFlashcards(flashcards);
 
   const doc = await Document.create({
     userId: req.user._id,
     title: notesResult.title || url,
     sourceType: "link",
     sourceName: url,
+    folder: req.body.folder?.trim() || "",
+    tags: parseTags(req.body),
     notes: notesResult.notes,
     summary: notesResult.summary,
-    flashcards,
-    sourceText: text.slice(0, 15000),
+    flashcards: cleanCards.map(initFlashcard),
+    sourceText: (notesResult.sourceExcerpt || text).slice(0, 15000),
   });
+
+  await incrementUsage(req.user, "documents");
 
   res.status(201).json({ document: doc });
 });
 
-// User ke saare documents (list ke liye chhota data).
-// GET /api/documents
+// GET /api/documents?q=&folder=
 export const listDocuments = asyncHandler(async (req, res) => {
-  const docs = await Document.find({ userId: req.user._id })
-    .select("title sourceType sourceName summary createdAt")
-    .sort({ createdAt: -1 });
+  const filter = { userId: req.user._id };
+  if (req.query.folder) filter.folder = req.query.folder;
+  if (req.query.q?.trim()) {
+    filter.$text = { $search: req.query.trim() };
+  }
+
+  const pipeline = [
+    { $match: filter },
+    {
+      $addFields: {
+        flashcardCount: { $size: { $ifNull: ["$flashcards", []] } },
+        ...(req.query.q?.trim() ? { score: { $meta: "textScore" } } : {}),
+      },
+    },
+    {
+      $project: {
+        title: 1,
+        sourceType: 1,
+        sourceName: 1,
+        summary: 1,
+        folder: 1,
+        tags: 1,
+        createdAt: 1,
+        flashcardCount: 1,
+        ...(req.query.q?.trim() ? { score: 1 } : {}),
+      },
+    },
+    { $sort: req.query.q?.trim() ? { score: { $meta: "textScore" } } : { createdAt: -1 } },
+  ];
+
+  const docs = await Document.aggregate(pipeline);
   res.json({ documents: docs });
+});
+
+// GET /api/documents/folders/list
+export const listFolders = asyncHandler(async (req, res) => {
+  const folders = await Document.distinct("folder", {
+    userId: req.user._id,
+    folder: { $ne: "" },
+  });
+  res.json({ folders: folders.sort() });
+});
+
+// GET /api/documents/review/due
+export const getDueCards = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const docs = await Document.find({ userId: req.user._id }).select("title flashcards");
+  const due = [];
+  for (const doc of docs) {
+    for (const card of doc.flashcards) {
+      if (!card.nextReviewAt || new Date(card.nextReviewAt) <= now) {
+        due.push({
+          documentId: doc._id,
+          documentTitle: doc.title,
+          cardId: card._id,
+          front: card.front,
+          back: card.back,
+        });
+      }
+    }
+  }
+  res.json({ due, count: due.length });
+});
+
+// PATCH /api/documents/:id/meta  body: { folder?, tags? }
+export const updateDocumentMeta = asyncHandler(async (req, res) => {
+  const doc = await Document.findOne({ _id: req.params.id, userId: req.user._id });
+  if (!doc) return res.status(404).json({ message: "Document not found" });
+  if (req.body.folder !== undefined) doc.folder = String(req.body.folder).trim().slice(0, 80);
+  if (Array.isArray(req.body.tags)) doc.tags = req.body.tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 10);
+  await doc.save();
+  res.json({ document: doc });
+});
+
+// POST /api/documents/:id/flashcards/:cardId/rate  body: { quality: 0-5 }
+export const rateFlashcard = asyncHandler(async (req, res) => {
+  const quality = Math.min(5, Math.max(0, Number(req.body.quality) || 0));
+  const doc = await Document.findOne({ _id: req.params.id, userId: req.user._id });
+  if (!doc) return res.status(404).json({ message: "Document not found" });
+  const card = doc.flashcards.id(req.params.cardId);
+  if (!card) return res.status(404).json({ message: "Flashcard not found" });
+  Object.assign(card, sm2(card, quality));
+  await doc.save();
+  res.json({ card });
+});
+
+// POST /api/documents/:id/share
+export const toggleShare = asyncHandler(async (req, res) => {
+  const doc = await Document.findOne({ _id: req.params.id, userId: req.user._id });
+  if (!doc) return res.status(404).json({ message: "Document not found" });
+  doc.shareEnabled = Boolean(req.body.enabled);
+  if (doc.shareEnabled && !doc.shareToken) {
+    doc.shareToken = crypto.randomBytes(16).toString("hex");
+  }
+  await doc.save();
+  res.json({
+    shareEnabled: doc.shareEnabled,
+    shareUrl: doc.shareEnabled ? `/share/${doc.shareToken}` : null,
+  });
 });
 
 // Ek document ka pura data.
@@ -124,16 +255,22 @@ export const regenerateDocument = asyncHandler(async (req, res) => {
   }
 
   const userId = req.user._id;
+  const notesKey = await pickKeyForSlot(0);
+  const flashKey = await pickKeyForSlot(1);
   const [notesResult, flashcards] = await Promise.all([
-    generateNotes(source, { userId, feature: "notes" }),
-    generateFlashcards(source, { meta: { userId, feature: "flashcards" } }),
+    generateNotes(source, { userId, feature: "notes", preferredKeyId: notesKey.id }),
+    generateFlashcards(source, { userId, feature: "flashcards", preferredKeyId: flashKey.id }),
   ]);
+
+  const cleanCards = sanitizeFlashcards(flashcards);
 
   doc.title = notesResult.title || doc.title;
   doc.summary = notesResult.summary;
   doc.notes = notesResult.notes;
-  doc.flashcards = flashcards;
-  doc.sourceText = notesResult.notes;
+  doc.flashcards = cleanCards.map(initFlashcard);
+  if (notesResult.sourceExcerpt?.trim()) {
+    doc.sourceText = notesResult.sourceExcerpt.slice(0, 15000);
+  }
   await doc.save();
 
   res.json({ document: doc });

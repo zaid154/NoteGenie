@@ -10,6 +10,7 @@ function friendlyMessage(err) {
   const status = err.statusCode || 500;
 
   if (status === 503 && /AI is not configured/i.test(msg)) return msg;
+  if (status === 402 || err.code === "QUOTA_EXCEEDED") return msg;
   if (/GoogleGenerativeAI|generativelanguage|API key|API_KEY|403|401/i.test(msg)) {
     return "AI request failed. Check the Gemini API key in Admin Settings.";
   }
