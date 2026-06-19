@@ -58,10 +58,32 @@ async function assertSafeUrl(rawUrl) {
 
 // YouTube video ka transcript text laata hai.
 async function extractYouTube(url) {
-  const items = await YoutubeTranscript.fetchTranscript(url);
-  const text = items.map((i) => i.text).join(" ");
-  if (!text.trim()) throw new Error("Is video ka transcript nahi mila");
-  return text;
+  try {
+    const items = await YoutubeTranscript.fetchTranscript(url);
+    const text = items.map((i) => i.text).join(" ");
+    if (!text.trim()) {
+      const err = new Error("This video has no transcript/captions available.");
+      err.statusCode = 400;
+      throw err;
+    }
+    return text;
+  } catch (err) {
+    if (err.statusCode) throw err;
+    const msg = String(err?.message || err);
+    if (/video id|retrieve youtube|impossible to retrieve/i.test(msg)) {
+      const e = new Error("Invalid YouTube link. Paste a real public video URL (e.g. youtube.com/watch?v=...).");
+      e.statusCode = 400;
+      throw e;
+    }
+    if (/disabled|transcript.*unavailable|could not retrieve/i.test(msg)) {
+      const e = new Error("This video has no captions/transcript. Try another video or paste an article link.");
+      e.statusCode = 400;
+      throw e;
+    }
+    const e = new Error("Could not fetch YouTube transcript. Check the link and try again.");
+    e.statusCode = 400;
+    throw e;
+  }
 }
 
 // Aam web page se readable text nikaalta hai (HTML tags hata kar).

@@ -90,7 +90,7 @@ export function FlashcardRatingBar({ onRate, disabled }) {
         ))}
       </div>
       <p className="mt-3 text-center text-[11px] text-muted">
-        Keyboard: press <kbd className="kbd">1</kbd>–<kbd className="kbd">5</kbd> after revealing
+        Keyboard: <kbd className="kbd">1</kbd>–<kbd className="kbd">5</kbd> to rate · <kbd className="kbd">→</kbd> next
       </p>
     </motion.div>
   );
@@ -103,6 +103,7 @@ export function FlashcardStudyCard({
   revealed,
   onReveal,
   onRate,
+  onNext,
   rating,
 }) {
   useEffect(() => {
@@ -113,6 +114,11 @@ export function FlashcardStudyCard({
         onReveal?.();
         return;
       }
+      if (revealed && e.key === "ArrowRight" && onNext) {
+        e.preventDefault();
+        onNext();
+        return;
+      }
       if (revealed && e.key >= "1" && e.key <= "5") {
         e.preventDefault();
         onRate?.(Number(e.key));
@@ -120,7 +126,7 @@ export function FlashcardStudyCard({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [revealed, rating, onReveal, onRate]);
+  }, [revealed, rating, onReveal, onRate, onNext]);
 
   const frontContent = (
     <FlashcardFace kind="question" subtitle={subtitle}>
@@ -164,8 +170,20 @@ export function FlashcardStudyCard({
           <p className="text-xs text-muted">Or tap the card · <kbd className="kbd">Space</kbd></p>
         </motion.div>
       ) : (
-        <div className="mt-5">
+        <div className="mt-5 space-y-4">
           <FlashcardRatingBar onRate={onRate} disabled={rating} />
+          {onNext && (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                className="btn-outline min-w-[160px] px-6 text-sm"
+                onClick={onNext}
+                disabled={rating}
+              >
+                Next card
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

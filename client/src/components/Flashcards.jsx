@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EmptyState, Spinner } from "./ui.jsx";
-import { IconCards } from "./icons.jsx";
+import { IconCards, IconSparkles } from "./icons.jsx";
 import { api } from "../api/client.js";
 import { CardSlide } from "./motion.jsx";
 import {
@@ -10,18 +10,46 @@ import {
   FlashcardSessionComplete,
 } from "./FlashcardUI.jsx";
 
-export default function Flashcards({ cards = [], documentId, studyMode = false, onRated }) {
+export default function Flashcards({
+  cards = [],
+  documentId,
+  studyMode = false,
+  onRated,
+  onGenerate,
+  generating = false,
+}) {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [rating, setRating] = useState(false);
   const [slideDir, setSlideDir] = useState(1);
 
+  function advanceCard() {
+    if (index >= cards.length - 1) {
+      setRevealed(false);
+      return;
+    }
+    setSlideDir(1);
+    setRevealed(false);
+    setIndex((i) => i + 1);
+  }
+
   if (!cards.length) {
     return (
       <EmptyState
         icon={IconCards}
-        title="No flashcards"
-        subtitle="Flashcards could not be generated from this material."
+        title="No flashcards yet"
+        subtitle={
+          generating
+            ? "Building flashcards from your notes…"
+            : "Generate a small batch to start — add more anytime."
+        }
+        action={
+          onGenerate ? (
+            <button type="button" className="btn-primary" onClick={onGenerate} disabled={generating}>
+              {generating ? <Spinner /> : <><IconSparkles width={16} height={16} /> Generate 5</>}
+            </button>
+          ) : null
+        }
       />
     );
   }
@@ -32,16 +60,15 @@ export default function Flashcards({ cards = [], documentId, studyMode = false, 
     try {
       await api.post(`/documents/${documentId}/flashcards/${cards[index]._id}/rate`, { quality });
       onRated?.();
-      if (index >= cards.length - 1) {
-        setRevealed(false);
-        return;
-      }
-      setSlideDir(1);
-      setRevealed(false);
-      setIndex((i) => i + 1);
+      advanceCard();
     } finally {
       setRating(false);
     }
+  }
+
+  function skipToNext() {
+    if (rating) return;
+    advanceCard();
   }
 
   if (studyMode) {
@@ -64,6 +91,7 @@ export default function Flashcards({ cards = [], documentId, studyMode = false, 
             revealed={revealed}
             onReveal={() => setRevealed(true)}
             onRate={rate}
+            onNext={skipToNext}
             rating={rating}
           />
         </CardSlide>

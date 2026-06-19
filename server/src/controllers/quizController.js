@@ -5,6 +5,7 @@ import { QuizAttempt } from "../models/QuizAttempt.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { generateQuiz } from "../services/gemini.js";
 import { incrementUsage } from "../middleware/quota.js";
+import { normalizeOutputLanguage } from "../config/languages.js";
 
 // Document ke content se ek naya quiz generate karta hai.
 // POST /api/quiz/document/:documentId   body: { difficulty, count }
@@ -29,6 +30,7 @@ export const createQuiz = asyncHandler(async (req, res) => {
     count,
     userId: req.user._id,
     feature: "quiz",
+    language: normalizeOutputLanguage(req.body.outputLanguage || doc.outputLanguage),
   });
   if (!questions.length) {
     return res.status(502).json({ message: "Could not generate the quiz. Please try again." });

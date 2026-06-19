@@ -29,6 +29,8 @@ const documentSchema = new mongoose.Schema(
     summary: { type: String, default: "" },
     flashcards: { type: [flashcardSchema], default: [] },
     sourceText: { type: String, default: "" },
+    outputLanguage: { type: String, default: "English" },
+    detailLevel: { type: String, enum: ["standard", "detailed"], default: "detailed" },
     shareToken: { type: String, default: "" },
     shareEnabled: { type: Boolean, default: false },
   },

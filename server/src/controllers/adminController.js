@@ -13,6 +13,8 @@ import {
   maskKey,
   encryptApiKeyValue,
   decryptApiKeyEntry,
+  tryDecryptApiKeyEntry,
+  UNREADABLE_KEY_MSG,
   migrateLegacyKey,
 } from "../models/Settings.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
@@ -122,18 +124,23 @@ function keyStatus(entry) {
 }
 
 function serializeApiKeys(settings) {
-  return (settings.apiKeys || []).map((k) => ({
-    id: k.id,
-    label: k.label,
-    masked: maskKey(decryptApiKeyEntry(k)),
-    priority: k.priority,
-    disabled: k.disabled,
-    status: keyStatus(k),
-    lastError: k.lastError || "",
-    lastErrorAt: k.lastErrorAt,
-    failureCount: k.failureCount || 0,
-    cooldownUntil: k.cooldownUntil,
-  }));
+  return (settings.apiKeys || []).map((k) => {
+    const decrypted = tryDecryptApiKeyEntry(k);
+    const unreadable = Boolean(k.key?.startsWith("enc:") && !decrypted.ok);
+    return {
+      id: k.id,
+      label: k.label,
+      masked: unreadable ? "••••••••" : maskKey(decrypted.value),
+      unreadable,
+      priority: k.priority,
+      disabled: k.disabled,
+      status: unreadable ? "failed" : keyStatus(k),
+      lastError: unreadable ? UNREADABLE_KEY_MSG : k.lastError || "",
+      lastErrorAt: k.lastErrorAt,
+      failureCount: k.failureCount || 0,
+      cooldownUntil: k.cooldownUntil,
+    };
+  });
 }
 
 // GET /api/admin/stats
@@ -573,6 +580,8 @@ export const getSettings = asyncHandler(async (req, res) => {
   const settings = await getAppSettings();
   await migrateLegacyKey(settings);
   const { pool } = await getKeyPool();
+  const apiKeys = serializeApiKeys(settings);
+  const unreadableCount = apiKeys.filter((k) => k.unreadable).length;
 
   res.json({
     geminiApiKeyMasked: maskKey(settings.geminiApiKey),
@@ -581,8 +590,13 @@ export const getSettings = asyncHandler(async (req, res) => {
     updatedAt: settings.updatedAt,
     pricing: PRICE_PER_MILLION,
     defaultPricing: DEFAULT_PRICING,
-    apiKeys: serializeApiKeys(settings),
+    apiKeys,
     poolSize: pool.length,
+    unreadableKeyCount: unreadableCount,
+    encryptionWarning:
+      unreadableCount > 0
+        ? `${unreadableCount} saved key(s) cannot be decrypted. Restore ENCRYPTION_SECRET or remove and re-add those keys.`
+        : "",
     aiRateLimitMax: settings.aiRateLimitMax ?? env.aiRateLimitMax,
     aiRateLimitWindowMinutes: settings.aiRateLimitWindowMinutes ?? env.aiRateLimitWindowMinutes,
     aiRateLimitAdminSet: settings.aiRateLimitMax != null,

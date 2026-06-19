@@ -19,6 +19,10 @@ import {
   IconChat,
   IconShare,
 } from "../components/icons.jsx";
+import { printNotesPdf } from "../utils/printExport.jsx";
+import { OUTPUT_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE } from "../config/languages.js";
+import { DETAIL_LEVELS, DEFAULT_DETAIL_LEVEL } from "../config/detailLevel.js";
+import { GenerationBanner } from "../components/GenerationOverlay.jsx";
 
 const tabs = [
   { id: "notes", label: "Notes", icon: IconDoc },
@@ -47,6 +51,10 @@ export default function DocumentView() {
   const [shareEnabled, setShareEnabled] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [sharing, setSharing] = useState(false);
+  const [outputLanguage, setOutputLanguage] = useState(DEFAULT_OUTPUT_LANGUAGE);
+  const [detailLevel, setDetailLevel] = useState(DEFAULT_DETAIL_LEVEL);
+  const [generatingCards, setGeneratingCards] = useState(false);
+  const [autoCardsStarted, setAutoCardsStarted] = useState(false);
   const confirm = useConfirm();
 
   useEffect(() => {
@@ -55,6 +63,7 @@ export default function DocumentView() {
     setDoc(null);
     setError("");
     setTab("notes");
+    setAutoCardsStarted(false);
 
     async function load() {
       try {
@@ -69,6 +78,8 @@ export default function DocumentView() {
           setTags(data.tags || []);
           setShareEnabled(Boolean(data.shareEnabled));
           setShareUrl(data.shareToken ? `${window.location.origin}/share/${data.shareToken}` : "");
+          setOutputLanguage(data.outputLanguage || DEFAULT_OUTPUT_LANGUAGE);
+          setDetailLevel(data.detailLevel || DEFAULT_DETAIL_LEVEL);
           setFolders(foldersRes.data.folders || []);
           if (searchParams.get("study") === "due") {
             setTab("flashcards");
@@ -85,11 +96,42 @@ export default function DocumentView() {
     return () => { ignore = true; };
   }, [id]);
 
+  async function generateFlashcardBatch(count = 5) {
+    if (!doc?._id || generatingCards) return;
+    setGeneratingCards(true);
+    setError("");
+    try {
+      const { data } = await api.post(`/documents/${doc._id}/flashcards/generate`, { count });
+      setDoc((prev) => (prev ? { ...prev, flashcards: data.flashcards } : prev));
+      if (data.added > 0) {
+        toast(`${data.added} flashcard${data.added !== 1 ? "s" : ""} ready`, "success");
+      }
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setGeneratingCards(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!doc || autoCardsStarted || generatingCards) return;
+    const shouldAuto =
+      searchParams.get("generating") === "cards" ||
+      (doc.notes?.trim() && (doc.flashcards?.length ?? 0) === 0);
+    if (!shouldAuto) return;
+    setAutoCardsStarted(true);
+    generateFlashcardBatch(5);
+  }, [doc, autoCardsStarted, generatingCards, searchParams]);
+
   async function generateQuiz() {
     setMakingQuiz(true);
     setError("");
     try {
-      const { data } = await api.post(`/quiz/document/${id}`, { difficulty, count: questionCount });
+      const { data } = await api.post(`/quiz/document/${id}`, {
+        difficulty,
+        count: questionCount,
+        outputLanguage,
+      });
       navigate(`/quiz/${data.quiz._id}`);
     } catch (err) {
       setError(apiError(err));
@@ -110,10 +152,12 @@ export default function DocumentView() {
   }
 
   function exportPdf() {
-    const w = window.open("", "_blank");
-    w.document.write(`<html><head><title>${doc.title}</title></head><body><h1>${doc.title}</h1><pre>${doc.notes.replace(/</g, "&lt;")}</pre></body></html>`);
-    w.document.close();
-    w.print();
+    const ok = printNotesPdf({
+      title: doc.title,
+      summary: doc.summary,
+      notes: doc.notes,
+    });
+    if (!ok) toast("Allow pop-ups to export PDF.", "error");
   }
 
   function exportNotes() {
@@ -179,15 +223,18 @@ export default function DocumentView() {
   async function handleRegenerate() {
     const ok = await confirm({
       title: "Regenerate content?",
-      message: "This replaces the current notes and flashcards with freshly generated ones.",
+      message: "This replaces your notes and clears all flashcards. You'll need to generate new cards from the updated notes.",
       confirmText: "Regenerate",
     });
     if (!ok) return;
     setRegenerating(true);
+    setAutoCardsStarted(false);
     setError("");
     try {
-      const { data } = await api.post(`/documents/${id}/regenerate`);
+      const { data } = await api.post(`/documents/${id}/regenerate`, { outputLanguage, detailLevel });
       setDoc(data.document);
+      setOutputLanguage(data.document.outputLanguage || outputLanguage);
+      setDetailLevel(data.document.detailLevel || detailLevel);
     } catch (err) {
       setError(apiError(err));
     } finally {
@@ -247,6 +294,8 @@ export default function DocumentView() {
           <Badge color={doc.sourceType === "pdf" ? "brand" : "amber"}>
             {doc.sourceType === "pdf" ? "PDF" : "Link"}
           </Badge>
+          <Badge color="gray">{outputLanguage}</Badge>
+          <Badge color="gray">{detailLevel === "detailed" ? "Detailed" : "Standard"}</Badge>
           <span className="truncate text-xs text-muted">{doc.sourceName}</span>
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink lg:text-3xl">{doc.title}</h1>
@@ -265,6 +314,28 @@ export default function DocumentView() {
           <datalist id="folder-suggestions">
             {folders.map((f) => <option key={f} value={f} />)}
           </datalist>
+          <select
+            className="input max-w-[160px] py-1.5 text-sm"
+            value={outputLanguage}
+            onChange={(e) => setOutputLanguage(e.target.value)}
+            title="Output language for regenerate, quiz, and tutor"
+            aria-label="Output language"
+          >
+            {OUTPUT_LANGUAGES.map((lang) => (
+              <option key={lang} value={lang}>{lang}</option>
+            ))}
+          </select>
+          <select
+            className="input max-w-[140px] py-1.5 text-sm"
+            value={detailLevel}
+            onChange={(e) => setDetailLevel(e.target.value)}
+            title="Note depth for regenerate"
+            aria-label="Note depth"
+          >
+            {DETAIL_LEVELS.map(({ id, label }) => (
+              <option key={id} value={id}>{label}</option>
+            ))}
+          </select>
           <div className="ml-auto flex flex-wrap gap-2">
             <button
               type="button"
@@ -303,6 +374,11 @@ export default function DocumentView() {
           <TagInput tags={tags} onChange={saveTags} />
         </div>
       </header>
+
+      <GenerationBanner
+        loading={generatingCards && (doc.flashcards?.length ?? 0) === 0}
+        message="Building your first 5 flashcards from your notes…"
+      />
 
       <div className="panel p-5">
         <p className="text-sm font-semibold text-ink">Generate quiz</p>
@@ -421,7 +497,25 @@ export default function DocumentView() {
                     </p>
                   </div>
                 </div>
-                <div className="flashcard-mode-toggle">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn-primary text-sm"
+                    disabled={generatingCards || !doc.notes?.trim()}
+                    onClick={() => generateFlashcardBatch(5)}
+                  >
+                    {generatingCards ? <Spinner size={16} /> : <IconSparkles width={16} height={16} />}
+                    {(doc.flashcards?.length ?? 0) === 0 ? "Generate 5" : "Generate 5 more"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-outline text-sm"
+                    disabled={generatingCards || !doc.notes?.trim()}
+                    onClick={() => generateFlashcardBatch(10)}
+                  >
+                    Generate 10 more
+                  </button>
+                  <div className="flashcard-mode-toggle ml-auto">
                   <button
                     type="button"
                     className={`flashcard-mode-btn ${!studyMode ? "flashcard-mode-btn-active" : "hover:text-ink"}`}
@@ -437,8 +531,14 @@ export default function DocumentView() {
                     Review
                   </button>
                 </div>
+                </div>
               </div>
               <div className="p-4 lg:p-6">
+                {generatingCards && (doc.flashcards?.length ?? 0) > 0 && (
+                  <div className="mb-4">
+                    <GenerationBanner loading message="Adding more flashcards…" />
+                  </div>
+                )}
                 {dueOnly && (
                   <div className="mb-4">
                     <Alert type="info">
@@ -446,13 +546,19 @@ export default function DocumentView() {
                     </Alert>
                   </div>
                 )}
-                <Flashcards cards={displayCards} documentId={doc._id} studyMode={studyMode} />
+                <Flashcards
+                  cards={displayCards}
+                  documentId={doc._id}
+                  studyMode={studyMode}
+                  generating={generatingCards}
+                  onGenerate={() => generateFlashcardBatch(5)}
+                />
               </div>
             </div>
           )}
           {tab === "tutor" && (
             <div className="panel p-4 lg:p-6">
-              <TutorChat documentId={doc._id} />
+              <TutorChat documentId={doc._id} outputLanguage={outputLanguage} />
             </div>
           )}
         </motion.div>

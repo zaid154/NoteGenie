@@ -4,6 +4,7 @@ import { ChatMessage } from "../models/ChatMessage.js";
 import { tutorStream } from "../services/gemini.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { incrementUsage } from "../middleware/quota.js";
+import { normalizeOutputLanguage } from "../config/languages.js";
 
 // GET /api/tutor/:documentId/history
 export const getHistory = asyncHandler(async (req, res) => {
@@ -68,6 +69,7 @@ export async function chat(req, res, next) {
       context: doc.sourceText || doc.notes,
       question,
       history,
+      language: normalizeOutputLanguage(req.body?.outputLanguage || doc.outputLanguage),
       meta: { userId: req.user._id, feature: "tutor" },
     });
 

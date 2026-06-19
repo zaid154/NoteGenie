@@ -13,6 +13,7 @@ import {
   getDocument,
   deleteDocument,
   regenerateDocument,
+  generateFlashcardsBatch,
   updateDocumentMeta,
   rateFlashcard,
   toggleShare,
@@ -29,6 +30,7 @@ router.get("/", listDocuments);
 router.get("/:id", getDocument);
 router.patch("/:id/meta", updateDocumentMeta);
 router.post("/:id/share", toggleShare);
+router.post("/:id/flashcards/generate", aiRateLimitMiddleware, generateFlashcardsBatch);
 router.post("/:id/flashcards/:cardId/rate", rateFlashcard);
 router.post("/:id/regenerate", aiRateLimitMiddleware, regenerateDocument);
 router.delete("/:id", deleteDocument);

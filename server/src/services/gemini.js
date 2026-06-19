@@ -7,9 +7,10 @@ import {
   decryptApiKeyEntry,
   markKeyCooldown,
   clearKeyError,
+  maskKey,
 } from "../models/Settings.js";
 import { ApiUsage } from "../models/ApiUsage.js";
-import { isKeyExhausted, isTransient } from "./geminiHelpers.js";
+import { isTransient, shouldFailoverToNextKey, formatGeminiError, geminiErrorDetail, sourceLabel } from "./geminiHelpers.js";
 
 const AI_NOT_CONFIGURED =
   "AI is not configured. Ask an admin to set the Gemini API key in Admin Settings.";
@@ -119,10 +120,12 @@ async function withKeyFailover(operation, { preferredKeyId, modelConfig = {}, ov
     } catch (err) {
       lastError = err;
       console.warn(`[gemini] key ${keyEntry.label} failed:`, err.message?.slice(0, 80));
-      if (isKeyExhausted(err) && keyEntry.source === "db" && keyEntry.id !== "legacy") {
-        await markKeyCooldown(keyEntry.id, err.message, 5 * 60 * 1000);
+      if (shouldFailoverToNextKey(err)) {
+        if (keyEntry.source === "db" && keyEntry.id !== "legacy") {
+          await markKeyCooldown(keyEntry.id, formatGeminiError(err), 5 * 60 * 1000);
+        }
+        continue;
       }
-      if (isKeyExhausted(err) || isTransient(err)) continue;
       throw err;
     }
   }
@@ -228,11 +231,25 @@ export async function testAllKeys(meta = {}) {
   const { pool, model } = await getKeyPool();
   const results = [];
   for (const entry of pool) {
+    const masked = maskKey(entry.apiKey);
+    const base = {
+      id: entry.id,
+      label: entry.label || "Key",
+      masked,
+      source: entry.source,
+      sourceLabel: sourceLabel(entry.source),
+      model,
+    };
     try {
       const r = await testApiKey(entry.apiKey, model, meta);
-      results.push({ id: entry.id, label: entry.label, ok: true, reply: r.reply });
+      results.push({ ...base, ok: true, reply: r.reply });
     } catch (err) {
-      results.push({ id: entry.id, label: entry.label, ok: false, error: err.message?.slice(0, 120) });
+      results.push({
+        ...base,
+        ok: false,
+        error: formatGeminiError(err),
+        errorDetail: geminiErrorDetail(err),
+      });
     }
   }
   return results;
@@ -256,9 +273,38 @@ export async function listModels(apiKey) {
     .sort();
 }
 
+function notesDepthGuide(detailLevel = "detailed") {
+  if (detailLevel === "standard") {
+    return {
+      maxOutputTokens: 4096,
+      excerptLimit: 8000,
+      notesRules: `Create a concise exam-ready summary:
+- Use 4–8 ## sections covering the main themes only.
+- Prefer bullet lists; keep paragraphs short.
+- Highlight key terms with **bold**; skip minor tangents.
+- Do NOT over-summarize into a single page if the source has multiple distinct topics — still cover each major topic briefly.`,
+    };
+  }
+  return {
+    maxOutputTokens: 8192,
+    excerptLimit: 12000,
+    notesRules: `Create comprehensive, exam-ready study notes:
+- Use a ## section for EVERY major topic, chapter, or theme in the source.
+- For long documents, produce proportionally long notes — do NOT compress a large source into a short summary.
+- Include definitions, examples, cause-effect relationships, and comparisons (use markdown tables when comparing concepts).
+- Use bullet lists and sub-bullets for detail; add **bold** for key terms.
+- Cover edge cases, formulas, dates, names, and specific facts from the source.`,
+  };
+}
+
 export async function generateNotes(source, meta = {}) {
+  const language = meta.language || "English";
+  const detailLevel = meta.detailLevel === "standard" ? "standard" : "detailed";
+  const depth = notesDepthGuide(detailLevel);
+
   const modelConfig = {
     generationConfig: {
+      maxOutputTokens: depth.maxOutputTokens,
       responseMimeType: "application/json",
       responseSchema: {
         type: SchemaType.OBJECT,
@@ -277,8 +323,9 @@ export async function generateNotes(source, meta = {}) {
 Return JSON with:
 - "title": a short descriptive title for this material.
 - "summary": a 2-3 sentence overview in plain text (no markdown in summary).
-- "notes": well-structured study notes in GitHub-flavored Markdown. Use ## headings, bullet lists, and **bold** for key terms. Cover all major topics from the source. Be thorough but clear.
-- "sourceExcerpt": the most important factual passages from the source rewritten as plain text (no markdown), up to 8000 characters, for regeneration and tutoring context. Include names, definitions, and plot points.`;
+- "notes": well-structured study notes in GitHub-flavored Markdown. Use ## headings, bullet lists, and **bold** for key terms.
+${depth.notesRules}
+- "sourceExcerpt": the most important factual passages from the source rewritten as plain text (no markdown), up to ${depth.excerptLimit} characters, for regeneration and tutoring context. Include names, definitions, and plot points.${outputLanguageInstruction(language)}`;
 
   const parts = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
@@ -290,7 +337,7 @@ Return JSON with:
   return parseJson(out.result.response.text());
 }
 
-export async function generateQuiz(source, { difficulty = "medium", count = 5, preferredKeyId, ...meta } = {}) {
+export async function generateQuiz(source, { difficulty = "medium", count = 5, preferredKeyId, language = "English", ...meta } = {}) {
   const modelConfig = {
     generationConfig: {
       responseMimeType: "application/json",
@@ -320,7 +367,7 @@ export async function generateQuiz(source, { difficulty = "medium", count = 5, p
 Generate EXACTLY ${count} questions (no more, no fewer).
 Difficulty level: ${difficulty.toUpperCase()}. ${difficultyGuide[difficulty] || difficultyGuide.medium}
 Cover different parts of the content so questions are varied (avoid repeating the same idea).
-Each question must have exactly 4 options, exactly one correct answer (correctIndex 0-3), and a short explanation of why it is correct.`;
+Each question must have exactly 4 options, exactly one correct answer (correctIndex 0-3), and a short explanation of why it is correct.${outputLanguageInstruction(language)}`;
 
   const parts = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
@@ -335,7 +382,7 @@ Each question must have exactly 4 options, exactly one correct answer (correctIn
   );
 }
 
-export async function generateFlashcards(source, { count = 12, preferredKeyId, ...meta } = {}) {
+export async function generateFlashcards(source, { count = 5, preferredKeyId, language = "English", existingFronts = [], ...meta } = {}) {
   const modelConfig = {
     generationConfig: {
       responseMimeType: "application/json",
@@ -353,12 +400,18 @@ export async function generateFlashcards(source, { count = 12, preferredKeyId, .
     },
   };
 
-  const prompt = `Create exactly ${count} study flashcards from the provided content.
+  const dedupeBlock =
+    existingFronts.length > 0
+      ? `\nDo NOT repeat or rephrase these existing card fronts:\n${existingFronts.map((f) => `- ${f}`).join("\n")}\n`
+      : "";
+
+  const prompt = `Create exactly ${count} study flashcards based ONLY on the study notes / material below.
 Rules:
+- Every card must test a specific concept, fact, or definition that appears in the material — no generic filler.
 - "front" = a clear question or term (plain text only — NO markdown, NO asterisks, NO bullet symbols).
 - "back" = a concise answer or definition (plain text only — NO markdown).
-- Cover different sections of the material; mix definitions, facts, and short "why/how" questions.
-- Keep each side under 200 characters when possible.`;
+- Cover different sections; mix definitions, facts, and short "why/how" questions.
+- Keep each side under 200 characters when possible.${dedupeBlock}${outputLanguageInstruction(language)}`;
 
   const parts = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
@@ -371,9 +424,10 @@ Rules:
   return Array.isArray(cards) ? cards.slice(0, count) : [];
 }
 
-export async function* tutorStream({ context, question, history = [], meta = {} }) {
+export async function* tutorStream({ context, question, history = [], language = "English", meta = {} }) {
   const prompt = `You are NoteGenie, a friendly AI tutor. Answer the student's question using the study material below.
 If the answer isn't in the material, say so and give your best general explanation. Be clear and concise.
+Reply in ${language}.${outputLanguageInstruction(language)}
 
 --- STUDY MATERIAL ---
 ${context?.slice(0, 12000) || "(no material provided)"}
@@ -402,4 +456,8 @@ function normalizeSource(source) {
   if (typeof source === "string") return { text: source };
   if (source?.text !== undefined) return { text: source.text };
   return source;
+}
+
+function outputLanguageInstruction(language = "English") {
+  return `\nIMPORTANT: Write ALL generated text exclusively in ${language} (titles, summaries, notes, questions, flashcard text, and explanations). Even if the source is in another language, output must be in ${language}. Keep proper nouns from the source when appropriate.`;
 }

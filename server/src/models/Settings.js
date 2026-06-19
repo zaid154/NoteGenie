@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import crypto from "crypto";
-import { encryptKey, decryptKey } from "../services/keyCrypto.js";
+import { encryptKey, decryptKey, tryDecryptKey } from "../services/keyCrypto.js";
 
 const apiKeyEntrySchema = new mongoose.Schema(
   {
@@ -77,8 +77,17 @@ export function maskKey(key) {
 }
 
 export function decryptApiKeyEntry(entry) {
-  return decryptKey(entry.key);
+  return decryptKey(entry?.key);
 }
+
+export function tryDecryptApiKeyEntry(entry) {
+  return tryDecryptKey(entry?.key);
+}
+
+const UNREADABLE_KEY_MSG =
+  "Cannot decrypt — ENCRYPTION_SECRET may have changed. Remove and re-add this key.";
+
+export { UNREADABLE_KEY_MSG };
 
 export function encryptApiKeyValue(plaintext) {
   return encryptKey(plaintext);

@@ -6,6 +6,9 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { Alert, Spinner, Badge, UsageMeter, QuotaBlocked, StatCard } from "../components/ui.jsx";
 import TagInput from "../components/TagInput.jsx";
 import { isQuotaExceeded } from "../utils/quota.js";
+import { OUTPUT_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE } from "../config/languages.js";
+import { DETAIL_LEVELS, DEFAULT_DETAIL_LEVEL } from "../config/detailLevel.js";
+import GenerationOverlay from "../components/GenerationOverlay.jsx";
 import { StaggerContainer, StaggerItem } from "../components/motion.jsx";
 import {
   IconUpload,
@@ -32,8 +35,8 @@ const OUTPUT_STEPS = [
 
 const WORKFLOW = [
   { step: "1", label: "Add source", desc: "PDF or public link" },
-  { step: "2", label: "AI generates", desc: "Notes + flashcards" },
-  { step: "3", label: "Study", desc: "Quiz, review, tutor" },
+  { step: "2", label: "AI generates", desc: "Detailed notes first" },
+  { step: "3", label: "Study", desc: "Flashcards, quiz, tutor" },
 ];
 
 const FAQ = [
@@ -53,15 +56,13 @@ const FAQ = [
 
 const EXAMPLE_LINKS = [
   { label: "Wikipedia article", url: "https://en.wikipedia.org/wiki/Spaced_repetition" },
-  { label: "YouTube video", url: "https://www.youtube.com/watch?v=example" },
+  { label: "YouTube (with captions)", url: "https://www.youtube.com/watch?v=aircAruvnKk" },
 ];
 
-const LOADING_STEPS = [
-  "Extracting content…",
-  "Writing notes…",
-  "Building flashcards…",
-  "Almost done…",
-];
+const LOADING_PHASE = {
+  pdf: "uploading",
+  link: "extracting",
+};
 
 function formatBytes(bytes) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -76,11 +77,13 @@ export default function Upload() {
   const [url, setUrl] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(0);
+  const [loadingPhase, setLoadingPhase] = useState("notes");
   const [error, setError] = useState("");
   const [usage, setUsage] = useState(null);
   const [folder, setFolder] = useState("");
   const [tags, setTags] = useState([]);
+  const [outputLanguage, setOutputLanguage] = useState(DEFAULT_OUTPUT_LANGUAGE);
+  const [detailLevel, setDetailLevel] = useState(DEFAULT_DETAIL_LEVEL);
   const [folders, setFolders] = useState([]);
   const [recentDocs, setRecentDocs] = useState([]);
   const [materialCount, setMaterialCount] = useState(0);
@@ -112,17 +115,6 @@ export default function Upload() {
     });
   }, []);
 
-  useEffect(() => {
-    if (!loading) {
-      setLoadingStep(0);
-      return;
-    }
-    const interval = setInterval(() => {
-      setLoadingStep((s) => (s + 1) % LOADING_STEPS.length);
-    }, 2800);
-    return () => clearInterval(interval);
-  }, [loading]);
-
   function pickFile(f) {
     if (!f) return;
     const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
@@ -142,6 +134,7 @@ export default function Upload() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    setLoadingPhase(LOADING_PHASE[tab] || "notes");
     try {
       let res;
       if (tab === "pdf") {
@@ -150,6 +143,9 @@ export default function Upload() {
         formData.append("file", file);
         if (folder.trim()) formData.append("folder", folder.trim());
         if (tags.length) formData.append("tags", JSON.stringify(tags));
+        formData.append("outputLanguage", outputLanguage);
+        formData.append("detailLevel", detailLevel);
+        setLoadingPhase("notes");
         res = await api.post("/documents/upload", formData);
       } else {
         if (!url.trim()) throw new Error("Please enter a URL.");
@@ -158,13 +154,16 @@ export default function Upload() {
         } catch {
           throw new Error("Please enter a valid URL (include https://).");
         }
+        setLoadingPhase("notes");
         res = await api.post("/documents/link", {
           url: url.trim(),
           folder: folder.trim(),
           tags,
+          outputLanguage,
+          detailLevel,
         });
       }
-      navigate(`/document/${res.data.document._id}`);
+      navigate(`/document/${res.data.document._id}?generating=cards`);
     } catch (err) {
       setError(apiError(err));
       setLoading(false);
@@ -204,7 +203,7 @@ export default function Upload() {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-ink lg:text-3xl">Add material</h1>
               <p className="mt-1 max-w-xl text-sm text-muted">
-                Upload a PDF or paste a link — notes, flashcards, and quizzes are generated automatically.
+                Upload a PDF or paste a link — detailed notes first, then flashcards on demand.
               </p>
             </div>
             <Link to="/app" className="btn-outline text-sm">
@@ -302,7 +301,39 @@ export default function Upload() {
               <form onSubmit={handleSubmit} className="space-y-5 p-6 sm:p-8">
                 <QuotaBlocked feature="documents" usage={usage} />
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label className="label" htmlFor="output-language">Output language</label>
+                    <select
+                      id="output-language"
+                      className="input py-1.5 text-sm"
+                      value={outputLanguage}
+                      onChange={(e) => setOutputLanguage(e.target.value)}
+                      disabled={loading}
+                    >
+                      {OUTPUT_LANGUAGES.map((lang) => (
+                        <option key={lang} value={lang}>{lang}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-muted">Notes, flashcards, and quizzes will be in this language.</p>
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="detail-level">Note depth</label>
+                    <select
+                      id="detail-level"
+                      className="input py-1.5 text-sm"
+                      value={detailLevel}
+                      onChange={(e) => setDetailLevel(e.target.value)}
+                      disabled={loading}
+                    >
+                      {DETAIL_LEVELS.map(({ id, label }) => (
+                        <option key={id} value={id}>{label}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-muted">
+                      {DETAIL_LEVELS.find((d) => d.id === detailLevel)?.hint}
+                    </p>
+                  </div>
                   <div>
                     <label className="label">Folder (optional)</label>
                     <input
@@ -444,7 +475,7 @@ export default function Upload() {
                   {loading ? (
                     <>
                       <Spinner />
-                      {LOADING_STEPS[loadingStep]}
+                      Creating your notes…
                     </>
                   ) : (
                     <>
@@ -453,40 +484,6 @@ export default function Upload() {
                     </>
                   )}
                 </button>
-
-                <AnimatePresence>
-                  {loading && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-3 overflow-hidden"
-                    >
-                      <div className="progress-bar h-2">
-                        <motion.div
-                          className="h-full rounded-full bg-indigo-600"
-                          initial={{ width: "0%" }}
-                          animate={{ width: "100%" }}
-                          transition={{ duration: 25, ease: "linear" }}
-                        />
-                      </div>
-                      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
-                        {LOADING_STEPS.map((step, i) => (
-                          <span
-                            key={step}
-                            className={`flex items-center gap-1 text-xs ${
-                              i === loadingStep ? "font-medium text-indigo-600 dark:text-indigo-400" : "text-muted"
-                            }`}
-                          >
-                            {i < loadingStep && <IconCheck width={12} height={12} className="text-emerald-500" />}
-                            {step}
-                          </span>
-                        ))}
-                      </div>
-                      <p className="text-center text-xs text-muted">Usually takes 10–30 seconds. Keep this tab open.</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </form>
             </div>
 
@@ -643,6 +640,13 @@ export default function Upload() {
           </StaggerItem>
         </div>
       </StaggerContainer>
+
+      <GenerationOverlay
+        open={loading}
+        phase={loadingPhase}
+        title="Creating your notes…"
+        subtitle="Flashcards will be ready on the next screen — read your notes while they generate."
+      />
     </div>
   );
 }

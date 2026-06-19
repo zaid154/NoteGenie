@@ -1,3 +1,5 @@
+import { formatGeminiError } from "../services/geminiHelpers.js";
+
 // Ek hi jagah saari errors handle hoti hain, taaki har controller me try-catch repeat na ho.
 export function notFound(req, res, next) {
   res.status(404).json({ message: "Route not found" });
@@ -11,14 +13,27 @@ function friendlyMessage(err) {
 
   if (status === 503 && /AI is not configured/i.test(msg)) return msg;
   if (status === 402 || err.code === "QUOTA_EXCEEDED") return msg;
-  if (/GoogleGenerativeAI|generativelanguage|API key|API_KEY|403|401/i.test(msg)) {
-    return "AI request failed. Check the Gemini API key in Admin Settings.";
-  }
-  if (/503|429|high demand|overloaded/i.test(msg)) {
-    return "AI is busy right now. Please wait a moment and try again.";
+  if (/429|quota exceeded|RESOURCE_EXHAUSTED|rate.?limit|Too Many Requests/i.test(msg)) {
+    if (/free_tier|FreeTier|per day|daily/i.test(msg)) {
+      return "Gemini free tier daily limit reached (20 requests/day for this model). Wait until tomorrow, switch model in Admin → AI keys (e.g. gemini-2.0-flash), or enable billing at ai.google.dev.";
+    }
+    return "Gemini rate limit hit. Wait a minute and try again, or use a different API key / model.";
   }
   if (/whitelist|MongoServerSelection|ECONNREFUSED/i.test(msg)) {
     return "Database connection failed. Check MongoDB Atlas network access.";
+  }
+  if (/YoutubeTranscript|Invalid YouTube|no transcript|no captions|Could not fetch YouTube/i.test(msg)) {
+    return status >= 400 && status < 500
+      ? msg
+      : "Could not read this YouTube video. Use a public video with captions enabled.";
+  }
+  if (/GoogleGenerativeAI|generativelanguage|API key|API_KEY|403|401/i.test(msg)) {
+    const formatted = formatGeminiError(err);
+    if (/quota|rate limit|free tier|daily limit/i.test(formatted)) return formatted;
+    return formatted || "AI request failed. Check the Gemini API key in Admin Settings.";
+  }
+  if (/503|high demand|overloaded/i.test(msg)) {
+    return "AI is busy right now. Please wait a moment and try again.";
   }
 
   // Client errors (4xx) ke messages developer ne jaan-boojh kar set kiye hote hain — safe.

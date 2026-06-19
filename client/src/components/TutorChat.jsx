@@ -6,7 +6,7 @@ import { IconSend, IconChat } from "./icons.jsx";
 import { Spinner } from "./ui.jsx";
 import MarkdownContent from "./MarkdownContent.jsx";
 
-export default function TutorChat({ documentId }) {
+export default function TutorChat({ documentId, outputLanguage = "English" }) {
   const [messages, setMessages] = useState([]);   // poori chat (user + AI ke messages)
   const [input, setInput] = useState("");          // text box me likha hua sawal
   const [streaming, setStreaming] = useState(false); // AI abhi jawab de raha hai?
@@ -71,7 +71,7 @@ export default function TutorChat({ documentId }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, outputLanguage }),
         signal: controller.signal,
       });
 

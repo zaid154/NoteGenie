@@ -14,6 +14,8 @@ import { extractTextFromUrl } from "../services/linkExtractor.js";
 import { incrementUsage } from "../middleware/quota.js";
 import { sm2, initFlashcard } from "../services/spacedRepetition.js";
 import { sanitizeFlashcards } from "../utils/textClean.js";
+import { normalizeOutputLanguage } from "../config/languages.js";
+import { normalizeDetailLevel, clampFlashcardCount } from "../config/detailLevel.js";
 import crypto from "crypto";
 
 function parseTags(body) {
@@ -47,17 +49,19 @@ export const uploadDocument = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "That file isn't a valid PDF." });
   }
 
-  // AI ko PDF bhejne layak banao, fir notes aur flashcards ek saath generate karo.
+  // AI ko PDF bhejne layak banao, fir notes aur flashcards generate karo.
   const source = pdfPart(req.file.buffer);
   const userId = req.user._id;
+  const outputLanguage = normalizeOutputLanguage(req.body.outputLanguage);
+  const detailLevel = normalizeDetailLevel(req.body.detailLevel);
   const notesKey = await pickKeyForSlot(0);
-  const flashKey = await pickKeyForSlot(1);
-  const [notesResult, flashcards] = await Promise.all([
-    generateNotes(source, { userId, feature: "notes", preferredKeyId: notesKey.id }),
-    generateFlashcards(source, { userId, feature: "flashcards", preferredKeyId: flashKey.id }),
-  ]);
-
-  const cleanCards = sanitizeFlashcards(flashcards);
+  const notesResult = await generateNotes(source, {
+    userId,
+    feature: "notes",
+    preferredKeyId: notesKey.id,
+    language: outputLanguage,
+    detailLevel,
+  });
 
   const doc = await Document.create({
     userId: req.user._id,
@@ -68,8 +72,10 @@ export const uploadDocument = asyncHandler(async (req, res) => {
     tags: parseTags(req.body),
     notes: notesResult.notes,
     summary: notesResult.summary,
-    flashcards: cleanCards.map(initFlashcard),
+    flashcards: [],
     sourceText: (notesResult.sourceExcerpt || notesResult.notes || "").slice(0, 15000),
+    outputLanguage,
+    detailLevel,
   });
 
   await incrementUsage(req.user, "documents");
@@ -85,14 +91,16 @@ export const createFromLink = asyncHandler(async (req, res) => {
 
   const { text } = await extractTextFromUrl(url);
   const userId = req.user._id;
+  const outputLanguage = normalizeOutputLanguage(req.body.outputLanguage);
+  const detailLevel = normalizeDetailLevel(req.body.detailLevel);
   const notesKey = await pickKeyForSlot(0);
-  const flashKey = await pickKeyForSlot(1);
-  const [notesResult, flashcards] = await Promise.all([
-    generateNotes(text, { userId, feature: "notes", preferredKeyId: notesKey.id }),
-    generateFlashcards(text, { userId, feature: "flashcards", preferredKeyId: flashKey.id }),
-  ]);
-
-  const cleanCards = sanitizeFlashcards(flashcards);
+  const notesResult = await generateNotes(text, {
+    userId,
+    feature: "notes",
+    preferredKeyId: notesKey.id,
+    language: outputLanguage,
+    detailLevel,
+  });
 
   const doc = await Document.create({
     userId: req.user._id,
@@ -103,8 +111,10 @@ export const createFromLink = asyncHandler(async (req, res) => {
     tags: parseTags(req.body),
     notes: notesResult.notes,
     summary: notesResult.summary,
-    flashcards: cleanCards.map(initFlashcard),
+    flashcards: [],
     sourceText: (notesResult.sourceExcerpt || text).slice(0, 15000),
+    outputLanguage,
+    detailLevel,
   });
 
   await incrementUsage(req.user, "documents");
@@ -255,23 +265,62 @@ export const regenerateDocument = asyncHandler(async (req, res) => {
   }
 
   const userId = req.user._id;
+  const outputLanguage = normalizeOutputLanguage(req.body.outputLanguage || doc.outputLanguage);
+  const detailLevel = normalizeDetailLevel(req.body.detailLevel || doc.detailLevel);
   const notesKey = await pickKeyForSlot(0);
-  const flashKey = await pickKeyForSlot(1);
-  const [notesResult, flashcards] = await Promise.all([
-    generateNotes(source, { userId, feature: "notes", preferredKeyId: notesKey.id }),
-    generateFlashcards(source, { userId, feature: "flashcards", preferredKeyId: flashKey.id }),
-  ]);
-
-  const cleanCards = sanitizeFlashcards(flashcards);
+  const notesResult = await generateNotes(source, {
+    userId,
+    feature: "notes",
+    preferredKeyId: notesKey.id,
+    language: outputLanguage,
+    detailLevel,
+  });
 
   doc.title = notesResult.title || doc.title;
   doc.summary = notesResult.summary;
   doc.notes = notesResult.notes;
-  doc.flashcards = cleanCards.map(initFlashcard);
+  doc.flashcards = [];
   if (notesResult.sourceExcerpt?.trim()) {
     doc.sourceText = notesResult.sourceExcerpt.slice(0, 15000);
   }
+  doc.outputLanguage = outputLanguage;
+  doc.detailLevel = detailLevel;
   await doc.save();
 
   res.json({ document: doc });
+});
+
+// POST /api/documents/:id/flashcards/generate  body: { count?: 5|10 }
+export const generateFlashcardsBatch = asyncHandler(async (req, res) => {
+  const doc = await Document.findOne({ _id: req.params.id, userId: req.user._id });
+  if (!doc) return res.status(404).json({ message: "Document not found" });
+
+  const notesSource = doc.notes?.trim() || doc.sourceText?.trim();
+  if (!notesSource) {
+    return res.status(400).json({ message: "No notes available to generate flashcards from" });
+  }
+
+  const count = clampFlashcardCount(req.body.count);
+  const existingFronts = (doc.flashcards || []).map((c) => c.front).filter(Boolean);
+  const outputLanguage = normalizeOutputLanguage(doc.outputLanguage);
+
+  const flashKey = await pickKeyForSlot(0);
+  const flashcards = await generateFlashcards(notesSource, {
+    userId: req.user._id,
+    feature: "flashcards",
+    preferredKeyId: flashKey.id,
+    language: outputLanguage,
+    count,
+    existingFronts,
+  });
+
+  const cleanCards = sanitizeFlashcards(flashcards);
+  doc.flashcards.push(...cleanCards.map(initFlashcard));
+  await doc.save();
+
+  res.json({
+    flashcards: doc.flashcards,
+    added: cleanCards.length,
+    total: doc.flashcards.length,
+  });
 });

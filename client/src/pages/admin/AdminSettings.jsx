@@ -25,6 +25,16 @@ function statusBadge(status) {
   return <Badge color={s.color}>{s.label}</Badge>;
 }
 
+function testResultBadge(ok) {
+  return ok ? <Badge color="green">OK</Badge> : <Badge color="red">Failed</Badge>;
+}
+
+function testResultRowClass(ok) {
+  return ok
+    ? "border-l-2 border-emerald-500 bg-emerald-500/5"
+    : "border-l-2 border-red-500 bg-red-500/5";
+}
+
 const SECTIONS = {
   keys: { title: "AI keys", subtitle: "Gemini API key pool, model selection, and failover." },
   audit: { title: "Audit log", subtitle: "Admin actions across the platform." },
@@ -59,12 +69,14 @@ export default function AdminSettings() {
   const [auditTotalPages, setAuditTotalPages] = useState(1);
   const [editingKeyId, setEditingKeyId] = useState(null);
   const [editLabel, setEditLabel] = useState("");
+  const [encryptionWarning, setEncryptionWarning] = useState("");
 
   async function load() {
     try {
       const { data } = await api.get("/admin/settings");
       setApiKeys(data.apiKeys || []);
       setPoolSize(data.poolSize || 0);
+      setEncryptionWarning(data.encryptionWarning || "");
       setModel(data.geminiModel || "gemini-2.5-flash");
       setPricing(data.pricing || null);
       if (data.defaultPricing) setDefaultPricing(data.defaultPricing);
@@ -218,7 +230,12 @@ export default function AdminSettings() {
     try {
       const { data } = await api.post("/admin/settings/test-all");
       setTestResults(data);
-      setSuccess(`${data.passed}/${data.total} keys passed.`);
+      const failed = data.total - data.passed;
+      setSuccess(
+        failed > 0
+          ? `${data.passed}/${data.total} keys passed, ${failed} failed.`
+          : `${data.passed}/${data.total} keys passed.`
+      );
       await load();
     } catch (err) {
       setError(apiError(err));
@@ -244,6 +261,9 @@ export default function AdminSettings() {
   if (loading && section !== "audit") return <PageLoader />;
 
   const rate = rateForModel(model, pricing, defaultPricing);
+  const testResultById = testResults?.results
+    ? Object.fromEntries(testResults.results.map((r) => [r.id, r]))
+    : {};
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -342,19 +362,24 @@ export default function AdminSettings() {
             </p>
           </div>
         </div>
-        <Badge color={poolSize > 0 ? "green" : "amber"}>
-          {poolSize > 0 ? `${poolSize} active key${poolSize !== 1 ? "s" : ""}` : "No keys configured"}
+        <Badge color={poolSize > 0 ? "green" : apiKeys.length > 0 ? "amber" : "amber"}>
+          {poolSize > 0
+            ? `${poolSize} active key${poolSize !== 1 ? "s" : ""}`
+            : apiKeys.length > 0
+              ? `${apiKeys.length} saved key${apiKeys.length !== 1 ? "s" : ""} (none usable)`
+              : "No keys configured"}
         </Badge>
       </div>
 
       {error && <Alert>{error}</Alert>}
+      {encryptionWarning && <Alert type="warning">{encryptionWarning}</Alert>}
       {success && <Alert type="success">{success}</Alert>}
 
       <div className="card overflow-hidden">
         <div className="border-b border-line bg-canvas/40 px-6 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-display font-600 text-ink">Key pool</h3>
-            <button type="button" onClick={handleTestAll} className="btn-outline text-sm" disabled={testingAll || !apiKeys.length}>
+            <button type="button" onClick={handleTestAll} className="btn-outline text-sm" disabled={testingAll || poolSize === 0}>
               {testingAll ? <Spinner size={14} /> : <IconSparkles width={14} height={14} />}
               Test all keys
             </button>
@@ -365,8 +390,13 @@ export default function AdminSettings() {
           {apiKeys.length === 0 ? (
             <p className="p-6 text-sm text-muted">No keys in pool. Add keys below or set GEMINI_API_KEYS in .env.</p>
           ) : (
-            apiKeys.map((k) => (
-              <div key={k.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+            apiKeys.map((k) => {
+              const testHit = testResultById[k.id];
+              return (
+              <div
+                key={k.id}
+                className={`flex flex-wrap items-center justify-between gap-3 px-6 py-4 ${testHit ? testResultRowClass(testHit.ok) : ""}`}
+              >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     {editingKeyId === k.id ? (
@@ -386,10 +416,14 @@ export default function AdminSettings() {
                       </button>
                     )}
                     {statusBadge(k.status)}
+                    {testHit && testResultBadge(testHit.ok)}
                     <span className="text-xs text-muted">priority {k.priority}</span>
                   </div>
                   <p className="mt-0.5 font-mono text-sm text-muted">{k.masked}</p>
-                  {k.lastError && <p className="mt-1 text-xs text-red-600">{k.lastError}</p>}
+                  {testHit && !testHit.ok && (
+                    <p className="mt-1 text-xs text-red-600">Last test: {testHit.error}</p>
+                  )}
+                  {!testHit && k.lastError && <p className="mt-1 text-xs text-red-600">{k.lastError}</p>}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button type="button" className="btn-ghost text-xs" onClick={() => moveKeyPriority(k.id, "up")}>↑</button>
@@ -403,17 +437,44 @@ export default function AdminSettings() {
                   </button>
                 </div>
               </div>
-            ))
+            );
+            })
           )}
         </div>
 
         {testResults && (
           <div className="border-t border-line bg-canvas/30 px-6 py-4">
-            <p className="text-xs font-600 uppercase text-muted">Test results</p>
-            <ul className="mt-2 space-y-1 text-sm">
+            <p className="text-xs font-600 uppercase text-muted">
+              Test results — {testResults.passed}/{testResults.total} passed
+            </p>
+            <ul className="mt-3 space-y-2">
               {testResults.results.map((r) => (
-                <li key={r.id} className={r.ok ? "text-emerald-600" : "text-red-600"}>
-                  {r.label}: {r.ok ? "OK" : r.error}
+                <li
+                  key={r.id}
+                  className={`rounded-lg px-3 py-2 text-sm ${testResultRowClass(r.ok)}`}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    {testResultBadge(r.ok)}
+                    <span className="font-500 text-ink">{r.label}</span>
+                    {r.masked && (
+                      <>
+                        <span className="text-muted">·</span>
+                        <span className="font-mono text-xs text-muted">{r.masked}</span>
+                      </>
+                    )}
+                    {r.sourceLabel && (
+                      <>
+                        <span className="text-muted">·</span>
+                        <span className="text-xs text-muted">{r.sourceLabel}</span>
+                      </>
+                    )}
+                  </div>
+                  {!r.ok && r.error && (
+                    <p className="mt-1 text-xs text-red-600">{r.error}</p>
+                  )}
+                  {!r.ok && r.errorDetail && r.errorDetail !== r.error && (
+                    <p className="mt-0.5 font-mono text-xs text-muted">{r.errorDetail}</p>
+                  )}
                 </li>
               ))}
             </ul>
