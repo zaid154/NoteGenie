@@ -16,6 +16,7 @@ export function sanitizeFlashcard(card) {
   return {
     front: stripMarkdownInline(card.front),
     back: stripMarkdownInline(card.back),
+    section: String(card.section || "").trim().slice(0, 120),
   };
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, apiError, setToken } from "../api/client.js";
+import { isValidObjectId } from "../utils/objectId.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 import { useConfirm } from "../context/ConfirmContext.jsx";
@@ -620,7 +621,7 @@ export default function Profile() {
                     {quizStats.recent.slice(0, 5).map((a) => (
                       <li key={a.id}>
                         <Link
-                          to={a.quizId ? `/quiz/${a.quizId}` : "/analytics"}
+                          to={isValidObjectId(a.quizId) ? `/quiz/${a.quizId}` : "/analytics"}
                           className="flex items-center justify-between gap-3 py-3 transition hover:bg-ink/[0.02]"
                         >
                           <div className="min-w-0">

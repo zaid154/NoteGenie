@@ -23,10 +23,19 @@ import {
   IconCards,
   IconChat,
 } from "../components/icons.jsx";
+import { isValidObjectId } from "../utils/objectId.js";
+
+function localDateKey(date) {
+  const d = new Date(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 function buildScoreTrend(recent, scoreTrend) {
   if (scoreTrend?.length) {
-    return scoreTrend.map((d) => ({ day: d.day, v: d.avg }));
+    return scoreTrend.map((d) => ({ day: d.day, v: d.avg, date: d.date }));
   }
   const buckets = [];
   for (let i = 6; i >= 0; i--) {
@@ -35,17 +44,18 @@ function buildScoreTrend(recent, scoreTrend) {
     d.setDate(d.getDate() - i);
     buckets.push({
       day: d.toLocaleDateString(undefined, { weekday: "short" }),
-      dateKey: d.toDateString(),
+      dateKey: localDateKey(d),
       scores: [],
     });
   }
   (recent || []).forEach((a) => {
-    const key = new Date(a.date).toDateString();
+    const key = localDateKey(a.date);
     const bucket = buckets.find((b) => b.dateKey === key);
     if (bucket) bucket.scores.push(a.percent);
   });
-  return buckets.map(({ day, scores }) => ({
+  return buckets.map(({ day, dateKey, scores }) => ({
     day,
+    date: dateKey,
     v: scores.length ? Math.round(scores.reduce((s, x) => s + x, 0) / scores.length) : 0,
   }));
 }
@@ -243,7 +253,13 @@ export default function Analytics() {
               {data.recent.map((a, i) => (
                 <Link
                   key={a.id}
-                  to={a.quizId ? `/quiz/${a.quizId}` : a.documentId ? `/document/${a.documentId}` : "/app"}
+                  to={
+                    isValidObjectId(a.quizId)
+                      ? `/quiz/${a.quizId}`
+                      : isValidObjectId(a.documentId)
+                        ? `/document/${a.documentId}`
+                        : "/app"
+                  }
                   className="flex items-center gap-4 px-5 py-4 transition hover:bg-slate-50 dark:hover:bg-slate-800/50"
                 >
                   <span className="w-6 shrink-0 text-sm font-semibold text-muted">

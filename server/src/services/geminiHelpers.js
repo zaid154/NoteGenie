@@ -156,4 +156,97 @@ export function sourceLabel(source) {
 
 }
 
+/** Extract first balanced JSON object or array from text. */
+export function extractBalancedJson(text) {
+  const s = String(text || "").trim();
+  if (!s) return null;
+
+  for (const [open, close] of [
+    ["{", "}"],
+    ["[", "]"],
+  ]) {
+    let searchFrom = 0;
+    while (searchFrom < s.length) {
+      const start = s.indexOf(open, searchFrom);
+      if (start === -1) break;
+      const slice = sliceBalancedJson(s, start, open, close);
+      if (slice) return slice;
+      searchFrom = start + 1;
+    }
+  }
+  return null;
+}
+
+function sliceBalancedJson(s, start, open, close) {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (c === "\\") escape = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === open) depth++;
+    if (c === close) {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function repairJsonString(jsonStr) {
+  return String(jsonStr || "")
+    .replace(/,\s*([}\]])/g, "$1")
+    .replace(/\u0000/g, "");
+}
+
+/** Parse Gemini JSON output with fence/balance fallbacks. */
+export function parseJson(text) {
+  if (text == null || String(text).trim() === "") {
+    throw new Error("AI returned invalid JSON. Please try again.");
+  }
+
+  const candidates = [];
+  const trimmed = String(text).trim();
+  candidates.push(trimmed);
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]?.trim()) candidates.push(fenced[1].trim());
+
+  const balanced = extractBalancedJson(trimmed);
+  if (balanced) candidates.push(balanced);
+
+  const seen = new Set();
+  for (const raw of candidates) {
+    if (!raw || seen.has(raw)) continue;
+    seen.add(raw);
+    for (const attempt of [raw, repairJsonString(raw)]) {
+      try {
+        return JSON.parse(attempt);
+      } catch {
+        /* try next */
+      }
+    }
+  }
+
+  throw new Error("AI returned invalid JSON. Please try again.");
+}
+
+export function geminiFinishReason(response) {
+  return response?.candidates?.[0]?.finishReason || "";
+}
+
+export function isTruncatedGeminiResponse(response) {
+  const reason = geminiFinishReason(response);
+  return reason === "MAX_TOKENS" || reason === "LENGTH";
+}
 

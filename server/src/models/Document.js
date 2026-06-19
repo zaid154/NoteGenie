@@ -4,6 +4,7 @@ const flashcardSchema = new mongoose.Schema(
   {
     front: { type: String, required: true },
     back: { type: String, required: true },
+    section: { type: String, default: "" },
     easeFactor: { type: Number, default: 2.5 },
     interval: { type: Number, default: 0 },
     repetitions: { type: Number, default: 0 },
@@ -31,6 +32,7 @@ const documentSchema = new mongoose.Schema(
     sourceText: { type: String, default: "" },
     outputLanguage: { type: String, default: "English" },
     detailLevel: { type: String, enum: ["standard", "detailed"], default: "detailed" },
+    generationMode: { type: String, enum: ["single", "chunked"], default: "single" },
     shareToken: { type: String, default: "" },
     shareEnabled: { type: Boolean, default: false },
   },

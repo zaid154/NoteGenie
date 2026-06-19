@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api, apiError } from "../api/client.js";
+import { isValidObjectId } from "../utils/objectId.js";
 import { Alert, Spinner, PageLoader, Badge } from "../components/ui.jsx";
 import { ScaleIn, StaggerContainer, StaggerItem } from "../components/motion.jsx";
 import { IconCheck, IconX, IconArrowLeft, IconChart } from "../components/icons.jsx";
@@ -32,6 +33,13 @@ export default function QuizView() {
     setAnswers([]);
 
     async function load() {
+      if (!isValidObjectId(id)) {
+        if (!ignore) {
+          setError("Invalid quiz link.");
+          setLoading(false);
+        }
+        return;
+      }
       try {
         const { data } = await api.get(`/quiz/${id}`);
         if (ignore) return;

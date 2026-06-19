@@ -312,11 +312,19 @@ export function ProgressRing({ value, max, label, sublabel, color = "#4f46e5" })
   const circ = 2 * Math.PI * r;
   const offset = circ - (pct / 100) * circ;
   return (
-    <div className="card-solid flex flex-col items-center p-6">
+    <div className="card-solid flex min-h-[220px] flex-col items-center p-6">
       <p className="mb-4 w-full text-sm font-semibold text-ink">{label}</p>
-      <div className="relative">
+      <div className="relative mx-auto">
         <svg width="120" height="120" className="-rotate-90">
-          <circle cx="60" cy="60" r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" />
+          <circle
+            cx="60"
+            cy="60"
+            r={r}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="10"
+            className="text-slate-200 dark:text-slate-700"
+          />
           <circle
             cx="60"
             cy="60"
@@ -330,11 +338,11 @@ export function ProgressRing({ value, max, label, sublabel, color = "#4f46e5" })
             className="transition-all duration-700"
           />
         </svg>
-        <div className="absolute inset-0 grid place-items-center text-center">
-          <span className="text-2xl font-bold text-ink">{value}</span>
-          {sublabel && <span className="text-[10px] text-muted">{sublabel}</span>}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="text-2xl font-bold tabular-nums text-ink">{value}</span>
         </div>
       </div>
+      {sublabel && <p className="mt-3 text-center text-xs text-muted">{sublabel}</p>}
     </div>
   );
 }
@@ -343,7 +351,7 @@ export function MiniBarChart({ data, label, empty = false }) {
   const hasValues = data.some((d) => d.v > 0);
   if (empty || !hasValues) {
     return (
-      <div className="card-solid flex min-h-[180px] flex-col items-center justify-center p-6 text-center">
+      <div className="card-solid flex min-h-[220px] flex-col items-center justify-center p-6 text-center">
         <p className="text-sm font-semibold text-ink">{label}</p>
         <p className="mt-2 text-sm text-muted">No quiz attempts in the last 7 days</p>
       </div>
@@ -351,18 +359,36 @@ export function MiniBarChart({ data, label, empty = false }) {
   }
   const max = Math.max(...data.map((d) => d.v), 1);
   return (
-    <div className="card-solid p-6">
+    <div className="card-solid flex min-h-[220px] flex-col p-6">
       <p className="mb-4 text-sm font-semibold text-ink">{label}</p>
-      <div className="flex h-28 items-end justify-between gap-2">
-        {data.map((d) => (
-          <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
+      <div className="flex flex-1 items-end justify-between gap-1.5 sm:gap-2">
+        {data.map((d) => {
+          const barPct = d.v > 0 ? Math.max((d.v / max) * 100, 8) : 0;
+          return (
             <div
-              className="w-full max-w-[28px] rounded-t-lg bg-gradient-to-t from-indigo-600 to-indigo-400 transition-all"
-              style={{ height: `${Math.max(8, (d.v / max) * 100)}%` }}
-            />
-            <span className="text-[10px] font-medium text-muted">{d.day}</span>
-          </div>
-        ))}
+              key={d.date || d.day}
+              className="flex min-w-0 flex-1 flex-col items-center gap-1.5"
+            >
+              <div className="flex h-28 w-full flex-col items-center justify-end">
+                {d.v > 0 && (
+                  <span className="mb-1 text-[10px] font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
+                    {d.v}%
+                  </span>
+                )}
+                <div
+                  className={`w-full max-w-[32px] rounded-t-md transition-all ${
+                    d.v > 0
+                      ? "bg-gradient-to-t from-indigo-600 to-indigo-400"
+                      : "bg-slate-100 dark:bg-slate-800/80"
+                  }`}
+                  style={{ height: d.v > 0 ? `${barPct}%` : "4px" }}
+                  title={d.v > 0 ? `${d.v}% average` : "No attempts"}
+                />
+              </div>
+              <span className="text-[10px] font-medium text-muted">{d.day}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

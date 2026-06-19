@@ -3,8 +3,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getLimitsSync, usageSummary } from "../src/config/plans.js";
 import { sm2 } from "../src/services/spacedRepetition.js";
-import { isKeyExhausted, formatGeminiError, geminiErrorDetail, shouldFailoverToNextKey } from "../src/services/geminiHelpers.js";
+import { localDateKey, weekdayShort } from "../src/utils/dateKey.js";
+import {
+  pickLeastLoaded,
+  releaseKey,
+  getInFlightCount,
+  resetKeyBalancer,
+} from "../src/services/keyBalancer.js";
+import { withStepRetry } from "../src/services/generationOrchestrator.js";
+import { isKeyExhausted, formatGeminiError, geminiErrorDetail, shouldFailoverToNextKey, parseJson, extractBalancedJson } from "../src/services/geminiHelpers.js";
 import { normalizeDetailLevel, clampFlashcardCount, DEFAULT_DETAIL_LEVEL } from "../src/config/detailLevel.js";
+import { shouldUseChunkedNotes, mergeSectionNotes } from "../src/utils/notesChunk.js";
+import { parseNoteSections, getSectionNotes } from "../src/utils/parseNoteSections.js";
 
 test("free plan limits", () => {
   const limits = getLimitsSync("free");
@@ -97,4 +107,92 @@ test("clampFlashcardCount bounds and defaults", () => {
   assert.equal(clampFlashcardCount(99), 10);
   assert.equal(clampFlashcardCount(0), 1);
   assert.equal(clampFlashcardCount(-3), 1);
+});
+
+test("shouldUseChunkedNotes triggers on large PDF or text", () => {
+  assert.equal(shouldUseChunkedNotes({ pdfBytes: 2_000_000 }), true);
+  assert.equal(shouldUseChunkedNotes({ pdfBytes: 600_000 }), false);
+  assert.equal(shouldUseChunkedNotes({ textLength: 35_000 }), true);
+});
+
+test("mergeSectionNotes combines sections with headings", () => {
+  const merged = mergeSectionNotes([
+    { title: "Intro", content: "- Point A" },
+    { title: "Methods", content: "## Methods\n\n- Step 1" },
+  ]);
+  assert.match(merged, /## Intro/);
+  assert.match(merged, /## Methods/);
+  assert.match(merged, /Point A/);
+});
+
+test("parseNoteSections splits markdown headings", () => {
+  const sections = parseNoteSections("## One\n\nBody one\n\n## Two\n\nBody two");
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0].title, "One");
+  assert.match(sections[1].body, /Body two/);
+});
+
+test("getSectionNotes returns scoped section", () => {
+  const notes = "## Alpha\n\nA text\n\n## Beta\n\nB text";
+  const scoped = getSectionNotes(notes, "Beta");
+  assert.match(scoped, /B text/);
+  assert.doesNotMatch(scoped, /A text/);
+});
+
+test("parseJson handles fenced JSON", () => {
+  const data = parseJson('Here:\n```json\n{"title":"Test","value":1}\n```');
+  assert.equal(data.title, "Test");
+});
+
+test("extractBalancedJson finds nested object", () => {
+  const raw = 'prefix {"a":1,"b":{"c":2}} suffix';
+  const json = extractBalancedJson(raw);
+  assert.equal(JSON.parse(json).b.c, 2);
+});
+
+test("localDateKey uses local calendar date not UTC", () => {
+  const d = new Date(2026, 5, 20, 23, 30);
+  assert.equal(localDateKey(d), "2026-06-20");
+  assert.equal(weekdayShort("2026-06-20").length >= 2, true);
+});
+
+test("keyBalancer picks least-loaded key", () => {
+  resetKeyBalancer();
+  const pool = [
+    { id: "a", label: "A", priority: 0 },
+    { id: "b", label: "B", priority: 0 },
+  ];
+  pickLeastLoaded(pool);
+  pickLeastLoaded(pool);
+  assert.equal(getInFlightCount("a"), 1);
+  assert.equal(getInFlightCount("b"), 1);
+  releaseKey("a");
+  const next = pickLeastLoaded(pool);
+  assert.equal(next.id, "a");
+  releaseKey("a");
+  resetKeyBalancer();
+});
+
+test("withStepRetry retries failed step", async () => {
+  let calls = 0;
+  const result = await withStepRetry(
+    async () => {
+      calls += 1;
+      if (calls < 2) throw new Error("transient");
+      return "ok";
+    },
+    { retries: 1 }
+  );
+  assert.equal(result, "ok");
+  assert.equal(calls, 2);
+});
+
+test("withStepRetry throws after retries exhausted", async () => {
+  await assert.rejects(
+    () =>
+      withStepRetry(async () => {
+        throw new Error("fail");
+      }, { retries: 1 }),
+    /fail/
+  );
 });

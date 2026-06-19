@@ -10,12 +10,13 @@ import {
   maskKey,
 } from "../models/Settings.js";
 import { ApiUsage } from "../models/ApiUsage.js";
-import { isTransient, shouldFailoverToNextKey, formatGeminiError, geminiErrorDetail, sourceLabel } from "./geminiHelpers.js";
+import { isTransient, shouldFailoverToNextKey, formatGeminiError, geminiErrorDetail, sourceLabel, parseJson, isTruncatedGeminiResponse } from "./geminiHelpers.js";
+import { acquireKey, releaseKey, acquireSpecificKey, sortPoolByLoad } from "./keyBalancer.js";
+import { CHUNKED_SECTION_LIMIT, CHUNKED_SECTION_CONCURRENCY } from "../config/detailLevel.js";
+import { shouldUseChunkedNotes, mergeSectionNotes, mergeSourceExcerpts, mapWithConcurrency } from "../utils/notesChunk.js";
 
 const AI_NOT_CONFIGURED =
   "AI is not configured. Ask an admin to set the Gemini API key in Admin Settings.";
-
-let roundRobinIndex = 0;
 
 export const PRICE_PER_MILLION = {
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
@@ -101,14 +102,17 @@ async function withKeyFailover(operation, { preferredKeyId, modelConfig = {}, ov
   if (!pool.length) throw notConfiguredError();
 
   const modelName = overrides.model?.trim() || defaultModel;
-  let ordered = [...pool];
+  let ordered = sortPoolByLoad(pool);
   if (preferredKeyId) {
     const pref = pool.find((k) => k.id === preferredKeyId);
-    if (pref) ordered = [pref, ...pool.filter((k) => k.id !== preferredKeyId)];
+    if (pref) ordered = [pref, ...ordered.filter((k) => k.id !== preferredKeyId)];
   }
 
   let lastError;
   for (const keyEntry of ordered) {
+    const preAcquired = preferredKeyId === keyEntry.id;
+    if (!preAcquired) acquireSpecificKey(keyEntry);
+
     try {
       const genAI = new GoogleGenerativeAI(keyEntry.apiKey);
       const instance = genAI.getGenerativeModel({ model: modelName, ...modelConfig });
@@ -127,6 +131,8 @@ async function withKeyFailover(operation, { preferredKeyId, modelConfig = {}, ov
         continue;
       }
       throw err;
+    } finally {
+      releaseKey(keyEntry.id);
     }
   }
   throw lastError;
@@ -177,12 +183,8 @@ export async function getKeyPool() {
   return { pool, model: await resolveModel() };
 }
 
-export async function pickKeyForSlot(slotIndex = 0) {
-  const { pool } = await getKeyPool();
-  if (!pool.length) throw notConfiguredError();
-  const idx = (roundRobinIndex + slotIndex) % pool.length;
-  roundRobinIndex = (roundRobinIndex + 1) % Math.max(pool.length, 1);
-  return pool[idx];
+export async function pickKeyForSlot(_slotIndex = 0) {
+  return acquireKey(getKeyPool);
 }
 
 export async function resolveConfig(overrides = {}) {
@@ -198,22 +200,42 @@ export function pdfPart(buffer) {
   };
 }
 
-function parseJson(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    if (fenced) {
-      try {
-        return JSON.parse(fenced[1].trim());
-      } catch {
-        /* fall through */
+function parseJsonResponse(response, { retries = 1 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return parseJson(response.text());
+    } catch (err) {
+      lastError = err;
+      if (isTruncatedGeminiResponse(response)) {
+        const truncErr = new Error(
+          "AI response was cut off (too much content). Try Standard note depth or a smaller PDF."
+        );
+        truncErr.statusCode = 422;
+        throw truncErr;
+      }
+      if (attempt < retries) {
+        console.warn("[gemini] JSON parse retry", attempt + 1, response.text()?.slice(0, 100));
       }
     }
-    const match = text.match(/[[{][\s\S]*[}\]]/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error("AI returned invalid JSON. Please try again.");
   }
+  throw lastError;
+}
+
+async function generateJsonWithRetry(instance, parts, modelConfig, { parseRetries = 1, genRetries = 1 } = {}) {
+  let lastError;
+  for (let gen = 0; gen <= genRetries; gen++) {
+    const result = await instance.generateContent(parts);
+    const response = result.response;
+    try {
+      return { result, parsed: parseJsonResponse(response, { retries: parseRetries }) };
+    } catch (err) {
+      lastError = err;
+      if (err.statusCode === 422) throw err;
+      console.warn(`[gemini] JSON generation retry ${gen + 1}:`, err.message?.slice(0, 80));
+    }
+  }
+  throw lastError;
 }
 
 export async function testApiKey(apiKey, model = "gemini-2.5-flash", meta = {}) {
@@ -277,7 +299,7 @@ function notesDepthGuide(detailLevel = "detailed") {
   if (detailLevel === "standard") {
     return {
       maxOutputTokens: 4096,
-      excerptLimit: 8000,
+      excerptLimit: 4000,
       notesRules: `Create a concise exam-ready summary:
 - Use 4–8 ## sections covering the main themes only.
 - Prefer bullet lists; keep paragraphs short.
@@ -287,7 +309,7 @@ function notesDepthGuide(detailLevel = "detailed") {
   }
   return {
     maxOutputTokens: 8192,
-    excerptLimit: 12000,
+    excerptLimit: 5000,
     notesRules: `Create comprehensive, exam-ready study notes:
 - Use a ## section for EVERY major topic, chapter, or theme in the source.
 - For long documents, produce proportionally long notes — do NOT compress a large source into a short summary.
@@ -329,12 +351,171 @@ ${depth.notesRules}
 
   const parts = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
-    async ({ instance }) => ({ result: await instance.generateContent(parts) }),
+    async ({ instance }) => {
+      const { result, parsed } = await generateJsonWithRetry(instance, parts, modelConfig);
+      return { result, parsed };
+    },
     { preferredKeyId: meta.preferredKeyId, modelConfig }
   );
 
   await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, out.result.response.usageMetadata);
-  return parseJson(out.result.response.text());
+  return out.parsed;
+}
+
+export async function generateNotesOutline(source, meta = {}) {
+  const language = meta.language || "English";
+  const modelConfig = {
+    generationConfig: {
+      maxOutputTokens: 4096,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.OBJECT,
+        properties: {
+          title: { type: SchemaType.STRING },
+          summary: { type: SchemaType.STRING },
+          sections: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                id: { type: SchemaType.STRING },
+                title: { type: SchemaType.STRING },
+                pageHint: { type: SchemaType.STRING },
+              },
+              required: ["id", "title"],
+            },
+          },
+        },
+        required: ["title", "summary", "sections"],
+      },
+    },
+  };
+
+  const prompt = `Analyze the provided study material and produce a structured outline for comprehensive study notes.
+Return JSON with:
+- "title": short descriptive title
+- "summary": 2-3 sentence overview (plain text, no markdown)
+- "sections": array of major topics/chapters to cover. Each item needs "id" (short slug), "title" (section heading), optional "pageHint".
+List EVERY major topic from the source — for long documents use 6–${CHUNKED_SECTION_LIMIT} sections. Order logically.${outputLanguageInstruction(language)}`;
+
+  const parts = [{ text: prompt }, normalizeSource(source)];
+  const out = await withKeyFailover(
+    async ({ instance }) => {
+      const { result, parsed } = await generateJsonWithRetry(instance, parts, modelConfig);
+      return { result, parsed };
+    },
+    { preferredKeyId: meta.preferredKeyId, modelConfig }
+  );
+
+  await recordUsage({ ...meta, feature: "notes-outline", keyId: out.keyId }, out.modelName, out.result.response.usageMetadata);
+  return out.parsed;
+}
+
+export async function expandNotesSection(source, sectionTitle, meta = {}) {
+  const language = meta.language || "English";
+  const detailLevel = meta.detailLevel === "standard" ? "standard" : "detailed";
+  const depth = notesDepthGuide(detailLevel);
+
+  const modelConfig = {
+    generationConfig: {
+      maxOutputTokens: detailLevel === "detailed" ? 4096 : 2048,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.OBJECT,
+        properties: {
+          content: { type: SchemaType.STRING },
+          excerpt: { type: SchemaType.STRING },
+        },
+        required: ["content", "excerpt"],
+      },
+    },
+  };
+
+  const prompt = `Expand ONLY the section "${sectionTitle}" from the provided material into detailed study notes.
+Return JSON with:
+- "content": GitHub-flavored Markdown for this section ONLY. Use bullet lists, **bold** key terms, and examples. Do NOT include a ## heading — content body only.
+- "excerpt": plain-text key facts from this section (no markdown), up to 1200 characters.
+Use concise bullet-style facts in "content" — avoid huge tables that bloat JSON output.
+Focus exclusively on "${sectionTitle}".${outputLanguageInstruction(language)}`;
+
+  const parts = [{ text: prompt }, normalizeSource(source)];
+  const out = await withKeyFailover(
+    async ({ instance }) => {
+      const { result, parsed } = await generateJsonWithRetry(instance, parts, modelConfig);
+      return { result, parsed };
+    },
+    { preferredKeyId: meta.preferredKeyId, modelConfig }
+  );
+
+  await recordUsage({ ...meta, feature: "notes-section", keyId: out.keyId }, out.modelName, out.result.response.usageMetadata);
+  return out.parsed;
+}
+
+export async function generateNotesChunked(source, meta = {}) {
+  const onProgress = meta.onProgress;
+  onProgress?.({ phase: "outline" });
+
+  const outline = await generateNotesOutline(source, meta);
+  const sections = (outline.sections || []).slice(0, CHUNKED_SECTION_LIMIT);
+  if (!sections.length) {
+    const fallback = await generateNotes(source, meta);
+    return { ...fallback, generationMode: "single" };
+  }
+
+  let slot = 0;
+  const expandedResults = await mapWithConcurrency(
+    sections,
+    CHUNKED_SECTION_CONCURRENCY,
+    async (section, i) => {
+      onProgress?.({
+        phase: "section",
+        current: i + 1,
+        total: sections.length,
+        title: section.title,
+      });
+
+      const key = await pickKeyForSlot(slot++);
+      const part = await expandNotesSection(source, section.title, {
+        ...meta,
+        preferredKeyId: key.id,
+      });
+
+      return {
+        title: section.title,
+        content: part.content || "",
+        excerpt: part.excerpt?.trim() || "",
+      };
+    }
+  );
+
+  const expanded = expandedResults.map(({ title, content }) => ({ title, content }));
+  const excerpts = expandedResults.map((r) => r.excerpt).filter(Boolean);
+
+  const depth = notesDepthGuide(meta.detailLevel === "standard" ? "standard" : "detailed");
+  const notes = mergeSectionNotes(expanded);
+  const sourceExcerpt = mergeSourceExcerpts(excerpts, depth.excerptLimit);
+
+  return {
+    title: outline.title,
+    summary: outline.summary,
+    notes,
+    sourceExcerpt,
+    generationMode: "chunked",
+  };
+}
+
+export async function generateNotesWithMode(source, meta = {}) {
+  const useChunked = shouldUseChunkedNotes({
+    pdfBytes: meta.pdfBytes || 0,
+    textLength: meta.textLength || (typeof source === "string" ? source.length : 0),
+  });
+
+  if (useChunked) {
+    return generateNotesChunked(source, meta);
+  }
+
+  const result = await generateNotes(source, meta);
+  return { ...result, generationMode: "single" };
 }
 
 export async function generateQuiz(source, { difficulty = "medium", count = 5, preferredKeyId, language = "English", ...meta } = {}) {
@@ -371,18 +552,21 @@ Each question must have exactly 4 options, exactly one correct answer (correctIn
 
   const parts = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
-    async ({ instance }) => ({ result: await instance.generateContent(parts) }),
+    async ({ instance }) => {
+      const { result, parsed } = await generateJsonWithRetry(instance, parts, modelConfig);
+      return { result, parsed };
+    },
     { preferredKeyId: preferredKeyId || meta.preferredKeyId, modelConfig }
   );
 
   await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, out.result.response.usageMetadata);
-  const quiz = parseJson(out.result.response.text());
+  const quiz = out.parsed;
   return quiz.filter(
     (q) => Array.isArray(q.options) && q.options.length >= 2 && q.correctIndex < q.options.length
   );
 }
 
-export async function generateFlashcards(source, { count = 5, preferredKeyId, language = "English", existingFronts = [], ...meta } = {}) {
+export async function generateFlashcards(source, { count = 5, preferredKeyId, language = "English", existingFronts = [], sectionTitle = "", ...meta } = {}) {
   const modelConfig = {
     generationConfig: {
       responseMimeType: "application/json",
@@ -393,6 +577,7 @@ export async function generateFlashcards(source, { count = 5, preferredKeyId, la
           properties: {
             front: { type: SchemaType.STRING },
             back: { type: SchemaType.STRING },
+            section: { type: SchemaType.STRING },
           },
           required: ["front", "back"],
         },
@@ -405,22 +590,30 @@ export async function generateFlashcards(source, { count = 5, preferredKeyId, la
       ? `\nDo NOT repeat or rephrase these existing card fronts:\n${existingFronts.map((f) => `- ${f}`).join("\n")}\n`
       : "";
 
+  const sectionBlock = sectionTitle
+    ? `\nAll cards MUST test concepts from the section "${sectionTitle}" only.\n`
+    : "";
+
   const prompt = `Create exactly ${count} study flashcards based ONLY on the study notes / material below.
 Rules:
 - Every card must test a specific concept, fact, or definition that appears in the material — no generic filler.
 - "front" = a clear question or term (plain text only — NO markdown, NO asterisks, NO bullet symbols).
 - "back" = a concise answer or definition (plain text only — NO markdown).
-- Cover different sections; mix definitions, facts, and short "why/how" questions.
-- Keep each side under 200 characters when possible.${dedupeBlock}${outputLanguageInstruction(language)}`;
+- "section" = optional section/topic label this card belongs to.
+- Cover different ideas; mix definitions, facts, and short "why/how" questions.
+- Keep each side under 200 characters when possible.${sectionBlock}${dedupeBlock}${outputLanguageInstruction(language)}`;
 
   const parts = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
-    async ({ instance }) => ({ result: await instance.generateContent(parts) }),
+    async ({ instance }) => {
+      const { result, parsed } = await generateJsonWithRetry(instance, parts, modelConfig);
+      return { result, parsed };
+    },
     { preferredKeyId, modelConfig }
   );
 
   await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, out.result.response.usageMetadata);
-  const cards = parseJson(out.result.response.text());
+  const cards = out.parsed;
   return Array.isArray(cards) ? cards.slice(0, count) : [];
 }
 
@@ -439,7 +632,9 @@ Student: ${question}
 Tutor:`;
 
   const out = await withKeyFailover(
-    async ({ instance }) => ({ streamResult: await instance.generateContentStream(prompt) }),
+    async ({ instance }) => ({
+      streamResult: await withRetry(() => instance.generateContentStream(prompt)),
+    }),
     { preferredKeyId: meta.preferredKeyId }
   );
 

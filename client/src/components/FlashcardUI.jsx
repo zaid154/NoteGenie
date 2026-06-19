@@ -190,12 +190,55 @@ export function FlashcardStudyCard({
   );
 }
 
-function GridFlipCard({ index, front, back }) {
+function GridFlipCard({ index, front, back, section, cardId, onUpdate, onDelete }) {
   const [revealed, setRevealed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editFront, setEditFront] = useState(front);
+  const [editBack, setEditBack] = useState(back);
+  const [saving, setSaving] = useState(false);
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!onUpdate || !cardId) return;
+    setSaving(true);
+    try {
+      await onUpdate(cardId, { front: editFront, back: editBack });
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <form
+        className="flashcard-grid-item rounded-2xl border border-line bg-surface p-4"
+        onSubmit={saveEdit}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <label className="label text-xs">Front</label>
+        <input className="input mb-2 text-sm" value={editFront} onChange={(e) => setEditFront(e.target.value)} required />
+        <label className="label text-xs">Back</label>
+        <input className="input mb-3 text-sm" value={editBack} onChange={(e) => setEditBack(e.target.value)} required />
+        <div className="flex gap-2">
+          <button type="submit" className="btn-primary flex-1 py-1.5 text-xs" disabled={saving}>
+            {saving ? <Spinner size={14} /> : "Save"}
+          </button>
+          <button type="button" className="btn-outline py-1.5 text-xs" onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        </div>
+      </form>
+    );
+  }
 
   const frontContent = (
     <div className="flashcard-grid-inner flashcard-grid-question">
       <span className="flashcard-grid-index">#{index + 1}</span>
+      {section && (
+        <p className="truncate text-[10px] font-medium text-indigo-600 dark:text-indigo-400">{section}</p>
+      )}
       <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600/80 dark:text-indigo-400/80">
         Question
       </p>
@@ -216,31 +259,71 @@ function GridFlipCard({ index, front, back }) {
   );
 
   return (
-    <motion.button
-      type="button"
-      onClick={() => setRevealed((r) => !r)}
-      className="flashcard-grid-item w-full text-left"
-      whileHover={{ y: -3 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.2 }}
-    >
-      <FlipCard
-        front={frontContent}
-        back={backContent}
-        flipped={revealed}
-        className="flashcard-grid-flip"
-        faceClassName="flashcard-grid-face"
-      />
-    </motion.button>
+    <div className="relative">
+      {(onUpdate || onDelete) && (
+        <div className="absolute right-2 top-2 z-10 flex gap-1">
+          {onUpdate && (
+            <button
+              type="button"
+              className="rounded-md bg-surface/90 px-2 py-0.5 text-[10px] font-medium text-muted shadow-sm hover:text-ink"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditFront(front);
+                setEditBack(back);
+                setEditing(true);
+              }}
+            >
+              Edit
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              className="rounded-md bg-surface/90 px-2 py-0.5 text-[10px] font-medium text-red-600 shadow-sm hover:text-red-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(cardId);
+              }}
+            >
+              Del
+            </button>
+          )}
+        </div>
+      )}
+      <motion.button
+        type="button"
+        onClick={() => setRevealed((r) => !r)}
+        className="flashcard-grid-item w-full text-left"
+        whileHover={{ y: -3 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ duration: 0.2 }}
+      >
+        <FlipCard
+          front={frontContent}
+          back={backContent}
+          flipped={revealed}
+          className="flashcard-grid-flip"
+          faceClassName="flashcard-grid-face"
+        />
+      </motion.button>
+    </div>
   );
 }
 
-export function FlashcardGrid({ cards }) {
+export function FlashcardGrid({ cards, onUpdate, onDelete }) {
   return (
     <StaggerContainer className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((c, i) => (
         <StaggerItem key={c._id || i}>
-          <GridFlipCard index={i} front={c.front} back={c.back} />
+          <GridFlipCard
+            index={i}
+            front={c.front}
+            back={c.back}
+            section={c.section}
+            cardId={c._id}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+          />
         </StaggerItem>
       ))}
     </StaggerContainer>

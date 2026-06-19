@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api, apiError } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useConfirm } from "../context/ConfirmContext.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 import OnboardingWizard from "../components/OnboardingWizard.jsx";
 import {
   EmptyState,
@@ -26,9 +28,10 @@ import {
   IconLayers,
   IconChevronRight,
   IconCalendar,
+  IconTrash,
 } from "../components/icons.jsx";
 
-function MaterialCard({ doc }) {
+function MaterialCard({ doc, onDelete, deleting }) {
   const date = new Date(doc.createdAt).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -38,7 +41,20 @@ function MaterialCard({ doc }) {
 
   return (
     <MotionDiv whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
-      <Link to={`/document/${doc._id}`} className="material-card group block h-full">
+      <div className="material-card group relative flex h-full flex-col">
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => onDelete(doc._id)}
+            disabled={deleting}
+            className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-lg border border-line bg-white/90 text-muted opacity-0 shadow-sm transition hover:border-red-300 hover:text-red-600 group-hover:opacity-100 dark:bg-slate-900/90"
+            aria-label="Delete material"
+            title="Delete content"
+          >
+            {deleting ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <IconTrash width={15} height={15} />}
+          </button>
+        )}
+        <Link to={`/document/${doc._id}`} className="block flex-1">
         <div className="flex items-start gap-3">
           <span
             className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${
@@ -81,13 +97,16 @@ function MaterialCard({ doc }) {
           Open material
           <IconChevronRight width={14} height={14} />
         </span>
-      </Link>
+        </Link>
+      </div>
     </MotionDiv>
   );
 }
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const confirm = useConfirm();
+  const { toast } = useToast();
   const [docs, setDocs] = useState([]);
   const [stats, setStats] = useState({ totalAttempts: 0, avgScore: 0, recent: [] });
   const [loadingDocs, setLoadingDocs] = useState(true);
@@ -102,6 +121,27 @@ export default function Dashboard() {
   const [dueCount, setDueCount] = useState(0);
   const [dueItems, setDueItems] = useState([]);
   const [usage, setUsage] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  async function handleDeleteDoc(docId) {
+    const ok = await confirm({
+      title: "Delete this material?",
+      message: "Notes, flashcards, quizzes, and tutor chat for this item will be permanently removed.",
+      confirmText: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    setDeletingId(docId);
+    try {
+      await api.delete(`/documents/${docId}`);
+      setDocs((prev) => prev.filter((d) => d._id !== docId));
+      toast("Content deleted", "success");
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -338,7 +378,11 @@ export default function Dashboard() {
                 <StaggerContainer className="grid gap-4 sm:grid-cols-2">
                   {filtered.map((doc) => (
                     <StaggerItem key={doc._id}>
-                      <MaterialCard doc={doc} />
+                      <MaterialCard
+                        doc={doc}
+                        onDelete={handleDeleteDoc}
+                        deleting={deletingId === doc._id}
+                      />
                     </StaggerItem>
                   ))}
                 </StaggerContainer>

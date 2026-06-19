@@ -47,6 +47,11 @@ export function errorHandler(err, req, res, next) {
   // Poora error sirf server logs me (debugging ke liye).
   console.error("[error]", err.stack || err.message);
 
+  if (err.name === "CastError") {
+    err.statusCode = 400;
+    err.message = "Invalid ID format";
+  }
+
   const status = err.statusCode || 500;
   res.status(status).json({
     message: friendlyMessage(err),

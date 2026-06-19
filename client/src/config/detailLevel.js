@@ -3,6 +3,7 @@ export const DETAIL_LEVELS = [
   { id: "standard", label: "Standard", hint: "Concise summary" },
 ];
 export const DEFAULT_DETAIL_LEVEL = "detailed";
+export const CHUNKED_PDF_BYTES = 1_572_864;
 
 export function normalizeDetailLevel(value) {
   const trimmed = String(value || "").trim().toLowerCase();

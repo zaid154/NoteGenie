@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import MarkdownContent from "../components/MarkdownContent.jsx";
+import NotesTOC from "../components/NotesTOC.jsx";
+import { parseNoteSections } from "../utils/parseNoteSections.js";
 import { api, apiError } from "../api/client.js";
 import { Alert, Badge, Spinner, EmptyState, PageShellSkeleton } from "../components/ui.jsx";
 import Flashcards from "../components/Flashcards.jsx";
@@ -22,7 +24,7 @@ import {
 import { printNotesPdf } from "../utils/printExport.jsx";
 import { OUTPUT_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE } from "../config/languages.js";
 import { DETAIL_LEVELS, DEFAULT_DETAIL_LEVEL } from "../config/detailLevel.js";
-import { GenerationBanner } from "../components/GenerationOverlay.jsx";
+import { GenerationBanner, FlashcardSkeletonGrid } from "../components/GenerationOverlay.jsx";
 
 const tabs = [
   { id: "notes", label: "Notes", icon: IconDoc },
@@ -55,7 +57,14 @@ export default function DocumentView() {
   const [detailLevel, setDetailLevel] = useState(DEFAULT_DETAIL_LEVEL);
   const [generatingCards, setGeneratingCards] = useState(false);
   const [autoCardsStarted, setAutoCardsStarted] = useState(false);
+  const [selectedSection, setSelectedSection] = useState("");
+  const [tocOpen, setTocOpen] = useState(false);
   const confirm = useConfirm();
+
+  const noteSections = useMemo(
+    () => (doc?.notes ? parseNoteSections(doc.notes) : []),
+    [doc?.notes]
+  );
 
   useEffect(() => {
     let ignore = false;
@@ -96,12 +105,14 @@ export default function DocumentView() {
     return () => { ignore = true; };
   }, [id]);
 
-  async function generateFlashcardBatch(count = 5) {
+  async function generateFlashcardBatch(count = 5, section = selectedSection) {
     if (!doc?._id || generatingCards) return;
     setGeneratingCards(true);
     setError("");
     try {
-      const { data } = await api.post(`/documents/${doc._id}/flashcards/generate`, { count });
+      const payload = { count };
+      if (section?.trim()) payload.section = section.trim();
+      const { data } = await api.post(`/documents/${doc._id}/flashcards/generate`, payload);
       setDoc((prev) => (prev ? { ...prev, flashcards: data.flashcards } : prev));
       if (data.added > 0) {
         toast(`${data.added} flashcard${data.added !== 1 ? "s" : ""} ready`, "success");
@@ -113,11 +124,49 @@ export default function DocumentView() {
     }
   }
 
+  async function handleUpdateCard(cardId, updates) {
+    const { data } = await api.patch(`/documents/${id}/flashcards/${cardId}`, updates);
+    setDoc((prev) =>
+      prev ? { ...prev, flashcards: data.flashcards || prev.flashcards } : prev
+    );
+    toast("Flashcard updated", "success");
+  }
+
+  async function handleDeleteCard(cardId) {
+    const ok = await confirm({
+      title: "Delete this flashcard?",
+      message: "This cannot be undone.",
+      confirmText: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    const { data } = await api.delete(`/documents/${id}/flashcards/${cardId}`);
+    setDoc((prev) => (prev ? { ...prev, flashcards: data.flashcards } : prev));
+    toast("Flashcard deleted", "success");
+  }
+
+  async function handleClearFlashcards() {
+    if (!(doc?.flashcards?.length > 0)) return;
+    const ok = await confirm({
+      title: "Delete all flashcards?",
+      message: "All flashcards for this material will be removed. Your notes will stay.",
+      confirmText: "Delete all",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const { data } = await api.delete(`/documents/${id}/flashcards`);
+      setDoc((prev) => (prev ? { ...prev, flashcards: data.flashcards || [] } : prev));
+      toast("All flashcards deleted", "success");
+    } catch (err) {
+      setError(apiError(err));
+    }
+  }
+
   useEffect(() => {
     if (!doc || autoCardsStarted || generatingCards) return;
-    const shouldAuto =
-      searchParams.get("generating") === "cards" ||
-      (doc.notes?.trim() && (doc.flashcards?.length ?? 0) === 0);
+    // Legacy links only — new uploads include flashcards in the SSE pipeline.
+    const shouldAuto = searchParams.get("generating") === "cards";
     if (!shouldAuto) return;
     setAutoCardsStarted(true);
     generateFlashcardBatch(5);
@@ -132,6 +181,9 @@ export default function DocumentView() {
         count: questionCount,
         outputLanguage,
       });
+      if (!data?.quiz?._id) {
+        throw new Error("Quiz was created but no ID was returned. Please try again.");
+      }
       navigate(`/quiz/${data.quiz._id}`);
     } catch (err) {
       setError(apiError(err));
@@ -246,8 +298,8 @@ export default function DocumentView() {
     if (deleting) return;
     const ok = await confirm({
       title: "Delete this material?",
-      message: "Its quizzes and chat history will be removed too. This cannot be undone.",
-      confirmText: "Delete",
+      message: "All generated content — notes, flashcards, quizzes, and tutor chat — will be permanently removed.",
+      confirmText: "Delete content",
       danger: true,
     });
     if (!ok) return;
@@ -279,9 +331,12 @@ export default function DocumentView() {
 
   const dueOnly = searchParams.get("study") === "due";
   const now = new Date();
-  const displayCards = dueOnly
+  const allCards = dueOnly
     ? (doc?.flashcards || []).filter((c) => !c.nextReviewAt || new Date(c.nextReviewAt) <= now)
     : doc?.flashcards || [];
+  const displayCards = selectedSection
+    ? allCards.filter((c) => (c.section || "") === selectedSection)
+    : allCards;
 
   return (
     <div className="w-full space-y-6 animate-fade-in">
@@ -296,6 +351,9 @@ export default function DocumentView() {
           </Badge>
           <Badge color="gray">{outputLanguage}</Badge>
           <Badge color="gray">{detailLevel === "detailed" ? "Detailed" : "Standard"}</Badge>
+          {doc.generationMode === "chunked" && (
+            <Badge color="brand">Chunked notes</Badge>
+          )}
           <span className="truncate text-xs text-muted">{doc.sourceName}</span>
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink lg:text-3xl">{doc.title}</h1>
@@ -364,8 +422,10 @@ export default function DocumentView() {
               onClick={handleDelete}
               disabled={deleting}
               className="btn-outline text-sm text-red-600 hover:border-red-300"
+              title="Delete all content"
             >
               {deleting ? <Spinner size={16} /> : <IconTrash width={16} height={16} />}
+              Delete
             </button>
           </div>
         </div>
@@ -465,8 +525,49 @@ export default function DocumentView() {
         >
           {tab === "notes" && (
             doc.notes?.trim() ? (
-              <div className="panel w-full p-6 lg:p-8">
-                <MarkdownContent>{doc.notes}</MarkdownContent>
+              <div className="panel w-full overflow-hidden">
+                {noteSections.length > 0 && (
+                  <div className="border-b border-line px-4 py-3 lg:hidden">
+                    <button
+                      type="button"
+                      className="text-sm font-medium text-indigo-600 dark:text-indigo-400"
+                      onClick={() => setTocOpen((o) => !o)}
+                    >
+                      {tocOpen ? "Hide" : "Show"} sections ({noteSections.length})
+                    </button>
+                    {tocOpen && (
+                      <div className="mt-3 max-h-48 overflow-y-auto">
+                        <NotesTOC
+                          sections={noteSections}
+                          onGenerateSection={(title) => {
+                            setSelectedSection(title);
+                            setTab("flashcards");
+                            generateFlashcardBatch(5, title);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="grid lg:grid-cols-[220px_1fr]">
+                  {noteSections.length > 0 && (
+                    <div className="hidden border-r border-line p-4 lg:block">
+                      <div className="sticky top-24">
+                        <NotesTOC
+                          sections={noteSections}
+                          onGenerateSection={(title) => {
+                            setSelectedSection(title);
+                            setTab("flashcards");
+                            generateFlashcardBatch(5, title);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="p-6 lg:p-8">
+                    <MarkdownContent>{doc.notes}</MarkdownContent>
+                  </div>
+                </div>
               </div>
             ) : (
               <EmptyState
@@ -498,22 +599,45 @@ export default function DocumentView() {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  {noteSections.length > 0 && (
+                    <select
+                      className="input max-w-[180px] py-1.5 text-sm"
+                      value={selectedSection}
+                      onChange={(e) => setSelectedSection(e.target.value)}
+                      aria-label="Filter by section"
+                    >
+                      <option value="">All sections</option>
+                      {noteSections.map((s) => (
+                        <option key={s.slug} value={s.title}>{s.title}</option>
+                      ))}
+                    </select>
+                  )}
                   <button
                     type="button"
                     className="btn-primary text-sm"
                     disabled={generatingCards || !doc.notes?.trim()}
-                    onClick={() => generateFlashcardBatch(5)}
+                    onClick={() => generateFlashcardBatch(5, selectedSection)}
                   >
                     {generatingCards ? <Spinner size={16} /> : <IconSparkles width={16} height={16} />}
-                    {(doc.flashcards?.length ?? 0) === 0 ? "Generate 5" : "Generate 5 more"}
+                    {(doc.flashcards?.length ?? 0) === 0
+                      ? selectedSection ? "Generate 5 for section" : "Generate 5"
+                      : selectedSection ? "Generate 5 for section" : "Generate 5 more"}
                   </button>
                   <button
                     type="button"
                     className="btn-outline text-sm"
                     disabled={generatingCards || !doc.notes?.trim()}
-                    onClick={() => generateFlashcardBatch(10)}
+                    onClick={() => generateFlashcardBatch(10, selectedSection)}
                   >
                     Generate 10 more
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-outline text-sm text-red-600 hover:border-red-300"
+                    disabled={generatingCards || !(doc.flashcards?.length > 0)}
+                    onClick={handleClearFlashcards}
+                  >
+                    <IconTrash width={16} height={16} /> Clear all cards
                   </button>
                   <div className="flashcard-mode-toggle ml-auto">
                   <button
@@ -534,7 +658,12 @@ export default function DocumentView() {
                 </div>
               </div>
               <div className="p-4 lg:p-6">
-                {generatingCards && (doc.flashcards?.length ?? 0) > 0 && (
+                {generatingCards && displayCards.length === 0 && (
+                  <div className="mb-4">
+                    <FlashcardSkeletonGrid count={5} />
+                  </div>
+                )}
+                {generatingCards && displayCards.length > 0 && (
                   <div className="mb-4">
                     <GenerationBanner loading message="Adding more flashcards…" />
                   </div>
@@ -551,7 +680,9 @@ export default function DocumentView() {
                   documentId={doc._id}
                   studyMode={studyMode}
                   generating={generatingCards}
-                  onGenerate={() => generateFlashcardBatch(5)}
+                  onGenerate={() => generateFlashcardBatch(5, selectedSection)}
+                  onUpdate={handleUpdateCard}
+                  onDelete={handleDeleteCard}
                 />
               </div>
             </div>

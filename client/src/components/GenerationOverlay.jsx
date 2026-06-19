@@ -18,12 +18,21 @@ function formatElapsed(seconds) {
   return `${m}m ${s}s`;
 }
 
+function phaseToStep(phase, sectionProgress) {
+  if (phase === "uploading") return 0;
+  if (phase === "extracting" || phase === "validating") return 1;
+  if (phase === "outline" || phase === "section" || phase === "notes") return 2;
+  if (phase === "cards" || phase === "saving") return 3;
+  return sectionProgress ? 2 : 2;
+}
+
 export default function GenerationOverlay({
   open,
   phase = "notes",
   title,
   subtitle,
   tips = STUDY_TIPS,
+  sectionProgress = null,
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
@@ -50,9 +59,24 @@ export default function GenerationOverlay({
       ? "Uploading file…"
       : phase === "extracting"
         ? "Reading your material…"
-        : phase === "cards"
-          ? "Building flashcards…"
-          : "Creating your notes…";
+        : phase === "validating"
+          ? "Validating PDF…"
+          : phase === "outline"
+            ? "Building outline…"
+            : phase === "section" && sectionProgress
+              ? `Writing section ${sectionProgress.current}/${sectionProgress.total}…`
+              : phase === "saving"
+                ? "Saving your study kit…"
+                : phase === "cards"
+                  ? "Building flashcards…"
+                  : "Creating your notes…";
+
+  const determinatePct =
+    sectionProgress?.total > 0
+      ? Math.round((sectionProgress.current / sectionProgress.total) * 100)
+      : null;
+
+  const activeStep = phaseToStep(phase, sectionProgress);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm dark:bg-black/50">
@@ -73,29 +97,38 @@ export default function GenerationOverlay({
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-base font-semibold text-ink">{title || phaseLabel}</p>
-            <p className="mt-1 text-sm text-muted">{subtitle || "This usually takes 10–30 seconds."}</p>
+            <p className="mt-1 text-sm text-muted">{subtitle || phaseLabel}</p>
             <p className="mt-2 text-xs tabular-nums text-muted">{formatElapsed(elapsed)} elapsed</p>
           </div>
           <Spinner size={20} />
         </div>
 
         <div className="progress-bar mt-5 h-2">
-          <div className="progress-bar-indeterminate" />
+          {determinatePct != null ? (
+            <motion.div
+              className="h-full rounded-full bg-indigo-600"
+              initial={false}
+              animate={{ width: `${determinatePct}%` }}
+              transition={{ duration: 0.35 }}
+            />
+          ) : (
+            <div className="progress-bar-indeterminate" />
+          )}
         </div>
 
+        {determinatePct != null && (
+          <p className="mt-1 text-right text-xs tabular-nums text-muted">{determinatePct}%</p>
+        )}
+
         <div className="mt-4 flex gap-1.5">
-          {["uploading", "extracting", "notes", "cards"].map((p) => {
-            const order = { uploading: 0, extracting: 1, notes: 2, cards: 3 };
-            const active = order[phase] >= order[p];
-            return (
-              <span
-                key={p}
-                className={`h-1.5 flex-1 rounded-full transition-colors ${
-                  active ? "bg-indigo-500" : "bg-slate-200 dark:bg-slate-700"
-                }`}
-              />
-            );
-          })}
+          {["uploading", "extracting", "notes", "cards"].map((p, i) => (
+            <span
+              key={p}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${
+                activeStep >= i ? "bg-indigo-500" : "bg-slate-200 dark:bg-slate-700"
+              }`}
+            />
+          ))}
         </div>
 
         <AnimatePresence mode="wait">
@@ -134,5 +167,25 @@ export function GenerationBanner({ message, loading = true }) {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+export function FlashcardSkeletonGrid({ count = 5 }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: count }, (_, i) => (
+        <div
+          key={i}
+          className="flashcard-grid-item animate-pulse rounded-2xl border border-line bg-slate-100 p-4 dark:bg-slate-800/60"
+        >
+          <div className="mb-3 h-3 w-12 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="space-y-2">
+            <div className="h-3 w-full rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-3 w-4/5 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-3 w-3/5 rounded bg-slate-200 dark:bg-slate-700" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

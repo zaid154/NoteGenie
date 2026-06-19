@@ -6,12 +6,16 @@ import { asyncHandler } from "../middleware/errorHandler.js";
 import { generateQuiz } from "../services/gemini.js";
 import { incrementUsage } from "../middleware/quota.js";
 import { normalizeOutputLanguage } from "../config/languages.js";
+import { localDateKey, weekdayShort } from "../utils/dateKey.js";
+import { assertValidObjectId } from "../utils/objectId.js";
 
 // Document ke content se ek naya quiz generate karta hai.
 // POST /api/quiz/document/:documentId   body: { difficulty, count }
 const ALLOWED_DIFFICULTY = ["easy", "medium", "hard"];
 
 export const createQuiz = asyncHandler(async (req, res) => {
+  assertValidObjectId(req.params.documentId, "document ID");
+
   const difficulty = ALLOWED_DIFFICULTY.includes(req.body.difficulty)
     ? req.body.difficulty
     : "medium";
@@ -52,6 +56,8 @@ export const createQuiz = asyncHandler(async (req, res) => {
 // Quiz solve karte waqt sahi jawab chhupa kar bhejte hain.
 // GET /api/quiz/:id
 export const getQuiz = asyncHandler(async (req, res) => {
+  assertValidObjectId(req.params.id, "quiz ID");
+
   const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.user._id });
   if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
@@ -71,6 +77,8 @@ export const getQuiz = asyncHandler(async (req, res) => {
 // Answers submit -> score nikaal kar attempt save karta hai, explanations ke saath result deta hai.
 // POST /api/quiz/:id/submit   body: { answers: number[] }
 export const submitQuiz = asyncHandler(async (req, res) => {
+  assertValidObjectId(req.params.id, "quiz ID");
+
   const { answers } = req.body;
 
   const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.user._id });
@@ -150,10 +158,10 @@ export const getAnalytics = asyncHandler(async (req, res) => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() - i);
-    trendBuckets.push({ date: d.toISOString().slice(0, 10), scores: [] });
+    trendBuckets.push({ date: localDateKey(d), scores: [] });
   }
   attempts.forEach((a) => {
-    const key = new Date(a.createdAt).toISOString().slice(0, 10);
+    const key = localDateKey(a.createdAt);
     const bucket = trendBuckets.find((b) => b.date === key);
     if (bucket && a.total) {
       bucket.scores.push(Math.round((a.score / a.total) * 100));
@@ -161,7 +169,7 @@ export const getAnalytics = asyncHandler(async (req, res) => {
   });
   const scoreTrend = trendBuckets.map((b) => ({
     date: b.date,
-    day: new Date(b.date).toLocaleDateString(undefined, { weekday: "short" }),
+    day: weekdayShort(b.date),
     avg: b.scores.length
       ? Math.round(b.scores.reduce((s, x) => s + x, 0) / b.scores.length)
       : 0,

@@ -17,6 +17,8 @@ export default function Flashcards({
   onRated,
   onGenerate,
   generating = false,
+  onUpdate,
+  onDelete,
 }) {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -88,6 +90,7 @@ export default function Flashcards({
           <FlashcardStudyCard
             front={card.front}
             back={card.back}
+            subtitle={card.section || undefined}
             revealed={revealed}
             onReveal={() => setRevealed(true)}
             onRate={rate}
@@ -99,5 +102,11 @@ export default function Flashcards({
     );
   }
 
-  return <FlashcardGrid cards={cards} />;
+  return (
+    <FlashcardGrid
+      cards={cards}
+      onUpdate={onUpdate}
+      onDelete={onDelete}
+    />
+  );
 }

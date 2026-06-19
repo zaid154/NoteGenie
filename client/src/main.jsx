@@ -14,6 +14,9 @@ import { ConfirmProvider } from "./context/ConfirmContext.jsx";
 
 // Saare styles (Tailwind) yahan se load hote hain.
 import "./index.css";
+import { warmApi } from "./api/client.js";
+
+warmApi();
 
 // "root" div index.html me hota hai. Wahin React apna pura app dikhata hai.
 ReactDOM.createRoot(document.getElementById("root")).render(

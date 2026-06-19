@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 
 import { env, validateEnv } from "./config/env.js";
 import { connectDB } from "./config/db.js";
+import mongoose from "mongoose";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 import { aiRateLimitMiddleware } from "./middleware/aiRateLimit.js";
 
@@ -54,7 +55,10 @@ const apiLimiter = rateLimit({
 app.use("/api", apiLimiter);
 
 // AI routes — limit admin-configurable (Admin → AI Settings). Admin users are exempt.
-app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+app.get("/api/health", async (req, res) => {
+  const dbOk = mongoose.connection.readyState === 1;
+  res.json({ status: "ok", db: dbOk ? "connected" : "disconnected" });
+});
 
 // Har URL group ko uske routes file se jodte hain (aur upar wale limiters lagate hain).
 app.use("/api/auth", authRoutes);

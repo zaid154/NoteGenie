@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { api, apiError } from "../api/client.js";
+import { api, apiError, uploadDocumentStream, importLinkStream } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { Alert, Spinner, Badge, UsageMeter, QuotaBlocked, StatCard } from "../components/ui.jsx";
 import TagInput from "../components/TagInput.jsx";
 import { isQuotaExceeded } from "../utils/quota.js";
 import { OUTPUT_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE } from "../config/languages.js";
-import { DETAIL_LEVELS, DEFAULT_DETAIL_LEVEL } from "../config/detailLevel.js";
+import { DETAIL_LEVELS, DEFAULT_DETAIL_LEVEL, CHUNKED_PDF_BYTES } from "../config/detailLevel.js";
 import GenerationOverlay from "../components/GenerationOverlay.jsx";
 import { StaggerContainer, StaggerItem } from "../components/motion.jsx";
 import {
@@ -78,6 +78,7 @@ export default function Upload() {
   const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState("notes");
+  const [sectionProgress, setSectionProgress] = useState(null);
   const [error, setError] = useState("");
   const [usage, setUsage] = useState(null);
   const [folder, setFolder] = useState("");
@@ -130,13 +131,21 @@ export default function Upload() {
     setFile(f);
   }
 
+  function handlePhase(data) {
+    if (data.phase) setLoadingPhase(data.phase);
+    if (data.phase === "section" && data.current && data.total) {
+      setSectionProgress({ current: data.current, total: data.total, title: data.title });
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setLoading(true);
+    setSectionProgress(null);
     setLoadingPhase(LOADING_PHASE[tab] || "notes");
     try {
-      let res;
+      let documentId;
       if (tab === "pdf") {
         if (!file) throw new Error("Please choose a PDF first.");
         const formData = new FormData();
@@ -145,8 +154,8 @@ export default function Upload() {
         if (tags.length) formData.append("tags", JSON.stringify(tags));
         formData.append("outputLanguage", outputLanguage);
         formData.append("detailLevel", detailLevel);
-        setLoadingPhase("notes");
-        res = await api.post("/documents/upload", formData);
+        const result = await uploadDocumentStream(formData, { onPhase: handlePhase });
+        documentId = result.documentId;
       } else {
         if (!url.trim()) throw new Error("Please enter a URL.");
         try {
@@ -154,18 +163,15 @@ export default function Upload() {
         } catch {
           throw new Error("Please enter a valid URL (include https://).");
         }
-        setLoadingPhase("notes");
-        res = await api.post("/documents/link", {
-          url: url.trim(),
-          folder: folder.trim(),
-          tags,
-          outputLanguage,
-          detailLevel,
-        });
+        const result = await importLinkStream(
+          { url: url.trim(), folder: folder.trim(), tags, outputLanguage, detailLevel },
+          { onPhase: handlePhase }
+        );
+        documentId = result.documentId;
       }
-      navigate(`/document/${res.data.document._id}?generating=cards`);
+      navigate(`/document/${documentId}`);
     } catch (err) {
-      setError(apiError(err));
+      setError(err.message || apiError(err));
       setLoading(false);
     }
   }
@@ -203,7 +209,7 @@ export default function Upload() {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-ink lg:text-3xl">Add material</h1>
               <p className="mt-1 max-w-xl text-sm text-muted">
-                Upload a PDF or paste a link — detailed notes first, then flashcards on demand.
+                Upload a PDF or paste a link — notes and starter flashcards in one step.
               </p>
             </div>
             <Link to="/app" className="btn-outline text-sm">
@@ -644,8 +650,13 @@ export default function Upload() {
       <GenerationOverlay
         open={loading}
         phase={loadingPhase}
+        sectionProgress={sectionProgress}
         title="Creating your notes…"
-        subtitle="Flashcards will be ready on the next screen — read your notes while they generate."
+        subtitle={
+          file && file.size > CHUNKED_PDF_BYTES
+            ? "Large PDF — generating section by section for full coverage."
+            : "Flashcards will be ready on the next screen — read your notes while they generate."
+        }
       />
     </div>
   );

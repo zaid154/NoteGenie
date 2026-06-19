@@ -28,7 +28,12 @@ export async function connectDB({ retries = 5, delayMs = 5000 } = {}) {
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      await mongoose.connect(env.mongoUri, { serverSelectionTimeoutMS: 8000 });
+      await mongoose.connect(env.mongoUri, {
+        serverSelectionTimeoutMS: 8000,
+        maxPoolSize: 10,
+        minPoolSize: 2,
+        socketTimeoutMS: 45000,
+      });
       console.log("[db] MongoDB connected");
       return;
     } catch (err) {

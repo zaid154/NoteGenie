@@ -2,17 +2,18 @@
 // Khaas baat: jawab "streaming" me aata hai (thoda-thoda kar ke, jaise typing).
 import { useState, useRef, useEffect } from "react";
 import { api, apiUrl, getToken, apiError } from "../api/client.js";
-import { IconSend, IconChat } from "./icons.jsx";
+import { IconSend, IconChat, IconTrash } from "./icons.jsx";
 import { Spinner } from "./ui.jsx";
 import MarkdownContent from "./MarkdownContent.jsx";
+import { useConfirm } from "../context/ConfirmContext.jsx";
 
 export default function TutorChat({ documentId, outputLanguage = "English" }) {
-  const [messages, setMessages] = useState([]);   // poori chat (user + AI ke messages)
-  const [input, setInput] = useState("");          // text box me likha hua sawal
+  const confirm = useConfirm();
+  const [messages, setMessages] = useState([]);  const [input, setInput] = useState("");          // text box me likha hua sawal
   const [streaming, setStreaming] = useState(false); // AI abhi jawab de raha hai?
   const [loadingHistory, setLoadingHistory] = useState(true); // purani chat load ho rahi hai?
   const [historyError, setHistoryError] = useState("");
-  const scrollRef = useRef(null);   // chat ko apne aap neeche scroll karne ke liye
+  const [clearing, setClearing] = useState(false);  const scrollRef = useRef(null);   // chat ko apne aap neeche scroll karne ke liye
   const abortRef = useRef(null);    // chalu request ko beech me rokne ke liye
 
   useEffect(() => {
@@ -121,8 +122,42 @@ export default function TutorChat({ documentId, outputLanguage = "English" }) {
     }
   }
 
+  async function clearChat() {
+    if (!messages.length || streaming || clearing) return;
+    const ok = await confirm({
+      title: "Clear tutor chat?",
+      message: "All messages for this material will be permanently deleted.",
+      confirmText: "Clear chat",
+      danger: true,
+    });
+    if (!ok) return;
+    setClearing(true);
+    setHistoryError("");
+    try {
+      await api.delete(`/tutor/${documentId}/history`);
+      setMessages([]);
+    } catch (err) {
+      setHistoryError(apiError(err));
+    } finally {
+      setClearing(false);
+    }
+  }
+
   return (
     <div className="flex min-h-[32rem] flex-col lg:min-h-[calc(100vh-22rem)]">
+      {messages.length > 0 && (
+        <div className="mb-2 flex justify-end">
+          <button
+            type="button"
+            onClick={clearChat}
+            disabled={streaming || clearing}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+          >
+            {clearing ? <Spinner size={12} /> : <IconTrash width={14} height={14} />}
+            Clear chat
+          </button>
+        </div>
+      )}
       <div ref={scrollRef} className="chat-scroll flex-1 space-y-4 overflow-y-auto p-1">
         {loadingHistory ? (
           <div className="flex h-full items-center justify-center">
@@ -166,7 +201,25 @@ export default function TutorChat({ documentId, outputLanguage = "English" }) {
       </div>
 
       {historyError && (
-        <p className="mt-2 text-xs text-red-500">{historyError}</p>
+        <div className="mt-2 flex items-center gap-2">
+          <p className="text-xs text-red-500">{historyError}</p>
+          <button
+            type="button"
+            className="text-xs font-500 text-indigo-600 hover:underline dark:text-indigo-400"
+            onClick={() => {
+              setHistoryError("");
+              setLoadingHistory(true);
+              api.get(`/tutor/${documentId}/history`)
+                .then(({ data }) => setMessages(data.messages || []))
+                .catch((err) => {
+                  if (err?.response?.status !== 404) setHistoryError(apiError(err));
+                })
+                .finally(() => setLoadingHistory(false));
+            }}
+          >
+            Retry
+          </button>
+        </div>
       )}
 
       <form onSubmit={send} className="mt-3 flex items-center gap-2 border-t border-line pt-3">

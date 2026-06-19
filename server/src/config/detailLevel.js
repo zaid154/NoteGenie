@@ -1,6 +1,11 @@
 export const DETAIL_LEVELS = ["standard", "detailed"];
 export const DEFAULT_DETAIL_LEVEL = "detailed";
 
+export const CHUNKED_SECTION_LIMIT = 5;
+export const CHUNKED_SECTION_CONCURRENCY = 2;
+export const CHUNKED_PDF_BYTES = 1_572_864;
+export const CHUNKED_TEXT_CHARS = 30_000;
+
 export function normalizeDetailLevel(value) {
   const trimmed = String(value || "").trim().toLowerCase();
   if (trimmed === "standard") return "standard";
