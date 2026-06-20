@@ -1,4 +1,5 @@
 import { formatGeminiError } from "../services/geminiHelpers.js";
+import { captureException } from "../config/observability.js";
 
 // Ek hi jagah saari errors handle hoti hain, taaki har controller me try-catch repeat na ho.
 export function notFound(req, res, next) {
@@ -53,6 +54,8 @@ export function errorHandler(err, req, res, next) {
   }
 
   const status = err.statusCode || 500;
+  // Report unexpected server errors to Sentry (no-op unless configured).
+  if (status >= 500) captureException(err);
   res.status(status).json({
     message: friendlyMessage(err),
   });

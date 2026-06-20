@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { NavLink, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import Logo from "./Logo.jsx";
+import { Spinner } from "./ui.jsx";
 import { PageTransition, DrawerPanel } from "./motion.jsx";
 import {
   IconChart,
@@ -143,7 +144,8 @@ export default function AdminLayout() {
               type="button"
               onClick={() => setMobileOpen(true)}
               className="btn-ghost rounded-lg p-2 lg:hidden"
-              aria-label="Menu"
+              aria-label="Open menu"
+              aria-expanded={mobileOpen}
             >
               <IconMenu />
             </button>
@@ -190,7 +192,9 @@ export default function AdminLayout() {
           <AdminSubNav />
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>
-              <Outlet />
+              <Suspense fallback={<div className="grid place-items-center py-24"><Spinner size={26} /></div>}>
+                <Outlet />
+              </Suspense>
             </PageTransition>
           </AnimatePresence>
         </main>

@@ -8,12 +8,17 @@ Built with React on the front, Express + MongoDB on the back.
 
 ## What it can do
 
-- Upload a PDF and get structured notes (Gemini reads the PDF directly).
+- Upload a PDF and get structured notes (Gemini reads the PDF directly), now with **key takeaways** and an auto-built **glossary**.
 - Paste a web link or a YouTube URL — it pulls the text/transcript and generates notes from that.
 - **Output language** — choose the language for notes, flashcards, quizzes, and tutor replies (**English** by default). Source can be Hindi or anything else; output follows your selection.
 - Auto-generated flashcards with spaced-repetition review.
 - Quizzes: pick easy/medium/hard and question count (3–25). Score, correct answers, and explanations included.
 - AI tutor chat per document — streaming responses, history saved in the database.
+- **Ask across all notes** — a cross-document tutor that retrieves from your most relevant materials and answers in one place.
+- **Mind map view** — an interactive node graph of any document, built from its note sections.
+- **Audio "Listen" mode** — text-to-speech playback of notes and hands-free flashcard review (browser speech engine, no API cost).
+- **Study streaks & daily goal** — a consecutive-day streak, daily goal, and a 30-day activity heatmap on the dashboard and analytics.
+- **⌘K command palette** — jump to any page or search your materials from anywhere.
 - Analytics for quiz scores over time.
 - Export notes as Markdown or PDF; flashcards as Anki CSV.
 - Folders and tags on documents.
@@ -25,20 +30,22 @@ Built with React on the front, Express + MongoDB on the back.
 
 ## Tech used
 
-- **Frontend:** React (Vite), React Router, Tailwind CSS, Axios, Framer Motion
+- **Frontend:** React (Vite), React Router, Tailwind CSS, Axios, Framer Motion; lazy-loaded routes for a small initial bundle
 - **Backend:** Node.js, Express, JWT, Multer, bcrypt
 - **Database:** MongoDB (Mongoose)
-- **AI:** Google Gemini (`@google/generative-ai`) with multi-key pool and automatic failover
+- **AI:** Google Gemini (`@google/genai`) with a multi-key pool, automatic failover, and model fallback
+- **Audio:** Web Speech API (browser-native text-to-speech) — no extra service
 - **Links:** `youtube-transcript` for YouTube, fetch + HTML strip for web pages
 - **Payments:** Razorpay (Stripe legacy optional)
+- **Tooling:** ESLint + Prettier, GitHub Actions CI (lint, test, build), optional Sentry error tracking
 
 ## How a request actually flows
 
 1. You upload a PDF or paste a link and pick an **output language** (default English).
 2. The backend prepares content — PDF goes to Gemini; links get scraped or YouTube transcript is fetched.
-3. Gemini generates **notes first**, then **flashcards** (one request at a time to reduce rate-limit pressure).
+3. Gemini generates **notes first** (with key takeaways + glossary), then **flashcards** (one request at a time to reduce rate-limit pressure). Large sources use a chunked outline → per-section pipeline.
 4. Results are saved as a document with `outputLanguage` stored for quiz/tutor/regenerate.
-5. From there you can generate a quiz, open the tutor, or regenerate in a different language.
+5. From there you can generate a quiz, open the tutor, view the mind map, listen to the notes, or regenerate in a different language.
 
 ### AI key pool
 
@@ -57,22 +64,27 @@ On each AI call the server tries keys in priority order. If one fails (invalid k
 NoteGenie/
 ├── .env                 # all secrets (not committed)
 ├── .env.example         # copy to .env and fill in
+├── .prettierrc.json     # shared formatting config
+├── .github/workflows/   # CI: lint + test + build
 ├── package.json         # runs client + server together
 ├── dev.mjs              # starts API + Vite together
 ├── server/
+│   ├── eslint.config.js
 │   └── src/
 │       ├── index.js
-│       ├── config/      # env, plans, languages
-│       ├── models/      # User, Document, Quiz, Settings, ApiUsage, …
+│       ├── config/      # env, plans, languages, observability (Sentry + req logging)
+│       ├── models/      # User, Document, Quiz, ChatMessage, StudyActivity, Settings, …
 │       ├── routes/
 │       ├── controllers/
-│       ├── services/    # gemini.js, linkExtractor.js, keyCrypto.js, …
+│       ├── services/    # gemini.js, retrieval.js, studyStreak.js, linkExtractor.js, …
 │       ├── middleware/
 │       └── scripts/     # seedData.js
 └── client/
+    ├── eslint.config.js
     └── src/
-        ├── pages/       # Upload, DocumentView, admin, billing, …
-        ├── components/
+        ├── pages/       # Upload, DocumentView, Ask, admin, billing, …
+        ├── components/  # MindMap, AudioPlayer, CommandPalette, ui, …
+        ├── hooks/       # useSpeech (text-to-speech)
         ├── config/      # languages.js
         └── api/
 ```
@@ -122,6 +134,16 @@ npm run dev
 
 `dev.mjs` starts the API and Vite using `PORT` and `CLIENT_PORT` from `.env` (e.g. **5001** and **3000**). If a port is busy, the next free port is picked — check the terminal for the real URLs.
 
+**Lint & format** (each workspace has its own config):
+
+```bash
+npm run lint              # lints server + client
+npm run lint --prefix server
+npm run format --prefix client   # Prettier write
+```
+
+CI (`.github/workflows/ci.yml`) runs lint, server tests, and the client build on every push/PR.
+
 ## The .env file
 
 | Key | What it's for |
@@ -144,7 +166,7 @@ npm run dev
 | `SUPPORT_EMAIL` | Contact on Pricing page. |
 | `SMTP_*` / `EMAIL_FROM` | Email verification and password reset. |
 | `AI_RATE_LIMIT_MAX` / `AI_RATE_LIMIT_WINDOW_MIN` | Default AI rate limits (overridable in admin). |
-| `SENTRY_DSN` | Optional error monitoring. |
+| `SENTRY_DSN` | Optional server error tracking. Activates only if set **and** `@sentry/node` is installed (`npm i @sentry/node`); otherwise it's a no-op. Requests are always logged with timing regardless. |
 
 The `.env` is git-ignored. Do not commit secrets. Prefer keeping the repo **outside** cloud-sync folders (OneDrive, etc.) so `.env` is not synced.
 
@@ -190,11 +212,11 @@ Docs: [Razorpay test integration](https://razorpay.com/docs/payments/payment-gat
 
 **Auth:** `POST /api/auth/register`, `login`, `GET /api/auth/me`, profile/password updates, email verify, forgot/reset password
 
-**Documents:** `POST /api/documents/upload`, `POST /api/documents/link` (body: `url`, `outputLanguage`, `folder`, `tags`), `GET /api/documents`, `GET /api/documents/:id`, `POST /api/documents/:id/regenerate`, `DELETE /api/documents/:id`
+**Documents:** `POST /api/documents/upload`, `POST /api/documents/link` (body: `url`, `outputLanguage`, `folder`, `tags`), `GET /api/documents`, `GET /api/documents/:id`, `POST /api/documents/:id/regenerate`, `DELETE /api/documents/:id`, flashcard rate/generate, `GET /api/documents/review/due`
 
-**Quizzes:** `POST /api/quiz/document/:documentId`, `GET /api/quiz/:id`, `POST /api/quiz/:id/submit`, analytics
+**Quizzes:** `POST /api/quiz/document/:documentId`, `GET /api/quiz/:id`, `POST /api/quiz/:id/submit`, `GET /api/quiz/analytics/overview` (scores + **streak**, daily goal, 30-day activity)
 
-**Tutor:** `POST /api/tutor/:documentId` (stream), `GET /api/tutor/:documentId/history`
+**Tutor:** `POST /api/tutor/:documentId` (stream), `GET /api/tutor/:documentId/history`, **`POST /api/tutor/global`** (cross-document, stream), `GET`/`DELETE /api/tutor/global/history`
 
 **Admin:** stats, users, documents, settings, `POST /api/admin/settings/test`, `POST /api/admin/settings/test-all`, key CRUD, models list, usage, audit log, billing
 
@@ -238,4 +260,4 @@ From `server/`:
 npm test
 ```
 
-Runs unit tests for plans, spaced repetition, and Gemini error/failover helpers.
+Runs unit tests (Node's built-in test runner) for plans, spaced repetition, Gemini error/failover/model-fallback helpers, cross-document retrieval, and study-streak logic.

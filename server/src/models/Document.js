@@ -28,6 +28,17 @@ const documentSchema = new mongoose.Schema(
     tags: { type: [String], default: [] },
     notes: { type: String, default: "" },
     summary: { type: String, default: "" },
+    keyTakeaways: { type: [String], default: [] },
+    glossary: {
+      type: [
+        {
+          _id: false,
+          term: { type: String, default: "" },
+          definition: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
     flashcards: { type: [flashcardSchema], default: [] },
     sourceText: { type: String, default: "" },
     outputLanguage: { type: String, default: "English" },

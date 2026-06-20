@@ -28,6 +28,16 @@ export function shouldFailoverToNextKey(err) {
   return isKeyExhausted(err) || isTransient(err) || isGeminiApiFailure(err);
 }
 
+/**
+ * Whether the error is "this model isn't available" (bad/legacy model id, or not
+ * enabled for the project) — a signal to retry once with a known-good fallback model.
+ */
+export function isModelNotFoundError(err) {
+  const msg = collectGeminiErrorText(err) || String(err || "");
+  if (!/\bmodels?\b/i.test(msg)) return false;
+  return /\b404\b|not\s*found|not\s*supported|unsupported|is not available|NOT_FOUND/i.test(msg);
+}
+
 function collectGeminiErrorText(err) {
 
   const parts = [];

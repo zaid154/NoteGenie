@@ -19,6 +19,44 @@ export function Spinner({ size = 18 }) {
   );
 }
 
+// Generic shimmer block — consolidates the many inline `<div className="skeleton …" />`.
+export function Skeleton({ className = "" }) {
+  return <div className={`skeleton ${className}`} />;
+}
+
+// Thin wrapper over the existing .btn-* classes so callers can pass variant/size props.
+export function Button({ variant = "primary", size = "md", className = "", children, ...props }) {
+  const variants = {
+    primary: "btn-primary",
+    outline: "btn-outline",
+    ghost: "btn-ghost",
+    danger: "btn-outline text-red-600 hover:border-red-300",
+  };
+  const sizes = { sm: "text-xs", md: "text-sm", lg: "text-base" };
+  return (
+    <button
+      className={`${variants[variant] || variants.primary} ${sizes[size] || sizes.md} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Standard "failed to load" panel with an optional Retry button.
+export function ErrorState({ message = "Something went wrong.", onRetry, retrying = false }) {
+  return (
+    <div className="card-solid flex flex-col items-center gap-3 px-6 py-12 text-center">
+      <p className="text-sm text-red-600 dark:text-red-400">{message}</p>
+      {onRetry && (
+        <button type="button" className="btn-outline text-sm" onClick={onRetry} disabled={retrying}>
+          {retrying ? <Spinner size={16} /> : null} Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function PageLoader() {
   return <PageShellSkeleton />;
 }
@@ -343,6 +381,45 @@ export function ProgressRing({ value, max, label, sublabel, color = "#4f46e5" })
         </div>
       </div>
       {sublabel && <p className="mt-3 text-center text-xs text-muted">{sublabel}</p>}
+    </div>
+  );
+}
+
+export function Heatmap({ data = [], label = "Study activity", sublabel }) {
+  const max = Math.max(...data.map((d) => d.count || 0), 1);
+  const levelClass = {
+    0: "bg-slate-100 dark:bg-slate-800/70",
+    1: "bg-indigo-200 dark:bg-indigo-900/70",
+    2: "bg-indigo-400 dark:bg-indigo-700",
+    3: "bg-indigo-600 dark:bg-indigo-500",
+  };
+  const levelOf = (c) => {
+    if (!c) return 0;
+    const r = c / max;
+    if (r > 0.66) return 3;
+    if (r > 0.33) return 2;
+    return 1;
+  };
+  return (
+    <div className="card-solid flex min-h-[220px] flex-col p-6">
+      <p className="text-sm font-semibold text-ink">{label}</p>
+      {sublabel && <p className="mb-3 mt-0.5 text-xs text-muted">{sublabel}</p>}
+      <div className="mt-3 flex flex-1 flex-wrap content-start gap-1.5">
+        {data.map((d) => (
+          <span
+            key={d.day}
+            title={`${d.day}: ${d.count || 0} ${(d.count || 0) === 1 ? "session" : "sessions"}`}
+            className={`h-4 w-4 rounded-[4px] ${levelClass[levelOf(d.count)]}`}
+          />
+        ))}
+      </div>
+      <div className="mt-4 flex items-center justify-end gap-1.5 text-[10px] text-muted">
+        <span>Less</span>
+        {[0, 1, 2, 3].map((l) => (
+          <span key={l} className={`h-3 w-3 rounded-[3px] ${levelClass[l]}`} />
+        ))}
+        <span>More</span>
+      </div>
     </div>
   );
 }

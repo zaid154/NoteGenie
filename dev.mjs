@@ -37,6 +37,22 @@ function loadEnvFile() {
   return env;
 }
 
+function buildClientUrl(fileEnv, clientPort) {
+  const raw = fileEnv.CLIENT_URL?.trim();
+  if (!raw) return `http://localhost:${clientPort}`;
+  try {
+    const u = new URL(raw);
+    u.port = String(clientPort);
+    // Local dev always uses HTTP unless you terminate TLS in a reverse proxy.
+    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
+      u.protocol = "http:";
+    }
+    return u.origin;
+  } catch {
+    return `http://localhost:${clientPort}`;
+  }
+}
+
 // Check if something is already listening (works for IPv4 + IPv6).
 function portInUse(port, host) {
   return new Promise((resolvePort) => {
@@ -58,19 +74,84 @@ async function isBusy(port) {
   return v4 || v6;
 }
 
-// Try to bind to a port; if busy, try the next one.
-async function findFreePort(start, maxAttempts = 50) {
-  let port = start;
-  for (let i = 0; i < maxAttempts; i++) {
-    if (!(await isBusy(port))) return port;
-    port++;
+/** Best-effort: which process is listening on this port (for error messages). */
+async function getPortOwner(port) {
+  try {
+    if (isWin) {
+      const { stdout } = await execFileAsync("netstat", ["-ano", "-p", "tcp"], {
+        windowsHide: true,
+      });
+      const portRe = new RegExp(`:${port}\\s`);
+      for (const line of stdout.split("\n")) {
+        if (!/LISTENING/.test(line) || !portRe.test(line)) continue;
+        const parts = line.trim().split(/\s+/);
+        const pid = parts[parts.length - 1];
+        if (!pid || !/^\d+$/.test(pid)) continue;
+        try {
+          const { stdout: tasks } = await execFileAsync(
+            "tasklist",
+            ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"],
+            { windowsHide: true }
+          );
+          const name = tasks.split(",")[0]?.replace(/"/g, "").trim();
+          if (name && !/no tasks/i.test(name)) {
+            return { pid, name };
+          }
+        } catch {
+          // fall through
+        }
+        return { pid, name: "unknown" };
+      }
+      return null;
+    }
+
+    const { stdout } = await execFileAsync("lsof", [
+      "-i",
+      `TCP:${port}`,
+      "-sTCP:LISTEN",
+      "-t",
+    ]);
+    const pid = stdout.trim().split("\n")[0];
+    if (!pid) return null;
+    try {
+      const { stdout: psOut } = await execFileAsync("ps", ["-p", pid, "-o", "comm="]);
+      return { pid, name: psOut.trim() || "unknown" };
+    } catch {
+      return { pid, name: "unknown" };
+    }
+  } catch {
+    return null;
   }
-  throw new Error(`No free port found starting from ${start}`);
 }
 
-function portNote(requested, actual) {
+function formatPortBusyNote(label, envKey, requested, actual, owner) {
   if (requested === actual) return "";
-  return ` (${requested} was busy, using ${actual})`;
+  const lines = [`  ${label}: .env ${envKey}=${requested} was busy`];
+  if (owner?.pid) {
+    lines.push(`    → in use by ${owner.name} (PID ${owner.pid})`);
+  }
+  lines.push(`    → using port ${actual} instead`);
+  return lines.join("\n");
+}
+
+// Prefer .env port; if busy, try the next free one and report what blocked it.
+async function resolvePort(label, envKey, requested, avoidPorts = new Set(), maxAttempts = 50) {
+  if (!(await isBusy(requested)) && !avoidPorts.has(requested)) {
+    return { port: requested, requested, owner: null, fallback: false };
+  }
+
+  const owner = await getPortOwner(requested);
+  let port = requested + 1;
+  for (let i = 0; i < maxAttempts; i++) {
+    if (!avoidPorts.has(port) && !(await isBusy(port))) {
+      return { port, requested, owner, fallback: true };
+    }
+    port++;
+  }
+  const who = owner?.pid ? ` (${owner.name}, PID ${owner.pid} on ${requested})` : "";
+  throw new Error(
+    `  ${label}: no free port found near .env ${envKey}=${requested}${who}.`
+  );
 }
 
 // Run nodemon/vite via node so we skip npm.cmd shells on Windows.
@@ -112,26 +193,48 @@ async function main() {
   const requestedServer = Number(fileEnv.PORT) || 5000;
   const requestedClient = Number(fileEnv.CLIENT_PORT) || 5173;
 
-  const serverPort = await findFreePort(requestedServer);
-  let clientPort = await findFreePort(requestedClient);
-  // Client aur server same port pe na chalein.
-  if (clientPort === serverPort) {
-    clientPort = await findFreePort(serverPort + 1);
+  if (!Number.isFinite(requestedServer) || requestedServer < 1 || requestedServer > 65535) {
+    throw new Error(`Invalid PORT in .env: ${fileEnv.PORT}`);
+  }
+  if (!Number.isFinite(requestedClient) || requestedClient < 1 || requestedClient > 65535) {
+    throw new Error(`Invalid CLIENT_PORT in .env: ${fileEnv.CLIENT_PORT}`);
+  }
+  if (requestedServer === requestedClient) {
+    throw new Error(
+      `PORT and CLIENT_PORT must differ (both are ${requestedServer} in .env).`
+    );
   }
 
-  const clientUrl = `http://localhost:${clientPort}`;
+  const server = await resolvePort("Backend", "PORT", requestedServer);
+  const client = await resolvePort("Frontend", "CLIENT_PORT", requestedClient, new Set([server.port]));
+
+  const serverPort = server.port;
+  const clientPort = client.port;
+  const clientUrl = buildClientUrl(fileEnv, clientPort);
 
   console.log("");
   console.log("  NoteGenie dev server");
   console.log("  --------------------");
-  console.log(`  Frontend:  ${clientUrl}${portNote(requestedClient, clientPort)}`);
-  console.log(`  Backend:   http://localhost:${serverPort}${portNote(requestedServer, serverPort)}`);
+  console.log(`  Frontend:  ${clientUrl}`);
+  console.log(`  Backend:   http://localhost:${serverPort}`);
+  console.log(`  Protocol:  HTTP (normal for local dev; HTTPS is for production behind a proxy)`);
   console.log("");
-  if (requestedClient !== clientPort || requestedServer !== serverPort) {
-    console.log("  Some ports were busy — using the free ones above.");
-    console.log("  Update .env if you want fixed ports next time.");
+
+  const portNotes = [
+    formatPortBusyNote("Backend", "PORT", server.requested, serverPort, server.owner),
+    formatPortBusyNote("Frontend", "CLIENT_PORT", client.requested, clientPort, client.owner),
+  ].filter(Boolean);
+  if (portNotes.length) {
+    console.log("  Port fallback (.env ports were busy):");
+    for (const note of portNotes) console.log(note);
     console.log("");
   }
+
+  if (serverPort === requestedServer && clientPort === requestedClient) {
+    console.log(`  Using .env ports: CLIENT_PORT=${clientPort}, PORT=${serverPort}`);
+    console.log("");
+  }
+
   console.log("  Press Ctrl+C to stop both server and client.");
   console.log("");
 
@@ -166,8 +269,6 @@ async function main() {
       cwd,
       env,
       stdio: ["ignore", "pipe", "pipe"],
-      // Detached only on Unix (process-group kill). On Windows it flashes extra
-      // CMD windows and can leave orphan server/client processes after the parent exits.
       detached: !isWin,
       windowsHide: true,
     });
@@ -189,7 +290,7 @@ async function main() {
         if (label === "server") {
           console.error("");
           console.error("  Common fixes:");
-          console.error("  - Port busy: close other NoteGenie windows or run start-dev.bat again");
+          console.error("  - Port busy: close the process shown above or change PORT in .env");
           console.error("  - MongoDB: check MONGO_URI in .env and Atlas IP whitelist");
           console.error("  - Missing deps: npm run install:all");
           console.error("");
@@ -223,7 +324,6 @@ async function main() {
   process.on("SIGINT", () => shutdown(0));
   process.on("SIGTERM", () => shutdown(0));
 
-  // Last-resort cleanup if process exits without going through shutdown().
   process.on("exit", () => {
     for (const child of children) {
       if (!child.pid) continue;
@@ -247,7 +347,8 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[dev] Failed to start:", err.message);
+  console.error("\n[dev] Failed to start:");
+  console.error(err.message);
   if (isWin) {
     console.error("\n  Tip: Double-click start-dev.bat in the project folder so errors stay visible.");
   }

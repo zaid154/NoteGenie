@@ -119,7 +119,7 @@ function serializeUserRow(u, countMap = {}) {
 function keyStatus(entry) {
   if (entry.disabled) return "disabled";
   if (entry.cooldownUntil && new Date(entry.cooldownUntil) > new Date()) return "cooldown";
-  if (entry.lastError) return "failed";
+  // lastError without an active cooldown is historical — the key is usable again.
   return "ok";
 }
 
@@ -162,13 +162,15 @@ export const getStats = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(8)
     .populate("userId", "name email")
-    .select("title sourceType createdAt userId");
+    .select("title sourceType createdAt userId")
+    .lean();
 
   const recentAttempts = await QuizAttempt.find()
     .sort({ createdAt: -1 })
     .limit(8)
     .populate("userId", "name email")
-    .populate("documentId", "title");
+    .populate("documentId", "title")
+    .lean();
 
   res.json({
     users,
@@ -252,7 +254,8 @@ export const getUsage = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(15)
       .populate("userId", "name email")
-      .select("feature model keyId promptTokens completionTokens totalTokens estimatedCost createdAt userId"),
+      .select("feature model keyId promptTokens completionTokens totalTokens estimatedCost createdAt userId")
+      .lean(),
   ]);
 
   const totals = totalsAgg[0] || {
@@ -264,7 +267,7 @@ export const getUsage = asyncHandler(async (req, res) => {
   };
 
   const userIds = byUser.map((u) => u._id);
-  const users = await User.find({ _id: { $in: userIds } }).select("name email");
+  const users = await User.find({ _id: { $in: userIds } }).select("name email").lean();
   const userMap = Object.fromEntries(users.map((u) => [String(u._id), u]));
 
   res.json({

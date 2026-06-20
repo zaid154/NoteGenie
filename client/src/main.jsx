@@ -18,6 +18,10 @@ import { warmApi } from "./api/client.js";
 
 warmApi();
 
+// To enable client error tracking: `npm i @sentry/react`, set VITE_SENTRY_DSN, then add a
+// static `import * as Sentry from "@sentry/react"` and call `Sentry.init({ dsn: ... })` here.
+// (A dynamic/optional import can't be used — Vite must resolve and bundle the package.)
+
 // "root" div index.html me hota hai. Wahin React apna pura app dikhata hai.
 ReactDOM.createRoot(document.getElementById("root")).render(
   // StrictMode bugs dhoondhne me help karta hai (sirf development me).

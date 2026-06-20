@@ -5,6 +5,7 @@ import { QuizAttempt } from "../models/QuizAttempt.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { generateQuiz } from "../services/gemini.js";
 import { incrementUsage } from "../middleware/quota.js";
+import { recordStudyActivity, getRecentActivity, currentStreakValue } from "../services/studyStreak.js";
 import { normalizeOutputLanguage } from "../config/languages.js";
 import { localDateKey, weekdayShort } from "../utils/dateKey.js";
 import { assertValidObjectId } from "../utils/objectId.js";
@@ -58,7 +59,7 @@ export const createQuiz = asyncHandler(async (req, res) => {
 export const getQuiz = asyncHandler(async (req, res) => {
   assertValidObjectId(req.params.id, "quiz ID");
 
-  const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.user._id });
+  const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.user._id }).lean();
   if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
   const safeQuiz = {
@@ -81,7 +82,7 @@ export const submitQuiz = asyncHandler(async (req, res) => {
 
   const { answers } = req.body;
 
-  const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.user._id });
+  const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.user._id }).lean();
   if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
   // Answers ek array ho aur har question ka jawab ho.
@@ -116,6 +117,8 @@ export const submitQuiz = asyncHandler(async (req, res) => {
     answers,
   });
 
+  await recordStudyActivity(req.user);
+
   res.json({ score, total: quiz.questions.length, review });
 });
 
@@ -124,13 +127,15 @@ export const submitQuiz = asyncHandler(async (req, res) => {
 export const getAnalytics = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  const [attempts, documentCount, quizCount, docs] = await Promise.all([
+  const [attempts, documentCount, quizCount, docs, activity] = await Promise.all([
     QuizAttempt.find({ userId })
       .populate("documentId", "title")
-      .sort({ createdAt: -1 }),
+      .sort({ createdAt: -1 })
+      .lean(),
     Document.countDocuments({ userId }),
     Quiz.countDocuments({ userId }),
-    Document.find({ userId }).select("flashcards"),
+    Document.find({ userId }).select("flashcards").lean(),
+    getRecentActivity(userId, 30),
   ]);
 
   const now = new Date();
@@ -175,10 +180,20 @@ export const getAnalytics = asyncHandler(async (req, res) => {
       : 0,
   }));
 
+  const goalTarget = req.user.dailyGoalCards || 20;
+  const todayDone = activity.length ? activity[activity.length - 1].count : 0;
+
   res.json({
     totalAttempts,
     avgScore,
     scoreTrend,
+    streak: {
+      current: currentStreakValue(req.user.studyStreak),
+      longest: req.user.studyStreak?.longest || 0,
+      lastStudyDay: req.user.studyStreak?.lastStudyDay || "",
+    },
+    dailyGoal: { target: goalTarget, done: todayDone },
+    activity,
     study: {
       materials: documentCount,
       quizzesGenerated: quizCount,

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import EmailVerificationBanner from "./EmailVerificationBanner.jsx";
+import CommandPalette from "./CommandPalette.jsx";
 import Logo from "./Logo.jsx";
 import { PageTransition, DrawerPanel } from "./motion.jsx";
 import {
@@ -19,15 +20,22 @@ import {
   IconUsers,
   IconSparkles,
   IconCoins,
+  IconChat,
+  IconSearch,
 } from "./icons.jsx";
 
 const navItems = [
   { to: "/app", label: "Library", icon: IconHome, end: true },
   { to: "/upload", label: "Upload", icon: IconUpload },
+  { to: "/ask", label: "Ask AI", icon: IconChat },
   { to: "/analytics", label: "Analytics", icon: IconChart },
   { to: "/billing", label: "Billing", icon: IconCoins },
   { to: "/profile", label: "Profile", icon: IconUsers },
 ];
+
+function openCommandPalette() {
+  window.dispatchEvent(new Event("open-command-palette"));
+}
 
 function NavItem({ to, label, icon: Icon, end, onClick }) {
   return (
@@ -108,6 +116,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="relative min-h-screen lg:flex">
+      <CommandPalette />
       <div className="mesh-bg" aria-hidden="true" />
 
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 border-r border-line bg-surface lg:block">
@@ -117,13 +126,36 @@ export default function Layout({ children }) {
       <div className="flex min-h-screen flex-1 flex-col lg:pl-56">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-line bg-surface/80 px-4 py-3 backdrop-blur-md">
           <div className="flex items-center gap-3 lg:hidden">
-            <button onClick={() => setMobileOpen(true)} className="btn-ghost rounded-lg p-2" aria-label="Menu">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="btn-ghost rounded-lg p-2"
+              aria-label="Open menu"
+              aria-expanded={mobileOpen}
+            >
               <IconMenu />
             </button>
             <Logo size={28} showText={false} />
           </div>
 
           <div className="ml-auto flex items-center gap-3">
+            <button
+              type="button"
+              onClick={openCommandPalette}
+              className="hidden items-center gap-2 rounded-lg border border-line bg-canvas/60 px-2.5 py-1.5 text-xs text-muted transition hover:text-ink sm:flex"
+              aria-label="Open command palette"
+            >
+              <IconSearch width={15} height={15} />
+              <span>Search</span>
+              <kbd className="rounded border border-line px-1 py-0.5 text-[10px]">⌘K</kbd>
+            </button>
+            <button
+              type="button"
+              onClick={openCommandPalette}
+              className="btn-ghost rounded-lg p-2 sm:hidden"
+              aria-label="Open command palette"
+            >
+              <IconSearch width={18} height={18} />
+            </button>
             <div className="flex items-center gap-2.5">
               {user?.avatar ? (
                 <img src={user.avatar} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-indigo-100 dark:ring-indigo-900" />

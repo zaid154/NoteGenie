@@ -8,7 +8,8 @@ import {
   FlashcardStudyCard,
   FlashcardSessionComplete,
 } from "../components/FlashcardUI.jsx";
-import { IconCards, IconArrowLeft } from "../components/icons.jsx";
+import { IconCards, IconArrowLeft, IconHeadphones } from "../components/icons.jsx";
+import { useSpeech } from "../hooks/useSpeech.js";
 
 export default function Review() {
   const [queue, setQueue] = useState([]);
@@ -18,6 +19,24 @@ export default function Review() {
   const [revealed, setRevealed] = useState(false);
   const [rating, setRating] = useState(false);
   const [done, setDone] = useState(false);
+  const [listen, setListen] = useState(false);
+  const speech = useSpeech();
+
+  const activeCard = queue[index];
+
+  // Hands-free: read the card front aloud, and the back once it's revealed.
+  useEffect(() => {
+    if (!listen || done || !activeCard) return;
+    speech.play(revealed ? activeCard.back : activeCard.front);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listen, activeCard?.cardId, revealed, done]);
+
+  function toggleListen() {
+    setListen((on) => {
+      if (on) speech.stop();
+      return !on;
+    });
+  }
 
   async function loadDue() {
     setLoading(true);
@@ -69,9 +88,22 @@ export default function Review() {
       <Link to="/app" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
         <IconArrowLeft width={16} height={16} /> Back to library
       </Link>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">Review queue</h1>
-        <p className="mt-1 text-sm text-muted">Due flashcards across all your materials.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">Review queue</h1>
+          <p className="mt-1 text-sm text-muted">Due flashcards across all your materials.</p>
+        </div>
+        {speech.supported && !done && queue.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleListen}
+            aria-pressed={listen}
+            className={`btn-outline text-sm ${listen ? "border-indigo-300 text-indigo-600 dark:text-indigo-400" : ""}`}
+          >
+            <IconHeadphones width={16} height={16} />
+            {listen ? "Hands-free on" : "Hands-free"}
+          </button>
+        )}
       </div>
 
       {error && <Alert>{error}</Alert>}

@@ -9,10 +9,12 @@
     "dev": "nodemon src/index.js",
     "seed": "node src/scripts/seedData.js",
     "seed:data": "node src/scripts/seedData.js",
-    "test": "node --test tests/api.test.js"
+    "test": "node --test tests/api.test.js",
+    "lint": "eslint . --max-warnings=99999",
+    "format": "prettier --write \"src/**/*.js\""
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
+    "@google/genai": "^2.9.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -28,6 +30,9 @@
     "youtube-transcript": "^1.2.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
+    "globals": "^17.6.0",
     "nodemon": "^3.1.9"
   }
 }

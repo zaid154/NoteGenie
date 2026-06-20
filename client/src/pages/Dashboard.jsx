@@ -29,6 +29,7 @@ import {
   IconChevronRight,
   IconCalendar,
   IconTrash,
+  IconFlame,
 } from "../components/icons.jsx";
 
 function MaterialCard({ doc, onDelete, deleting }) {
@@ -216,6 +217,19 @@ export default function Dashboard() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const firstName = user?.name?.split(" ")[0] || "there";
 
+  const activity = stats.activity || [];
+  const activityMax = Math.max(...activity.map((d) => d.count || 0), 1);
+  const goal = stats.dailyGoal || { done: 0, target: 20 };
+  const goalPct = Math.min(100, Math.round(((goal.done || 0) / (goal.target || 20)) * 100));
+  const showStreak = !loadingStats && ((stats.streak?.current ?? 0) > 0 || activity.some((d) => d.count > 0));
+  const heatCell = (c) => {
+    if (!c) return "bg-slate-100 dark:bg-slate-800/70";
+    const r = c / activityMax;
+    if (r > 0.66) return "bg-indigo-600 dark:bg-indigo-500";
+    if (r > 0.33) return "bg-indigo-400 dark:bg-indigo-700";
+    return "bg-indigo-200 dark:bg-indigo-900/70";
+  };
+
   const statItems = [
     { label: "Materials", numericValue: docs.length, icon: IconDoc, color: "indigo" },
     { label: "Quizzes taken", numericValue: stats.totalAttempts, icon: IconCheck, color: "violet" },
@@ -244,7 +258,17 @@ export default function Dashboard() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <StaggerItem>
             <p className="text-sm text-muted">{greeting}, {firstName}</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink lg:text-3xl">Your library</h1>
+            <div className="mt-1 flex items-center gap-3">
+              <h1 className="text-2xl font-semibold tracking-tight text-ink lg:text-3xl">Your library</h1>
+              {showStreak && (stats.streak?.current ?? 0) > 0 && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-sm font-bold text-amber-600 dark:bg-amber-950/50 dark:text-amber-400"
+                  title="Daily study streak"
+                >
+                  <IconFlame width={15} height={15} /> {stats.streak.current}
+                </span>
+              )}
+            </div>
           </StaggerItem>
           <StaggerItem>
             <Link to="/upload" className="btn-primary">
@@ -392,6 +416,41 @@ export default function Dashboard() {
         </div>
 
         <StaggerContainer className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
+          {showStreak && (
+            <StaggerItem>
+              <div className="rail-card">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                    <IconFlame width={16} height={16} />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-ink">
+                      {stats.streak?.current ?? 0} day streak
+                    </p>
+                    <p className="text-xs text-muted">
+                      Longest {stats.streak?.longest ?? 0} • {goal.done ?? 0}/{goal.target ?? 20} today
+                    </p>
+                  </div>
+                </div>
+                <div className="progress-bar mt-3" aria-label={`Daily goal ${goalPct}%`}>
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                    style={{ width: `${goalPct}%` }}
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {activity.slice(-21).map((d) => (
+                    <span
+                      key={d.day}
+                      title={`${d.day}: ${d.count || 0} ${(d.count || 0) === 1 ? "session" : "sessions"}`}
+                      className={`h-3.5 w-3.5 rounded-[3px] ${heatCell(d.count)}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </StaggerItem>
+          )}
+
           {dueCount > 0 && (
             <StaggerItem>
               <div className="rail-card">

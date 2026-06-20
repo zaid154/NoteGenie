@@ -423,7 +423,9 @@ export default function AdminSettings() {
                   {testHit && !testHit.ok && (
                     <p className="mt-1 text-xs text-red-600">Last test: {testHit.error}</p>
                   )}
-                  {!testHit && k.lastError && <p className="mt-1 text-xs text-red-600">{k.lastError}</p>}
+                  {!testHit && k.status === "cooldown" && k.lastError && (
+                    <p className="mt-1 text-xs text-red-600">{k.lastError}</p>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button type="button" className="btn-ghost text-xs" onClick={() => moveKeyPriority(k.id, "up")}>↑</button>

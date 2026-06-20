@@ -9,6 +9,8 @@ import { Alert, Badge, Spinner, EmptyState, PageShellSkeleton } from "../compone
 import Flashcards from "../components/Flashcards.jsx";
 import TutorChat from "../components/TutorChat.jsx";
 import TagInput from "../components/TagInput.jsx";
+import AudioPlayer from "../components/AudioPlayer.jsx";
+import MindMap from "../components/MindMap.jsx";
 import { useConfirm } from "../context/ConfirmContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 import {
@@ -20,6 +22,7 @@ import {
   IconCards,
   IconChat,
   IconShare,
+  IconMap,
 } from "../components/icons.jsx";
 import { printNotesPdf } from "../utils/printExport.jsx";
 import { OUTPUT_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE } from "../config/languages.js";
@@ -28,6 +31,7 @@ import { GenerationBanner, FlashcardSkeletonGrid } from "../components/Generatio
 
 const tabs = [
   { id: "notes", label: "Notes", icon: IconDoc },
+  { id: "map", label: "Map", icon: IconMap },
   { id: "flashcards", label: "Flashcards", icon: IconCards },
   { id: "tutor", label: "Tutor", icon: IconChat },
 ];
@@ -65,6 +69,16 @@ export default function DocumentView() {
     () => (doc?.notes ? parseNoteSections(doc.notes) : []),
     [doc?.notes]
   );
+
+  const listenText = useMemo(() => {
+    if (!doc) return "";
+    const parts = [doc.title, doc.summary];
+    if (doc.keyTakeaways?.length) {
+      parts.push(`Key takeaways. ${doc.keyTakeaways.join(". ")}`);
+    }
+    parts.push(doc.notes);
+    return parts.filter(Boolean).join(". \n\n");
+  }, [doc]);
 
   useEffect(() => {
     let ignore = false;
@@ -564,8 +578,34 @@ export default function DocumentView() {
                       </div>
                     </div>
                   )}
-                  <div className="p-6 lg:p-8">
+                  <div className="space-y-6 p-6 lg:p-8">
+                    <AudioPlayer text={listenText} label="Listen to notes" />
+                    {doc.keyTakeaways?.length > 0 && (
+                      <div className="rounded-xl border border-indigo-200/60 bg-indigo-50/50 p-4 dark:border-indigo-900/50 dark:bg-indigo-950/20">
+                        <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
+                          <IconSparkles width={16} height={16} /> Key takeaways
+                        </p>
+                        <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink/90 marker:text-indigo-400">
+                          {doc.keyTakeaways.map((t, i) => (
+                            <li key={i}>{t}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     <MarkdownContent>{doc.notes}</MarkdownContent>
+                    {doc.glossary?.length > 0 && (
+                      <div className="rounded-xl border border-line bg-canvas/40 p-4">
+                        <p className="mb-3 text-sm font-semibold text-ink">Glossary</p>
+                        <dl className="grid gap-3 sm:grid-cols-2">
+                          {doc.glossary.map((g, i) => (
+                            <div key={g.term || i} className="rounded-lg border border-line bg-surface p-3">
+                              <dt className="text-sm font-semibold text-ink">{g.term}</dt>
+                              <dd className="mt-0.5 text-sm text-muted">{g.definition}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -581,6 +621,16 @@ export default function DocumentView() {
                 }
               />
             )
+          )}
+          {tab === "map" && (
+            <div className="panel overflow-hidden p-4 lg:p-6">
+              <div className="mb-3 flex items-center gap-2">
+                <IconMap width={18} height={18} className="text-indigo-600 dark:text-indigo-400" />
+                <p className="text-sm font-semibold text-ink">Mind map</p>
+                <span className="text-xs text-muted">Built from your note sections</span>
+              </div>
+              <MindMap title={doc.title} notes={doc.notes} />
+            </div>
           )}
           {tab === "flashcards" && (
             <div className="panel overflow-hidden">

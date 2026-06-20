@@ -1,0 +1,24 @@
+import js from "@eslint/js";
+import globals from "globals";
+
+export default [
+  {
+    ignores: ["node_modules/**"],
+  },
+  js.configs.recommended,
+  {
+    files: ["**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      // Intentional null-byte / control-char stripping in sanitizers (e.g. geminiHelpers.js).
+      "no-control-regex": "off",
+    },
+  },
+];

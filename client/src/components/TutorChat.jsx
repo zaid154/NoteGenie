@@ -7,7 +7,17 @@ import { Spinner } from "./ui.jsx";
 import MarkdownContent from "./MarkdownContent.jsx";
 import { useConfirm } from "../context/ConfirmContext.jsx";
 
-export default function TutorChat({ documentId, outputLanguage = "English" }) {
+export default function TutorChat({
+  documentId,
+  basePath,
+  outputLanguage = "English",
+  emptyTitle = "Ask the AI tutor",
+  emptyHint = 'Ask anything about this material — for example, "explain this concept in simple words".',
+  placeholder = "Type your question...",
+}) {
+  // basePath lets this component serve both document-scoped (/tutor/:id) and the
+  // cross-document global tutor (/tutor/global).
+  const base = basePath || `/tutor/${documentId}`;
   const confirm = useConfirm();
   const [messages, setMessages] = useState([]);  const [input, setInput] = useState("");          // text box me likha hua sawal
   const [streaming, setStreaming] = useState(false); // AI abhi jawab de raha hai?
@@ -24,7 +34,7 @@ export default function TutorChat({ documentId, outputLanguage = "English" }) {
 
     async function loadHistory() {
       try {
-        const { data } = await api.get(`/tutor/${documentId}/history`);
+        const { data } = await api.get(`${base}/history`);
         if (!ignore) setMessages(data.messages || []);
       } catch (err) {
         // 404 = abhi tak koi chat nahi (normal); baaki errors dikhate hain.
@@ -43,7 +53,7 @@ export default function TutorChat({ documentId, outputLanguage = "English" }) {
       // Document change/unmount par chalu stream cancel.
       abortRef.current?.abort();
     };
-  }, [documentId]);
+  }, [base]);
 
   // Jab bhi naya message aaye, chat ko sabse neeche scroll kar do.
   useEffect(() => {
@@ -66,7 +76,7 @@ export default function TutorChat({ documentId, outputLanguage = "English" }) {
     try {
       // Streaming ke liye fetch use karte hain (axios stream handle nahi karta easily).
       // History server DB se leta hai, isliye yahan bhejne ki zaroorat nahi.
-      const res = await fetch(apiUrl(`/tutor/${documentId}`), {
+      const res = await fetch(apiUrl(base), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -134,7 +144,7 @@ export default function TutorChat({ documentId, outputLanguage = "English" }) {
     setClearing(true);
     setHistoryError("");
     try {
-      await api.delete(`/tutor/${documentId}/history`);
+      await api.delete(`${base}/history`);
       setMessages([]);
     } catch (err) {
       setHistoryError(apiError(err));
@@ -168,11 +178,8 @@ export default function TutorChat({ documentId, outputLanguage = "English" }) {
             <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
               <IconChat />
             </span>
-            <p className="font-500 text-ink">Ask the AI tutor</p>
-            <p className="mt-1 max-w-xs text-sm">
-              Ask anything about this material — for example, "explain this
-              concept in simple words".
-            </p>
+            <p className="font-500 text-ink">{emptyTitle}</p>
+            <p className="mt-1 max-w-xs text-sm">{emptyHint}</p>
           </div>
         ) : (
           messages.map((m, i) => (
@@ -209,7 +216,7 @@ export default function TutorChat({ documentId, outputLanguage = "English" }) {
             onClick={() => {
               setHistoryError("");
               setLoadingHistory(true);
-              api.get(`/tutor/${documentId}/history`)
+              api.get(`${base}/history`)
                 .then(({ data }) => setMessages(data.messages || []))
                 .catch((err) => {
                   if (err?.response?.status !== 404) setHistoryError(apiError(err));

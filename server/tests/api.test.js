@@ -11,10 +11,12 @@ import {
   resetKeyBalancer,
 } from "../src/services/keyBalancer.js";
 import { withStepRetry } from "../src/services/generationOrchestrator.js";
-import { isKeyExhausted, formatGeminiError, geminiErrorDetail, shouldFailoverToNextKey, parseJson, extractBalancedJson } from "../src/services/geminiHelpers.js";
+import { isKeyExhausted, formatGeminiError, geminiErrorDetail, shouldFailoverToNextKey, parseJson, extractBalancedJson, isModelNotFoundError } from "../src/services/geminiHelpers.js";
 import { normalizeDetailLevel, clampFlashcardCount, DEFAULT_DETAIL_LEVEL } from "../src/config/detailLevel.js";
 import { shouldUseChunkedNotes, mergeSectionNotes } from "../src/utils/notesChunk.js";
 import { parseNoteSections, getSectionNotes } from "../src/utils/parseNoteSections.js";
+import { assembleGlobalContext, sourceTitles } from "../src/services/retrieval.js";
+import { currentStreakValue } from "../src/services/studyStreak.js";
 
 test("free plan limits", () => {
   const limits = getLimitsSync("free");
@@ -195,4 +197,51 @@ test("withStepRetry throws after retries exhausted", async () => {
       }, { retries: 1 }),
     /fail/
   );
+});
+
+test("isModelNotFoundError detects bad / unsupported model ids", () => {
+  assert.equal(isModelNotFoundError(new Error("404 models/gemini-9 is not found")), true);
+  assert.equal(isModelNotFoundError(new Error("model not supported for this project")), true);
+  assert.equal(isModelNotFoundError(new Error("NOT_FOUND: model unavailable")), true);
+  // Should NOT trigger fallback on quota or generic 404s without a model reference.
+  assert.equal(isModelNotFoundError(new Error("429 quota exceeded")), false);
+  assert.equal(isModelNotFoundError(new Error("404 not found")), false);
+});
+
+test("assembleGlobalContext includes selected docs", () => {
+  const ctx = assembleGlobalContext([
+    { title: "Bio", notes: "Cells are the unit of life." },
+    { title: "Chem", sourceText: "Atoms form molecules." },
+  ]);
+  assert.match(ctx, /### Bio/);
+  assert.match(ctx, /### Chem/);
+  assert.match(ctx, /Cells are the unit/);
+});
+
+test("assembleGlobalContext truncates per-doc and skips empty docs", () => {
+  const long = "x".repeat(5000);
+  const ctx = assembleGlobalContext([{ title: "T", notes: long }], { perDocChars: 100 });
+  assert.ok(ctx.length < 200);
+  assert.equal(assembleGlobalContext([{ title: "Empty", notes: "" }]), "");
+});
+
+test("sourceTitles returns titles with fallback", () => {
+  assert.deepEqual(sourceTitles([{ title: "A" }, {}]), ["A", "Untitled"]);
+});
+
+test("currentStreakValue keeps streak when studied today or yesterday", () => {
+  const today = localDateKey(new Date());
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  const yesterday = localDateKey(y);
+  assert.equal(currentStreakValue({ current: 5, lastStudyDay: today }), 5);
+  assert.equal(currentStreakValue({ current: 5, lastStudyDay: yesterday }), 5);
+});
+
+test("currentStreakValue resets when last study is stale", () => {
+  const old = new Date();
+  old.setDate(old.getDate() - 3);
+  assert.equal(currentStreakValue({ current: 5, lastStudyDay: localDateKey(old) }), 0);
+  assert.equal(currentStreakValue({ lastStudyDay: "" }), 0);
+  assert.equal(currentStreakValue(null), 0);
 });

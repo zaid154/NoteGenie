@@ -25,5 +25,18 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    build: {
+      // Split heavy, rarely-changing libraries into their own cacheable chunks so
+      // the route-level code-splitting (React.lazy in App.jsx) pays off.
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            "react-vendor": ["react", "react-dom", "react-router-dom"],
+            motion: ["framer-motion"],
+            markdown: ["react-markdown", "remark-gfm"],
+          },
+        },
+      },
+    },
   };
 });

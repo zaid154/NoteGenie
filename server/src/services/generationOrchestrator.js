@@ -113,6 +113,12 @@ export async function runMaterialPipeline({
     tags: parseTags(body),
     notes: notesResult.notes,
     summary: notesResult.summary,
+    keyTakeaways: Array.isArray(notesResult.keyTakeaways) ? notesResult.keyTakeaways.slice(0, 8) : [],
+    glossary: Array.isArray(notesResult.glossary)
+      ? notesResult.glossary
+          .filter((g) => g?.term && g?.definition)
+          .slice(0, 24)
+      : [],
     flashcards,
     sourceText: (notesResult.sourceExcerpt || notesResult.notes || "").slice(0, 15000),
     outputLanguage,

@@ -229,3 +229,35 @@ export const IconShare = make(
     <path d="m8.6 13.5 6.8 3.9M15.4 6.6 8.6 10.5" />
   </>
 );
+export const IconFlame = make(
+  <path d="M12 3c.5 3 2.5 4.5 3.8 6.2A6 6 0 1 1 6 13c0-2 1-3.6 2-5 .3 1.3 1 2 2 2.4C9.7 7 10.5 4.8 12 3Z" />
+);
+export const IconHeadphones = make(
+  <>
+    <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+    <rect x="2.5" y="14" width="4" height="6" rx="1.5" />
+    <rect x="17.5" y="14" width="4" height="6" rx="1.5" />
+  </>
+);
+export const IconPlay = make(<path d="M7 4.5v15l12-7.5-12-7.5Z" />);
+export const IconPause = make(
+  <>
+    <rect x="6" y="5" width="4" height="14" rx="1" />
+    <rect x="14" y="5" width="4" height="14" rx="1" />
+  </>
+);
+export const IconStop = make(<rect x="6" y="6" width="12" height="12" rx="2" />);
+export const IconMap = make(
+  <>
+    <circle cx="6" cy="6" r="2.5" />
+    <circle cx="18" cy="9" r="2.5" />
+    <circle cx="9" cy="18" r="2.5" />
+    <path d="M8 7l8 1.5M7.5 8 8.5 15.5" />
+  </>
+);
+export const IconSearch = make(
+  <>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.5-3.5" />
+  </>
+);

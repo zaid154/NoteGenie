@@ -18,6 +18,7 @@ import {
   initSse,
 } from "../services/documentGeneration.js";
 import { incrementUsage } from "../middleware/quota.js";
+import { recordStudyActivity } from "../services/studyStreak.js";
 import { sm2, initFlashcard } from "../services/spacedRepetition.js";
 import { sanitizeFlashcards, sanitizeFlashcard } from "../utils/textClean.js";
 import { normalizeOutputLanguage } from "../config/languages.js";
@@ -125,7 +126,7 @@ export const listDocuments = asyncHandler(async (req, res) => {
   const filter = { userId: req.user._id };
   if (req.query.folder) filter.folder = req.query.folder;
   if (req.query.q?.trim()) {
-    filter.$text = { $search: req.query.trim() };
+    filter.$text = { $search: req.query.q.trim() };
   }
 
   const pipeline = [
@@ -166,10 +167,20 @@ export const listFolders = asyncHandler(async (req, res) => {
 });
 
 // GET /api/documents/review/due
+const MAX_DUE_CARDS = 300;
+
 export const getDueCards = asyncHandler(async (req, res) => {
   const now = new Date();
-  const docs = await Document.find({ userId: req.user._id }).select("title flashcards");
+  // Only scan documents that actually have flashcards, and cap the working set.
+  const docs = await Document.find({
+    userId: req.user._id,
+    "flashcards.0": { $exists: true },
+  })
+    .select("title flashcards")
+    .lean();
+
   const due = [];
+  let capped = false;
   for (const doc of docs) {
     for (const card of doc.flashcards) {
       if (!card.nextReviewAt || new Date(card.nextReviewAt) <= now) {
@@ -181,10 +192,15 @@ export const getDueCards = asyncHandler(async (req, res) => {
           back: card.back,
           section: card.section || "",
         });
+        if (due.length >= MAX_DUE_CARDS) {
+          capped = true;
+          break;
+        }
       }
     }
+    if (capped) break;
   }
-  res.json({ due, count: due.length });
+  res.json({ due, count: due.length, capped });
 });
 
 // PATCH /api/documents/:id/meta  body: { folder?, tags? }
@@ -206,7 +222,8 @@ export const rateFlashcard = asyncHandler(async (req, res) => {
   if (!card) return res.status(404).json({ message: "Flashcard not found" });
   Object.assign(card, sm2(card, quality));
   await doc.save();
-  res.json({ card });
+  const streak = await recordStudyActivity(req.user);
+  res.json({ card, streak });
 });
 
 // PATCH /api/documents/:id/flashcards/:cardId  body: { front?, back? }
@@ -273,7 +290,7 @@ export const getDocument = asyncHandler(async (req, res) => {
   const doc = await Document.findOne({
     _id: req.params.id,
     userId: req.user._id,
-  });
+  }).lean();
   if (!doc) return res.status(404).json({ message: "Document nahi mila" });
   res.json({ document: doc });
 });
@@ -321,6 +338,10 @@ export const regenerateDocument = asyncHandler(async (req, res) => {
   doc.title = notesResult.title || doc.title;
   doc.summary = notesResult.summary;
   doc.notes = notesResult.notes;
+  doc.keyTakeaways = Array.isArray(notesResult.keyTakeaways) ? notesResult.keyTakeaways.slice(0, 8) : [];
+  doc.glossary = Array.isArray(notesResult.glossary)
+    ? notesResult.glossary.filter((g) => g?.term && g?.definition).slice(0, 24)
+    : [];
   doc.flashcards = [];
   if (notesResult.sourceExcerpt?.trim()) {
     doc.sourceText = notesResult.sourceExcerpt.slice(0, 15000);

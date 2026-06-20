@@ -1,4 +1,7 @@
 // Routing — all app pages including billing, legal, share.
+// Common entry points (Landing/Login/Register/Dashboard) are eager; heavier and
+// less-frequent routes are code-split via React.lazy to shrink the initial bundle.
+import { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
 import { PageLoader, PageShellSkeleton } from "./components/ui.jsx";
@@ -10,29 +13,31 @@ import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import Upload from "./pages/Upload.jsx";
-import Review from "./pages/Review.jsx";
-import DocumentView from "./pages/DocumentView.jsx";
-import QuizView from "./pages/QuizView.jsx";
-import Analytics from "./pages/Analytics.jsx";
-import Profile from "./pages/Profile.jsx";
-import Pricing from "./pages/Pricing.jsx";
-import Billing from "./pages/Billing.jsx";
-import Terms from "./pages/Terms.jsx";
-import Privacy from "./pages/Privacy.jsx";
-import ShareView from "./pages/ShareView.jsx";
-import VerifyEmail from "./pages/VerifyEmail.jsx";
-import Checkout from "./pages/Checkout.jsx";
-import ForgotPassword from "./pages/ForgotPassword.jsx";
-import ResetPassword from "./pages/ResetPassword.jsx";
 
-import AdminOverview from "./pages/admin/AdminOverview.jsx";
-import AdminUsers from "./pages/admin/AdminUsers.jsx";
-import AdminUserDetail from "./pages/admin/AdminUserDetail.jsx";
-import AdminSettings from "./pages/admin/AdminSettings.jsx";
-import AdminContent from "./pages/admin/AdminContent.jsx";
-import AdminUsage from "./pages/admin/AdminUsage.jsx";
-import AdminBilling from "./pages/admin/AdminBilling.jsx";
+const Upload = lazy(() => import("./pages/Upload.jsx"));
+const Review = lazy(() => import("./pages/Review.jsx"));
+const Ask = lazy(() => import("./pages/Ask.jsx"));
+const DocumentView = lazy(() => import("./pages/DocumentView.jsx"));
+const QuizView = lazy(() => import("./pages/QuizView.jsx"));
+const Analytics = lazy(() => import("./pages/Analytics.jsx"));
+const Profile = lazy(() => import("./pages/Profile.jsx"));
+const Pricing = lazy(() => import("./pages/Pricing.jsx"));
+const Billing = lazy(() => import("./pages/Billing.jsx"));
+const Terms = lazy(() => import("./pages/Terms.jsx"));
+const Privacy = lazy(() => import("./pages/Privacy.jsx"));
+const ShareView = lazy(() => import("./pages/ShareView.jsx"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail.jsx"));
+const Checkout = lazy(() => import("./pages/Checkout.jsx"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
+
+const AdminOverview = lazy(() => import("./pages/admin/AdminOverview.jsx"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers.jsx"));
+const AdminUserDetail = lazy(() => import("./pages/admin/AdminUserDetail.jsx"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings.jsx"));
+const AdminContent = lazy(() => import("./pages/admin/AdminContent.jsx"));
+const AdminUsage = lazy(() => import("./pages/admin/AdminUsage.jsx"));
+const AdminBilling = lazy(() => import("./pages/admin/AdminBilling.jsx"));
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -54,7 +59,11 @@ function Protected({ children }) {
       />
     );
   }
-  return <Layout>{children}</Layout>;
+  return (
+    <Layout>
+      <Suspense fallback={<PageShellSkeleton />}>{children}</Suspense>
+    </Layout>
+  );
 }
 
 function ProtectedAdmin({ children }) {
@@ -121,7 +130,8 @@ function HomeRoute() {
 
 export default function App() {
   return (
-    <Routes>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
       <Route path="/" element={<HomeRoute />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/checkout" element={<ProtectedCheckout><Checkout /></ProtectedCheckout>} />
@@ -137,6 +147,7 @@ export default function App() {
       <Route path="/app" element={<Protected><Dashboard /></Protected>} />
       <Route path="/upload" element={<Protected><Upload /></Protected>} />
       <Route path="/review" element={<Protected><Review /></Protected>} />
+      <Route path="/ask" element={<Protected><Ask /></Protected>} />
       <Route path="/document/:id" element={<Protected><DocumentView /></Protected>} />
       <Route path="/quiz/:id" element={<Protected><QuizView /></Protected>} />
       <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
@@ -157,6 +168,7 @@ export default function App() {
       </Route>
 
       <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }

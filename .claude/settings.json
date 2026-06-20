@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const {Type}=require\\('@google/genai'\\); console.log\\('Type:', JSON.stringify\\(Type\\)\\);\")"
+    ]
+  }
+}

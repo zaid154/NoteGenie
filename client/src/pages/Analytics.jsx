@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiError } from "../api/client.js";
 import {
   Alert,
   EmptyState,
+  ErrorState,
   StatSkeleton,
   Badge,
   PageHeader,
@@ -12,6 +13,7 @@ import {
   ProgressRing,
   MiniBarChart,
   StatCard,
+  Heatmap,
 } from "../components/ui.jsx";
 import { StaggerContainer, StaggerItem } from "../components/motion.jsx";
 import {
@@ -22,6 +24,7 @@ import {
   IconDoc,
   IconCards,
   IconChat,
+  IconFlame,
 } from "../components/icons.jsx";
 import { isValidObjectId } from "../utils/objectId.js";
 
@@ -65,23 +68,22 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let ignore = false;
-    async function load() {
-      try {
-        const res = await api.get("/quiz/analytics/overview");
-        if (!ignore) setData(res.data);
-      } catch (err) {
-        if (!ignore) setError(apiError(err));
-      } finally {
-        if (!ignore) setLoading(false);
-      }
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.get("/quiz/analytics/overview");
+      setData(res.data);
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setLoading(false);
     }
-    load();
-    return () => {
-      ignore = true;
-    };
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const study = data?.study;
   const hasAttempts = (data?.totalAttempts ?? 0) > 0;
@@ -115,6 +117,10 @@ export default function Analytics() {
         }
       />
 
+      {error && !loading && !data ? (
+        <ErrorState message={error} onRetry={load} retrying={loading} />
+      ) : (
+      <>
       {error && <Alert>{error}</Alert>}
 
       <StaggerContainer className="space-y-8">
@@ -178,6 +184,38 @@ export default function Analytics() {
             </>
           )}
         </StaggerItem>
+
+        {!loading && data && (
+          <StaggerItem>
+            <SectionTitle>Study streak</SectionTitle>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="space-y-4">
+                <StatCard
+                  icon={IconFlame}
+                  label="Current streak"
+                  value={`${data.streak?.current ?? 0} day${(data.streak?.current ?? 0) !== 1 ? "s" : ""}`}
+                  hint={`Longest: ${data.streak?.longest ?? 0} day${(data.streak?.longest ?? 0) !== 1 ? "s" : ""}`}
+                  color="amber"
+                />
+                <StatCard
+                  icon={IconCheck}
+                  label="Today's goal"
+                  value={`${data.dailyGoal?.done ?? 0}/${data.dailyGoal?.target ?? 20}`}
+                  hint="study reps today"
+                  color="emerald"
+                />
+              </div>
+              <ProgressRing
+                value={data.dailyGoal?.done ?? 0}
+                max={data.dailyGoal?.target ?? 20}
+                label="Daily goal"
+                sublabel={`${data.dailyGoal?.done ?? 0} of ${data.dailyGoal?.target ?? 20} study reps today`}
+                color="#10b981"
+              />
+              <Heatmap data={data.activity || []} label="Last 30 days" sublabel="Study activity" />
+            </div>
+          </StaggerItem>
+        )}
 
         {!loading && data && hasAttempts && (
           <StaggerItem>
@@ -281,6 +319,8 @@ export default function Analytics() {
           )}
         </StaggerItem>
       </StaggerContainer>
+      </>
+      )}
     </div>
   );
 }

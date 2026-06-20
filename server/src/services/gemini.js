@@ -1,5 +1,7 @@
 // Google Gemini AI — notes, quiz, flashcards, tutor. Multi-key pool with failover.
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+// Uses the current @google/genai SDK. All SDK-shape differences are isolated in the
+// callModel / generateJson adapters and the tutorStream loop below.
+import { GoogleGenAI, Type } from "@google/genai";
 import { env } from "../config/env.js";
 import {
   getAppSettings,
@@ -10,13 +12,24 @@ import {
   maskKey,
 } from "../models/Settings.js";
 import { ApiUsage } from "../models/ApiUsage.js";
-import { isTransient, shouldFailoverToNextKey, formatGeminiError, geminiErrorDetail, sourceLabel, parseJson, isTruncatedGeminiResponse } from "./geminiHelpers.js";
+import { isTransient, shouldFailoverToNextKey, formatGeminiError, geminiErrorDetail, sourceLabel, parseJson, isTruncatedGeminiResponse, isModelNotFoundError } from "./geminiHelpers.js";
 import { acquireKey, releaseKey, acquireSpecificKey, sortPoolByLoad } from "./keyBalancer.js";
 import { CHUNKED_SECTION_LIMIT, CHUNKED_SECTION_CONCURRENCY } from "../config/detailLevel.js";
 import { shouldUseChunkedNotes, mergeSectionNotes, mergeSourceExcerpts, mapWithConcurrency } from "../utils/notesChunk.js";
 
 const AI_NOT_CONFIGURED =
   "AI is not configured. Ask an admin to set the Gemini API key in Admin Settings.";
+
+// Known-good model to retry with when the configured model id is rejected.
+const FALLBACK_MODEL = "gemini-2.5-flash";
+
+// Max output tokens a model family can emit. We set generous request ceilings on
+// notes (below) and clamp them to the model's real ceiling so capable models
+// (2.5) can produce long, untruncated notes while older models stay within limits.
+function modelOutputCeiling(modelName = "") {
+  if (/2\.5/.test(modelName)) return 32768;
+  return 8192;
+}
 
 export const PRICE_PER_MILLION = {
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
@@ -81,6 +94,15 @@ async function resolveModel(overrides = {}) {
   );
 }
 
+/** Shorter cooldown for RPM-style 429s; longer for invalid keys / daily quota. */
+function cooldownMsForError(err) {
+  const msg = String(err?.message || err?.status || "");
+  if (/429|rate.?limit/i.test(msg) && !/daily|per day|free.?tier/i.test(msg)) {
+    return 60 * 1000;
+  }
+  return 5 * 60 * 1000;
+}
+
 async function withRetry(fn, { retries = 2, baseDelayMs = 800 } = {}) {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -97,7 +119,9 @@ async function withRetry(fn, { retries = 2, baseDelayMs = 800 } = {}) {
   throw lastError;
 }
 
-async function withKeyFailover(operation, { preferredKeyId, modelConfig = {}, overrides = {} } = {}) {
+// Runs `operation({ ai, modelName, keyEntry })` against each key in the pool until
+// one succeeds, failing over on quota/transient errors. `ai` is a GoogleGenAI client.
+async function withKeyFailover(operation, { preferredKeyId, overrides = {} } = {}) {
   const { pool, model: defaultModel } = await getKeyPool();
   if (!pool.length) throw notConfiguredError();
 
@@ -114,19 +138,31 @@ async function withKeyFailover(operation, { preferredKeyId, modelConfig = {}, ov
     if (!preAcquired) acquireSpecificKey(keyEntry);
 
     try {
-      const genAI = new GoogleGenerativeAI(keyEntry.apiKey);
-      const instance = genAI.getGenerativeModel({ model: modelName, ...modelConfig });
-      const out = await withRetry(() => operation({ instance, modelName, keyEntry }));
+      const ai = new GoogleGenAI({ apiKey: keyEntry.apiKey });
+      let usedModel = modelName;
+      let out;
+      try {
+        out = await withRetry(() => operation({ ai, modelName, keyEntry }));
+      } catch (err) {
+        // Configured model id rejected → retry once with a known-good fallback.
+        if (isModelNotFoundError(err) && modelName !== FALLBACK_MODEL) {
+          console.warn(`[gemini] model "${modelName}" unavailable — falling back to ${FALLBACK_MODEL}`);
+          usedModel = FALLBACK_MODEL;
+          out = await withRetry(() => operation({ ai, modelName: FALLBACK_MODEL, keyEntry }));
+        } else {
+          throw err;
+        }
+      }
       if (keyEntry.source === "db" && keyEntry.id !== "legacy") {
         clearKeyError(keyEntry.id).catch(() => {});
       }
-      return { ...out, keyId: keyEntry.id, modelName };
+      return { ...out, keyId: keyEntry.id, modelName: usedModel };
     } catch (err) {
       lastError = err;
       console.warn(`[gemini] key ${keyEntry.label} failed:`, err.message?.slice(0, 80));
       if (shouldFailoverToNextKey(err)) {
         if (keyEntry.source === "db" && keyEntry.id !== "legacy") {
-          await markKeyCooldown(keyEntry.id, formatGeminiError(err), 5 * 60 * 1000);
+          await markKeyCooldown(keyEntry.id, formatGeminiError(err), cooldownMsForError(err));
         }
         continue;
       }
@@ -138,7 +174,7 @@ async function withKeyFailover(operation, { preferredKeyId, modelConfig = {}, ov
   throw lastError;
 }
 
-export async function getKeyPool() {
+export async function getKeyPool({ includeCooldown = false } = {}) {
   const settings = await getAppSettings();
   await migrateLegacyKey(settings);
   const now = Date.now();
@@ -147,7 +183,7 @@ export async function getKeyPool() {
 
   for (const entry of settings.apiKeys || []) {
     if (entry.disabled) continue;
-    if (entry.cooldownUntil && new Date(entry.cooldownUntil).getTime() > now) continue;
+    if (!includeCooldown && entry.cooldownUntil && new Date(entry.cooldownUntil).getTime() > now) continue;
     const apiKey = decryptApiKeyEntry(entry);
     if (!apiKey || seen.has(apiKey)) continue;
     seen.add(apiKey);
@@ -200,11 +236,18 @@ export function pdfPart(buffer) {
   };
 }
 
+// --- @google/genai adapters -------------------------------------------------
+// One call into the SDK. Returns the raw GenerateContentResponse (response.text
+// getter, response.usageMetadata, response.candidates[].finishReason).
+function callModel(ai, { model, contents, config }) {
+  return ai.models.generateContent({ model, contents, config });
+}
+
 function parseJsonResponse(response, { retries = 1 } = {}) {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      return parseJson(response.text());
+      return parseJson(response.text);
     } catch (err) {
       lastError = err;
       if (isTruncatedGeminiResponse(response)) {
@@ -215,20 +258,24 @@ function parseJsonResponse(response, { retries = 1 } = {}) {
         throw truncErr;
       }
       if (attempt < retries) {
-        console.warn("[gemini] JSON parse retry", attempt + 1, response.text()?.slice(0, 100));
+        console.warn("[gemini] JSON parse retry", attempt + 1, response.text?.slice(0, 100));
       }
     }
   }
   throw lastError;
 }
 
-async function generateJsonWithRetry(instance, parts, modelConfig, { parseRetries = 1, genRetries = 1 } = {}) {
+async function generateJson(ai, { model, contents, config }, { parseRetries = 1, genRetries = 1 } = {}) {
+  // Clamp a requested output ceiling to what this model can actually emit.
+  const tunedConfig =
+    config?.maxOutputTokens
+      ? { ...config, maxOutputTokens: Math.min(config.maxOutputTokens, modelOutputCeiling(model)) }
+      : config;
   let lastError;
   for (let gen = 0; gen <= genRetries; gen++) {
-    const result = await instance.generateContent(parts);
-    const response = result.response;
+    const response = await callModel(ai, { model, contents, config: tunedConfig });
     try {
-      return { result, parsed: parseJsonResponse(response, { retries: parseRetries }) };
+      return { response, parsed: parseJsonResponse(response, { retries: parseRetries }) };
     } catch (err) {
       lastError = err;
       if (err.statusCode === 422) throw err;
@@ -241,16 +288,19 @@ async function generateJsonWithRetry(instance, parts, modelConfig, { parseRetrie
 export async function testApiKey(apiKey, model = "gemini-2.5-flash", meta = {}) {
   if (!apiKey?.trim()) throw new Error("API key is required");
   const trimmedModel = model.trim();
-  const genAI = new GoogleGenerativeAI(apiKey.trim());
-  const m = genAI.getGenerativeModel({ model: trimmedModel });
-  const result = await m.generateContent("Reply with exactly: OK");
-  const text = result.response.text();
-  await recordUsage({ feature: "test", ...meta }, trimmedModel, result.response.usageMetadata);
+  const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+  const response = await ai.models.generateContent({
+    model: trimmedModel,
+    contents: "Reply with exactly: OK",
+  });
+  const text = response.text;
+  await recordUsage({ feature: "test", ...meta }, trimmedModel, response.usageMetadata);
   return { ok: true, reply: text?.slice(0, 50) || "OK" };
 }
 
 export async function testAllKeys(meta = {}) {
-  const { pool, model } = await getKeyPool();
+  // Test every enabled key, including those on cooldown — a tiny probe should not hit RPM.
+  const { pool, model } = await getKeyPool({ includeCooldown: true });
   const results = [];
   for (const entry of pool) {
     const masked = maskKey(entry.apiKey);
@@ -264,6 +314,9 @@ export async function testAllKeys(meta = {}) {
     };
     try {
       const r = await testApiKey(entry.apiKey, model, meta);
+      if (entry.source === "db" && entry.id !== "legacy") {
+        await clearKeyError(entry.id);
+      }
       results.push({ ...base, ok: true, reply: r.reply });
     } catch (err) {
       results.push({
@@ -298,24 +351,27 @@ export async function listModels(apiKey) {
 function notesDepthGuide(detailLevel = "detailed") {
   if (detailLevel === "standard") {
     return {
-      maxOutputTokens: 4096,
+      // Requested ceiling; clamped per-model in generateJson (so 2.5 gets full room).
+      maxOutputTokens: 8192,
       excerptLimit: 4000,
       notesRules: `Create a concise exam-ready summary:
 - Use 4–8 ## sections covering the main themes only.
 - Prefer bullet lists; keep paragraphs short.
 - Highlight key terms with **bold**; skip minor tangents.
+- Each bullet must add new information — never restate the same fact in different words.
 - Do NOT over-summarize into a single page if the source has multiple distinct topics — still cover each major topic briefly.`,
     };
   }
   return {
-    maxOutputTokens: 8192,
+    maxOutputTokens: 16384,
     excerptLimit: 5000,
     notesRules: `Create comprehensive, exam-ready study notes:
 - Use a ## section for EVERY major topic, chapter, or theme in the source.
 - For long documents, produce proportionally long notes — do NOT compress a large source into a short summary.
 - Include definitions, examples, cause-effect relationships, and comparisons (use markdown tables when comparing concepts).
 - Use bullet lists and sub-bullets for detail; add **bold** for key terms.
-- Cover edge cases, formulas, dates, names, and specific facts from the source.`,
+- Cover edge cases, formulas, dates, names, and specific facts from the source.
+- Do not repeat the same point across sections — each section must cover distinct material.`,
   };
 }
 
@@ -324,20 +380,30 @@ export async function generateNotes(source, meta = {}) {
   const detailLevel = meta.detailLevel === "standard" ? "standard" : "detailed";
   const depth = notesDepthGuide(detailLevel);
 
-  const modelConfig = {
-    generationConfig: {
-      maxOutputTokens: depth.maxOutputTokens,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          title: { type: SchemaType.STRING },
-          summary: { type: SchemaType.STRING },
-          notes: { type: SchemaType.STRING },
-          sourceExcerpt: { type: SchemaType.STRING },
+  const config = {
+    maxOutputTokens: depth.maxOutputTokens,
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.OBJECT,
+      properties: {
+        title: { type: Type.STRING },
+        summary: { type: Type.STRING },
+        notes: { type: Type.STRING },
+        keyTakeaways: { type: Type.ARRAY, items: { type: Type.STRING } },
+        glossary: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              term: { type: Type.STRING },
+              definition: { type: Type.STRING },
+            },
+            required: ["term", "definition"],
+          },
         },
-        required: ["title", "summary", "notes", "sourceExcerpt"],
+        sourceExcerpt: { type: Type.STRING },
       },
+      required: ["title", "summary", "notes", "keyTakeaways", "glossary", "sourceExcerpt"],
     },
   };
 
@@ -347,47 +413,56 @@ Return JSON with:
 - "summary": a 2-3 sentence overview in plain text (no markdown in summary).
 - "notes": well-structured study notes in GitHub-flavored Markdown. Use ## headings, bullet lists, and **bold** for key terms.
 ${depth.notesRules}
+- "keyTakeaways": 3-6 of the single most important points a student must remember, each a short plain-text sentence (no markdown).
+- "glossary": the key terms/definitions from the material as {term, definition} pairs (plain text, no markdown). Include 5-12 entries when the material has distinct terminology; use an empty array only if there are genuinely no notable terms.
 - "sourceExcerpt": the most important factual passages from the source rewritten as plain text (no markdown), up to ${depth.excerptLimit} characters, for regeneration and tutoring context. Include names, definitions, and plot points.${outputLanguageInstruction(language)}`;
 
-  const parts = [{ text: prompt }, normalizeSource(source)];
+  const contents = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
-    async ({ instance }) => {
-      const { result, parsed } = await generateJsonWithRetry(instance, parts, modelConfig);
-      return { result, parsed };
-    },
-    { preferredKeyId: meta.preferredKeyId, modelConfig }
+    async ({ ai, modelName }) => generateJson(ai, { model: modelName, contents, config }),
+    { preferredKeyId: meta.preferredKeyId }
   );
 
-  await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, out.result.response.usageMetadata);
+  await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, out.response.usageMetadata);
   return out.parsed;
 }
 
 export async function generateNotesOutline(source, meta = {}) {
   const language = meta.language || "English";
-  const modelConfig = {
-    generationConfig: {
-      maxOutputTokens: 4096,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          title: { type: SchemaType.STRING },
-          summary: { type: SchemaType.STRING },
-          sections: {
-            type: SchemaType.ARRAY,
-            items: {
-              type: SchemaType.OBJECT,
-              properties: {
-                id: { type: SchemaType.STRING },
-                title: { type: SchemaType.STRING },
-                pageHint: { type: SchemaType.STRING },
-              },
-              required: ["id", "title"],
+  const config = {
+    maxOutputTokens: 4096,
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.OBJECT,
+      properties: {
+        title: { type: Type.STRING },
+        summary: { type: Type.STRING },
+        keyTakeaways: { type: Type.ARRAY, items: { type: Type.STRING } },
+        glossary: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              term: { type: Type.STRING },
+              definition: { type: Type.STRING },
             },
+            required: ["term", "definition"],
           },
         },
-        required: ["title", "summary", "sections"],
+        sections: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING },
+              title: { type: Type.STRING },
+              pageHint: { type: Type.STRING },
+            },
+            required: ["id", "title"],
+          },
+        },
       },
+      required: ["title", "summary", "keyTakeaways", "glossary", "sections"],
     },
   };
 
@@ -395,39 +470,35 @@ export async function generateNotesOutline(source, meta = {}) {
 Return JSON with:
 - "title": short descriptive title
 - "summary": 2-3 sentence overview (plain text, no markdown)
+- "keyTakeaways": 3-6 of the single most important points a student must remember (short plain-text sentences, no markdown).
+- "glossary": key terms/definitions as {term, definition} pairs (plain text). 5-12 entries when applicable; empty array only if there are no notable terms.
 - "sections": array of major topics/chapters to cover. Each item needs "id" (short slug), "title" (section heading), optional "pageHint".
 List EVERY major topic from the source — for long documents use 6–${CHUNKED_SECTION_LIMIT} sections. Order logically.${outputLanguageInstruction(language)}`;
 
-  const parts = [{ text: prompt }, normalizeSource(source)];
+  const contents = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
-    async ({ instance }) => {
-      const { result, parsed } = await generateJsonWithRetry(instance, parts, modelConfig);
-      return { result, parsed };
-    },
-    { preferredKeyId: meta.preferredKeyId, modelConfig }
+    async ({ ai, modelName }) => generateJson(ai, { model: modelName, contents, config }),
+    { preferredKeyId: meta.preferredKeyId }
   );
 
-  await recordUsage({ ...meta, feature: "notes-outline", keyId: out.keyId }, out.modelName, out.result.response.usageMetadata);
+  await recordUsage({ ...meta, feature: "notes-outline", keyId: out.keyId }, out.modelName, out.response.usageMetadata);
   return out.parsed;
 }
 
 export async function expandNotesSection(source, sectionTitle, meta = {}) {
   const language = meta.language || "English";
   const detailLevel = meta.detailLevel === "standard" ? "standard" : "detailed";
-  const depth = notesDepthGuide(detailLevel);
 
-  const modelConfig = {
-    generationConfig: {
-      maxOutputTokens: detailLevel === "detailed" ? 4096 : 2048,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          content: { type: SchemaType.STRING },
-          excerpt: { type: SchemaType.STRING },
-        },
-        required: ["content", "excerpt"],
+  const config = {
+    maxOutputTokens: detailLevel === "detailed" ? 4096 : 2048,
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.OBJECT,
+      properties: {
+        content: { type: Type.STRING },
+        excerpt: { type: Type.STRING },
       },
+      required: ["content", "excerpt"],
     },
   };
 
@@ -438,16 +509,13 @@ Return JSON with:
 Use concise bullet-style facts in "content" — avoid huge tables that bloat JSON output.
 Focus exclusively on "${sectionTitle}".${outputLanguageInstruction(language)}`;
 
-  const parts = [{ text: prompt }, normalizeSource(source)];
+  const contents = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
-    async ({ instance }) => {
-      const { result, parsed } = await generateJsonWithRetry(instance, parts, modelConfig);
-      return { result, parsed };
-    },
-    { preferredKeyId: meta.preferredKeyId, modelConfig }
+    async ({ ai, modelName }) => generateJson(ai, { model: modelName, contents, config }),
+    { preferredKeyId: meta.preferredKeyId }
   );
 
-  await recordUsage({ ...meta, feature: "notes-section", keyId: out.keyId }, out.modelName, out.result.response.usageMetadata);
+  await recordUsage({ ...meta, feature: "notes-section", keyId: out.keyId }, out.modelName, out.response.usageMetadata);
   return out.parsed;
 }
 
@@ -498,6 +566,8 @@ export async function generateNotesChunked(source, meta = {}) {
   return {
     title: outline.title,
     summary: outline.summary,
+    keyTakeaways: Array.isArray(outline.keyTakeaways) ? outline.keyTakeaways : [],
+    glossary: Array.isArray(outline.glossary) ? outline.glossary : [],
     notes,
     sourceExcerpt,
     generationMode: "chunked",
@@ -519,21 +589,19 @@ export async function generateNotesWithMode(source, meta = {}) {
 }
 
 export async function generateQuiz(source, { difficulty = "medium", count = 5, preferredKeyId, language = "English", ...meta } = {}) {
-  const modelConfig = {
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.ARRAY,
-        items: {
-          type: SchemaType.OBJECT,
-          properties: {
-            question: { type: SchemaType.STRING },
-            options: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-            correctIndex: { type: SchemaType.NUMBER },
-            explanation: { type: SchemaType.STRING },
-          },
-          required: ["question", "options", "correctIndex", "explanation"],
+  const config = {
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          question: { type: Type.STRING },
+          options: { type: Type.ARRAY, items: { type: Type.STRING } },
+          correctIndex: { type: Type.NUMBER },
+          explanation: { type: Type.STRING },
         },
+        required: ["question", "options", "correctIndex", "explanation"],
       },
     },
   };
@@ -550,16 +618,13 @@ Difficulty level: ${difficulty.toUpperCase()}. ${difficultyGuide[difficulty] || 
 Cover different parts of the content so questions are varied (avoid repeating the same idea).
 Each question must have exactly 4 options, exactly one correct answer (correctIndex 0-3), and a short explanation of why it is correct.${outputLanguageInstruction(language)}`;
 
-  const parts = [{ text: prompt }, normalizeSource(source)];
+  const contents = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
-    async ({ instance }) => {
-      const { result, parsed } = await generateJsonWithRetry(instance, parts, modelConfig);
-      return { result, parsed };
-    },
-    { preferredKeyId: preferredKeyId || meta.preferredKeyId, modelConfig }
+    async ({ ai, modelName }) => generateJson(ai, { model: modelName, contents, config }),
+    { preferredKeyId: preferredKeyId || meta.preferredKeyId }
   );
 
-  await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, out.result.response.usageMetadata);
+  await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, out.response.usageMetadata);
   const quiz = out.parsed;
   return quiz.filter(
     (q) => Array.isArray(q.options) && q.options.length >= 2 && q.correctIndex < q.options.length
@@ -567,20 +632,18 @@ Each question must have exactly 4 options, exactly one correct answer (correctIn
 }
 
 export async function generateFlashcards(source, { count = 5, preferredKeyId, language = "English", existingFronts = [], sectionTitle = "", ...meta } = {}) {
-  const modelConfig = {
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.ARRAY,
-        items: {
-          type: SchemaType.OBJECT,
-          properties: {
-            front: { type: SchemaType.STRING },
-            back: { type: SchemaType.STRING },
-            section: { type: SchemaType.STRING },
-          },
-          required: ["front", "back"],
+  const config = {
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          front: { type: Type.STRING },
+          back: { type: Type.STRING },
+          section: { type: Type.STRING },
         },
+        required: ["front", "back"],
       },
     },
   };
@@ -603,16 +666,13 @@ Rules:
 - Cover different ideas; mix definitions, facts, and short "why/how" questions.
 - Keep each side under 200 characters when possible.${sectionBlock}${dedupeBlock}${outputLanguageInstruction(language)}`;
 
-  const parts = [{ text: prompt }, normalizeSource(source)];
+  const contents = [{ text: prompt }, normalizeSource(source)];
   const out = await withKeyFailover(
-    async ({ instance }) => {
-      const { result, parsed } = await generateJsonWithRetry(instance, parts, modelConfig);
-      return { result, parsed };
-    },
-    { preferredKeyId, modelConfig }
+    async ({ ai, modelName }) => generateJson(ai, { model: modelName, contents, config }),
+    { preferredKeyId }
   );
 
-  await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, out.result.response.usageMetadata);
+  await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, out.response.usageMetadata);
   const cards = out.parsed;
   return Array.isArray(cards) ? cards.slice(0, count) : [];
 }
@@ -632,19 +692,22 @@ Student: ${question}
 Tutor:`;
 
   const out = await withKeyFailover(
-    async ({ instance }) => ({
-      streamResult: await withRetry(() => instance.generateContentStream(prompt)),
+    async ({ ai, modelName }) => ({
+      stream: await withRetry(() =>
+        ai.models.generateContentStream({ model: modelName, contents: prompt })
+      ),
     }),
     { preferredKeyId: meta.preferredKeyId }
   );
 
-  for await (const chunk of out.streamResult.stream) {
-    const text = chunk.text();
+  let usageMetadata;
+  for await (const chunk of out.stream) {
+    if (chunk.usageMetadata) usageMetadata = chunk.usageMetadata;
+    const text = chunk.text;
     if (text) yield text;
   }
 
-  const response = await out.streamResult.response;
-  await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, response.usageMetadata);
+  await recordUsage({ ...meta, keyId: out.keyId }, out.modelName, usageMetadata);
 }
 
 function normalizeSource(source) {

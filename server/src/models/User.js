@@ -12,6 +12,15 @@ const usageSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const studyStreakSchema = new mongoose.Schema(
+  {
+    current: { type: Number, default: 0 },
+    longest: { type: Number, default: 0 },
+    lastStudyDay: { type: String, default: "" }, // local YYYY-MM-DD
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -32,6 +41,8 @@ const userSchema = new mongoose.Schema(
     planExpiresAt: { type: Date, default: null },
     usageThisMonth: { type: usageSchema, default: () => ({}) },
     usageResetAt: { type: Date, default: null },
+    studyStreak: { type: studyStreakSchema, default: () => ({}) },
+    dailyGoalCards: { type: Number, default: 20 },
     emailVerified: { type: Boolean, default: false },
     emailVerifyToken: { type: String, default: "" },
     emailVerifyOtpExpires: { type: Date, default: null },

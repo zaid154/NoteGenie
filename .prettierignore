@@ -1,0 +1,5 @@
+node_modules
+dist
+.firebase
+*.md
+package-lock.json

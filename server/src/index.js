@@ -10,6 +10,7 @@ import { connectDB } from "./config/db.js";
 import mongoose from "mongoose";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 import { aiRateLimitMiddleware } from "./middleware/aiRateLimit.js";
+import { initSentry, requestLogger } from "./config/observability.js";
 
 import authRoutes from "./routes/auth.js";
 import documentRoutes from "./routes/documents.js";
@@ -21,9 +22,7 @@ import shareRoutes from "./routes/share.js";
 
 validateEnv();
 
-if (env.sentryDsn) {
-  console.log("[server] Sentry DSN configured (add @sentry/node package to enable full tracing)");
-}
+await initSentry();
 
 const app = express();
 
@@ -44,6 +43,8 @@ app.use(
 app.use("/api/billing/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json({ limit: "1mb" }));
+
+app.use(requestLogger);
 
 // Saare API par ek baseline limiter.
 const apiLimiter = rateLimit({
