@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Parent page/layout renders this component (AuthShell). Data comes through props/context, UI events call callbacks or api/client.js helpers, and the result is displayed back in the parent flow.
+
 import Logo from "./Logo.jsx";
 import { IconUpload, IconCards, IconChat } from "./icons.jsx";
 import { PageTransition, StaggerContainer, StaggerItem } from "./motion.jsx";
@@ -46,3 +50,4 @@ export default function AuthShell({ children }) {
     </div>
   );
 }
+

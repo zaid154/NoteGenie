@@ -1,3 +1,5 @@
+// FLOW: StudyActivity Mongoose model. Controllers/services create and query this schema, MongoDB stores the fields, and API responses are built from these documents.
+
 // Per-day study activity counter — powers the streak heatmap. One doc per user/day.
 import mongoose from "mongoose";
 

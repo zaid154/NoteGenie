@@ -1,3 +1,5 @@
+// FLOW: Tutor route map. /api/tutor requests enter here, auth/quota/AI middleware runs, then tutorController streams document/global tutor answers.
+
 // Tutor routes: /api/tutor/... — AI tutor chat aur purani chat history.
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";

@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Parent page/layout renders this component (icons). Data comes through props/context, UI events call callbacks or api/client.js helpers, and the result is displayed back in the parent flow.
+
 // Custom inline SVG icons (koi icon library nahi - taaki look unique rahe).
 // Sab same stroke style follow karte hain.
 const base = {
@@ -261,3 +265,4 @@ export const IconSearch = make(
     <path d="m20 20-3.5-3.5" />
   </>
 );
+

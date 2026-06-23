@@ -1,3 +1,5 @@
+// FLOW: Tag helper. Raw tags come from upload/meta request body, this file cleans/deduplicates them, and Document stores safe tag strings.
+
 /** Parse tags from upload body (JSON array or comma-separated). */
 export function parseTags(body) {
   if (Array.isArray(body.tags)) {

@@ -1,3 +1,5 @@
+// FLOW: User Mongoose model. Controllers/services create and query this schema, MongoDB stores the fields, and API responses are built from these documents.
+
 // User model — account, plan, and monthly usage tracking.
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";

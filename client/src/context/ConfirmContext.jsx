@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Reusable confirm dialog provider. Pages/components call useConfirm(), dialog state lives here, and the user choice resolves back to the caller.
+
 // Yeh file ek "Are you sure?" wala popup banati hai (delete karne se pehle, etc.).
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -130,3 +134,4 @@ export function useConfirm() {
   if (!ctx) throw new Error("useConfirm must be used within ConfirmProvider");
   return ctx;
 }
+

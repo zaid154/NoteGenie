@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Parent page/layout renders this component (CustomPlanForm). Data comes through props/context, UI events call callbacks or api/client.js helpers, and the result is displayed back in the parent flow.
+
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Spinner } from "../ui.jsx";
 import { IconPlus, IconTrash, IconX } from "../icons.jsx";
@@ -554,3 +558,4 @@ export function CustomPlanList({ plans, onEdit, onDelete, deletingId }) {
 }
 
 export { formToPayload, planToForm };
+

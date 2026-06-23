@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: Admin settings use this when API keys are saved/read. ENCRYPTION_SECRET comes from config/env.js, plaintext keys become encrypted DB values, and decrypt helpers return usable keys for Gemini calls.
+
 // Encrypt/decrypt Gemini API keys at rest using AES-256-GCM.
 import crypto from "crypto";
 import { env } from "../config/env.js";
@@ -46,3 +50,4 @@ export function decryptKey(stored) {
   const result = tryDecryptKey(stored);
   return result.ok ? result.value : "";
 }
+

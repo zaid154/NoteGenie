@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: All frontend backend calls pass through this file. API base comes from VITE_API_URL or /api proxy, token comes from localStorage, requests get Authorization, and errors are normalized for pages.
+
 // Yeh file backend se baat karne ka kaam karti hai.
 // axios ek library hai jo HTTP request (GET, POST, etc.) bhejti hai.
 import axios from "axios";
@@ -197,3 +201,4 @@ export async function importLinkStream(body, { onPhase, signal } = {}) {
   if (!result?.documentId) throw new Error("Import finished without a document ID");
   return result;
 }
+

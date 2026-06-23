@@ -1,3 +1,5 @@
+// FLOW: Database config. MONGO_URI comes from config/env.js, mongoose connects to MongoDB, and all models/controllers use this single connection.
+
 // Yeh file MongoDB database se connect karti hai (mongoose ke through).
 import mongoose from "mongoose";
 import { env } from "./env.js";
@@ -29,9 +31,13 @@ export async function connectDB({ retries = 5, delayMs = 5000 } = {}) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       await mongoose.connect(env.mongoUri, {
+        // MongoDB server 8 seconds me select/connect na ho to current attempt fail.
         serverSelectionTimeoutMS: 8000,
+        // Ek server process max 10 DB connections pool me rakhega.
         maxPoolSize: 10,
+        // Minimum 2 connections warm rakhta hai, taaki common queries fast start ho.
         minPoolSize: 2,
+        // Ek socket operation 45 seconds se zyada atka rahe to timeout.
         socketTimeoutMS: 45000,
       });
       console.log("[db] MongoDB connected");

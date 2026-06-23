@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: Billing/admin/quota code uses this as the plan source of truth. Built-in plans plus Settings custom plans are merged, cached, validated, and returned to pricing, checkout, quota, and admin pages.
+
 import { getAppSettings } from "../models/Settings.js";
 import { env } from "../config/env.js";
 import { PLAN_LIMITS } from "../config/plans.js";
@@ -260,3 +264,4 @@ export async function planDurationDays(planId) {
   const plan = await getPlanById(planId);
   return plan?.durationDays || 30;
 }
+

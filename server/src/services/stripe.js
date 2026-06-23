@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: Legacy billing controller can use this for Stripe checkout/portal/webhooks. Stripe env values come from config/env.js, sessions/webhook events go to Stripe, and user billing fields are updated by controller logic.
+
 // Stripe billing — checkout, portal, webhooks.
 import Stripe from "stripe";
 import { env } from "../config/env.js";
@@ -69,3 +73,4 @@ export async function handleWebhook(rawBody, signature) {
   if (!s || !env.stripeWebhookSecret) return null;
   return s.webhooks.constructEvent(rawBody, signature, env.stripeWebhookSecret);
 }
+

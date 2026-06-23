@@ -1,7 +1,12 @@
-// Plan limits and usage quota enforcement.
+// FLOW: Plan/quota config. Built-in and admin plan limits are loaded here, controllers/middleware read them, and frontend receives usage summaries.
+
+// Yeh file subscription plans aur monthly usage limits manage karti hai.
+// Free/Pro/Team limits yahan define hote hain, aur admin DB settings se override ho sakte hain.
 import { getAppSettings } from "../models/Settings.js";
 import { loadPlanCatalog, invalidatePlanCatalogCache } from "../services/planCatalog.js";
 
+// Built-in fallback limits. Agar DB/admin settings load na ho paye to ye limits use hoti hain.
+// Infinity ka matlab unlimited.
 export const PLAN_LIMITS = {
   free: { documents: 3, tutorMessages: 20, quizzes: 5 },
   pro: { documents: 50, tutorMessages: Infinity, quizzes: Infinity },
@@ -10,10 +15,12 @@ export const PLAN_LIMITS = {
 
 const BUILTIN_IDS = ["free", "pro", "team"];
 
+// Limits ko short time ke liye memory me cache karte hain taaki har request DB na hit kare.
 let cachedLimits = null;
 let cacheLoadedAt = 0;
 const CACHE_MS = 30_000;
 
+// Admin UI me -1 unlimited ka signal hai; backend me use Infinity me convert karte hain.
 function normalizeLimitValue(val, fallback) {
   if (val === null || val === undefined) return fallback;
   if (val === -1) return Infinity;
@@ -21,6 +28,7 @@ function normalizeLimitValue(val, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+// DB/settings se aaye raw limits ko backend-friendly format me convert karta hai.
 function normalizePlanLimits(raw) {
   if (!raw) return null;
   const out = {};
@@ -36,12 +44,14 @@ function normalizePlanLimits(raw) {
   return Object.keys(out).length ? out : null;
 }
 
+// Admin plan/settings update ke baad cache clear karne ke liye.
 export function invalidatePlanLimitsCache() {
   cachedLimits = null;
   cacheLoadedAt = 0;
   invalidatePlanCatalogCache();
 }
 
+// DB se latest plan catalog load karke limits cache refresh karta hai.
 export async function loadPlanLimitsFromDb() {
   const catalog = await loadPlanCatalog(true);
   const map = {};
@@ -53,6 +63,7 @@ export async function loadPlanLimitsFromDb() {
   return getEffectivePlanLimits();
 }
 
+// Built-in + custom/admin limits ko merge karke final active limits deta hai.
 export function getEffectivePlanLimits() {
   if (!cachedLimits) return PLAN_LIMITS;
   return {
@@ -65,6 +76,7 @@ export function getEffectivePlanLimits() {
   };
 }
 
+// Async version request flow ke liye: cache stale ho to DB se refresh karta hai.
 export async function getLimits(plan = "free") {
   if (!cachedLimits || Date.now() - cacheLoadedAt > CACHE_MS) {
     await loadPlanLimitsFromDb();
@@ -73,16 +85,19 @@ export async function getLimits(plan = "free") {
   return all[plan] || all.free || PLAN_LIMITS.free;
 }
 
+// Sync version tests/simple calculations ke liye: current cache ya fallback limits use karta hai.
 export function getLimitsSync(plan = "free") {
   const all = cachedLimits || PLAN_LIMITS;
   return all[plan] || all.free || PLAN_LIMITS.free;
 }
 
+// Usage monthly reset hota hai, next month ki first date yahan calculate hoti hai.
 export function startOfNextMonth() {
   const d = new Date();
   return new Date(d.getFullYear(), d.getMonth() + 1, 1);
 }
 
+// Agar user ka monthly usage period expire ho gaya ho to counters reset karta hai.
 export async function ensureUsagePeriod(user) {
   const resetAt = user.usageResetAt ? new Date(user.usageResetAt) : null;
   if (!resetAt || resetAt <= new Date()) {
@@ -93,6 +108,8 @@ export async function ensureUsagePeriod(user) {
   return user;
 }
 
+// Frontend ko quota status dikhane ke liye used/limits/resetAt shape banata hai.
+// Unlimited values API response me null banate hain, because JSON me Infinity valid nahi hota.
 export function usageSummary(user, limitsOverride = null) {
   const limits = limitsOverride || getLimitsSync(user.plan);
   const used = user.usageThisMonth || { documents: 0, tutorMessages: 0, quizzes: 0 };
@@ -108,11 +125,13 @@ export function usageSummary(user, limitsOverride = null) {
   };
 }
 
+// DB se latest limits load karke usage summary banata hai.
 export async function usageSummaryAsync(user) {
   const limits = await getLimits(user.plan);
   return usageSummary(user, limits);
 }
 
+// Admin UI ke liye limits serialize karta hai. Infinity ko wapas -1 banate hain.
 export async function serializePlanLimitsForAdmin() {
   await loadPlanLimitsFromDb();
   const toVal = (n) => (n === Infinity ? -1 : n);

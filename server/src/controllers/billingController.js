@@ -1,3 +1,5 @@
+// FLOW: Billing API logic. Billing routes send plan/payment requests here, this controller uses Razorpay/Stripe/plan services, updates User/PaymentEvent, and returns checkout/status data.
+
 import { User } from "../models/User.js";
 import { PaymentEvent } from "../models/PaymentEvent.js";
 import { asyncHandler } from "../middleware/errorHandler.js";

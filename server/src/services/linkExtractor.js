@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: Document/link routes use this before AI generation. URL comes from user request, safety checks block private/local targets, YouTube transcript or webpage text is extracted, then text goes to generationOrchestrator.
+
 // Yeh file ek URL se text nikaalti hai — YouTube transcript ya web page ka content.
 import dns from "dns/promises";
 import net from "net";
@@ -117,3 +121,4 @@ export async function extractTextFromUrl(url) {
   await assertSafeUrl(url);
   return { text: await extractWebPage(url), kind: "web" };
 }
+

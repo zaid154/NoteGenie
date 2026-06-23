@@ -1,3 +1,5 @@
+// FLOW: Environment config. Raw process.env values from root .env are normalized here, then imported by DB, auth, billing, email, Gemini, and server startup code.
+
 // Yeh file .env ki saari values ek jagah load karti hai aur check karti hai
 // ki zaroori cheezein (DB, JWT secret, etc.) maujood hain.
 import dotenv from "dotenv";
@@ -11,6 +13,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 const isProduction = process.env.NODE_ENV === "production";
 
 // Saari environment values ek jagah, taaki poore app me consistent rahe.
+// Baaki files direct process.env use karne ke bajaye isi `env` object ko import karti hain.
 export const env = {
   isProduction,
   port: process.env.PORT || 5000,
@@ -23,6 +26,7 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   geminiApiKey: process.env.GEMINI_API_KEY,
+  // Multiple Gemini keys comma-separated aa sakti hain. Empty strings remove kar dete hain.
   geminiApiKeys: (process.env.GEMINI_API_KEYS || "")
     .split(",")
     .map((k) => k.trim())
@@ -35,10 +39,12 @@ export const env = {
   stripePriceTeam: process.env.STRIPE_PRICE_TEAM,
   razorpayKeyId: process.env.RAZORPAY_KEY_ID,
   razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
+  // Razorpay amounts paise me store hote hain: 74900 means Rs 749.
   razorpayProAmount: Number(process.env.RAZORPAY_PRO_AMOUNT) || 74900,
   razorpayTeamAmount: Number(process.env.RAZORPAY_TEAM_AMOUNT) || 249900,
   smtpHost: process.env.SMTP_HOST,
   smtpPort: Number(process.env.SMTP_PORT) || 587,
+  // SMTP_SECURE explicitly true/false ho sakta hai; unset ho to nodemailer default decide karega.
   smtpSecure:
     process.env.SMTP_SECURE === "true"
       ? true
@@ -69,7 +75,7 @@ export function validateEnv() {
 
   // Weak/placeholder JWT secret ek silent security hole hai.
   if (env.jwtSecret && (env.jwtSecret.length < 32 || /change[_-]?me/i.test(env.jwtSecret))) {
-    problems.push("JWT_SECRET is weak — use a long random value (e.g. `openssl rand -hex 32`)");
+    problems.push("JWT_SECRET is weak; use a long random value (e.g. `openssl rand -hex 32`)");
   }
 
   if (!problems.length) return;

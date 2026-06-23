@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: Billing controllers use this to convert rupees/paise and expose public plan prices. Values come from Settings/admin pricing first, then env Razorpay defaults, then go back to checkout/pricing APIs.
+
 import { getAppSettings } from "../models/Settings.js";
 import { env } from "../config/env.js";
 import { loadPlanCatalog, amountForPlanId } from "./planCatalog.js";
@@ -43,3 +47,4 @@ export async function amountForPlan(plan) {
 }
 
 export { getPublicCatalog } from "./planCatalog.js";
+

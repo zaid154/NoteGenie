@@ -1,3 +1,5 @@
+// FLOW: Quiz API logic. Quiz routes send documentId/answers here, this controller reads Document/Quiz, calls Gemini for questions, stores attempts, and returns scores/analytics.
+
 // Yeh file quiz banane, dikhane, submit karne aur analytics ki request handle karti hai.
 import { Document } from "../models/Document.js";
 import { Quiz } from "../models/Quiz.js";
@@ -13,6 +15,19 @@ import { assertValidObjectId } from "../utils/objectId.js";
 // Document ke content se ek naya quiz generate karta hai.
 // POST /api/quiz/document/:documentId   body: { difficulty, count }
 const ALLOWED_DIFFICULTY = ["easy", "medium", "hard"];
+
+function mergeActivityWithAttempts(activity, attempts) {
+  const attemptCounts = new Map();
+  for (const attempt of attempts) {
+    const day = localDateKey(attempt.createdAt);
+    attemptCounts.set(day, (attemptCounts.get(day) || 0) + 1);
+  }
+
+  return activity.map((dayActivity) => ({
+    ...dayActivity,
+    count: Math.max(dayActivity.count || 0, attemptCounts.get(dayActivity.day) || 0),
+  }));
+}
 
 export const createQuiz = asyncHandler(async (req, res) => {
   assertValidObjectId(req.params.documentId, "document ID");
@@ -127,7 +142,7 @@ export const submitQuiz = asyncHandler(async (req, res) => {
 export const getAnalytics = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  const [attempts, documentCount, quizCount, docs, activity] = await Promise.all([
+  const [attempts, documentCount, quizCount, docs, storedActivity] = await Promise.all([
     QuizAttempt.find({ userId })
       .populate("documentId", "title")
       .sort({ createdAt: -1 })
@@ -180,6 +195,7 @@ export const getAnalytics = asyncHandler(async (req, res) => {
       : 0,
   }));
 
+  const activity = mergeActivityWithAttempts(storedActivity, attempts);
   const goalTarget = req.user.dailyGoalCards || 20;
   const todayDone = activity.length ? activity[activity.length - 1].count : 0;
 

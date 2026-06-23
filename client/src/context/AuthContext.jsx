@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Auth state provider for the whole client. Token/API helpers come from api/client.js, user data comes from /auth/me/login/register APIs, and children read it through useAuth().
+
 // Yeh file "kaun user login hai" yeh poore app ko batati hai.
 // Iski wajah se kisi bhi page me hum user ki info aur login/logout functions use kar sakte hain.
 import { createContext, useContext, useEffect, useState } from "react";
@@ -96,3 +100,4 @@ export function useAuth() {
 
 // apiError yahan se bhi export kar dete hain taaki pages ek hi jagah se import kar sakein.
 export { apiError };
+

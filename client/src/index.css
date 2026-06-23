@@ -1,3 +1,7 @@
+/* FLOW: Global client styles. Components/pages use these classes and variables, and browser rendering shows the final UI. */
+
+/* FLOW: Global stylesheet. Tailwind layers/classes are read by all React components; design tokens/classes here affect the rendered UI across pages. */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -349,3 +353,4 @@
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+

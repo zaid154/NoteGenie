@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: Auth controller calls this for verification and reset emails. SMTP values come from config/env.js, templates are built here, and nodemailer sends the message to the user.
+
 // Email sending — verification and password reset.
 import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
@@ -39,3 +43,4 @@ export function verifyOtpHtml(name, otp, expiresMin) {
 export function resetPasswordHtml(name, link) {
   return `<p>Hi ${name},</p><p>Reset your password:</p><p><a href="${link}">${link}</a></p><p>Link expires in 1 hour.</p>`;
 }
+

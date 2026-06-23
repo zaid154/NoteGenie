@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Export helper. Document notes/title/summary come from UI state, this builds printable HTML, opens print flow, and browser creates PDF output.
+
 import { renderToStaticMarkup } from "react-dom/server";
 import MarkdownContent from "../components/MarkdownContent.jsx";
 
@@ -156,3 +160,4 @@ export function printNotesPdf({ title, summary, notes }) {
 
   return true;
 }
+

@@ -1,3 +1,5 @@
+// FLOW: Auth middleware. JWT token comes from Authorization header, User is loaded from MongoDB, req.user is attached, and protected/admin routes continue.
+
 // Yeh file login se judi cheezein sambhalti hai: token banana aur routes ko protect karna.
 // "middleware" = ek function jo request aur final code ke beech me chalta hai (jaise guard).
 import jwt from "jsonwebtoken"; // login token (JWT) banane/check karne ke liye

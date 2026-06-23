@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: gemini.js uses this to avoid overloading one API key. The key pool comes from env/admin settings, this tracks in-flight calls per key, picks the least busy key, and releases it after the call.
+
 /** In-memory Gemini key load balancer — least-loaded selection with in-flight tracking. */
 
 const inFlight = new Map();
@@ -67,3 +71,4 @@ export function sortPoolByLoad(pool) {
 export function resetKeyBalancer() {
   inFlight.clear();
 }
+

@@ -1,3 +1,5 @@
+// FLOW: QuizAttempt Mongoose model. Controllers/services create and query this schema, MongoDB stores the fields, and API responses are built from these documents.
+
 import mongoose from "mongoose";
 
 // Har baar jab user quiz solve karta hai, ek attempt save hota hai.

@@ -1,3 +1,5 @@
+// FLOW: Document API logic. Upload/link/document routes send files/body/params here, this controller calls generation/services/models, saves notes/flashcards, and returns documents to UI.
+
 // Yeh file documents (PDF/link se bane notes) se judi saari request handle karti hai.
 import { Document } from "../models/Document.js";
 import { Quiz } from "../models/Quiz.js";

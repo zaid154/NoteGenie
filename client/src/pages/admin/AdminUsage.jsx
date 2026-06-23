@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: App.jsx route renders this page (AdminUsage). Values usually come from AuthContext, route params, local state, and api/client.js calls; processed state is shown through components and user actions are sent back to backend APIs.
+
 // AdminUsage: AI ka istemal (calls, tokens, cost) feature aur user ke hisaab se dikhata hai.
 import { useEffect, useState } from "react";
 import { api, apiError } from "../../api/client.js";
@@ -264,3 +268,4 @@ export default function AdminUsage() {
     </div>
   );
 }
+

@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Display cleanup helper. Markdown/generated text comes in, inline markup is stripped/converted, and clean text goes to speech/export/plain previews.
+
 export function stripMarkdownInline(text) {
   return String(text || "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
@@ -30,3 +34,4 @@ export function markdownToPlainText(text) {
     .replace(/\s{2,}/g, " ")
     .trim();
 }
+

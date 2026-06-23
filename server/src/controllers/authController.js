@@ -1,3 +1,5 @@
+// FLOW: Auth API logic. Auth routes send register/login/profile/password/email requests here, this controller reads/writes User, creates JWT/OTP/email flows, and returns user/session data.
+
 // Auth: register, login, profile, email verification, password reset.
 import crypto from "crypto";
 import { User } from "../models/User.js";

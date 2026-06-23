@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: gemini.js and tests use this for safe error handling and JSON parsing. Raw Gemini errors/responses come in, helpers classify quota/model/network problems, redact secrets, repair JSON, and return clean values.
+
 // Exported helpers for tests and gemini service.
 
 export function isKeyExhausted(err) {
@@ -259,4 +263,5 @@ export function isTruncatedGeminiResponse(response) {
   const reason = geminiFinishReason(response);
   return reason === "MAX_TOKENS" || reason === "LENGTH";
 }
+
 

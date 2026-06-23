@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: Quiz/review/activity flows call this after study actions. User activity comes in, daily StudyActivity is upserted, user streak fields are updated, and recent activity returns to dashboard/analytics.
+
 // Study streak + daily activity tracking. All functions are best-effort and must
 // never break the primary request (a failed streak update is logged, not thrown).
 import { localDateKey } from "../utils/dateKey.js";
@@ -77,3 +81,4 @@ export function currentStreakValue(streak) {
   }
   return 0;
 }
+

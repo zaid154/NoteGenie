@@ -1,3 +1,5 @@
+// FLOW: Share API logic. Public share routes send token here, this controller finds shared Document safely and returns read-only data for ShareView.
+
 // Public read-only shared document view.
 import { Document } from "../models/Document.js";
 import { asyncHandler } from "../middleware/errorHandler.js";

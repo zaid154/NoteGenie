@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: DocumentGeneration calls this as the main material pipeline. Source data comes from PDF buffer or extracted link text, Gemini creates notes/flashcards, Document is saved, and progress phases go back to SSE/UI.
+
 import { Document } from "../models/Document.js";
 import { generateNotesWithMode, generateFlashcards, pdfPart, pickKeyForSlot } from "./gemini.js";
 import { extractTextFromUrl } from "./linkExtractor.js";
@@ -168,3 +172,4 @@ export async function runLinkPipeline({ url, userId, body, onProgress }) {
     textLength: text.length,
   });
 }
+

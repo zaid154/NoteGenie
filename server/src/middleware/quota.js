@@ -1,3 +1,5 @@
+// FLOW: Quota middleware. User plan/usage comes from req.user and plan config, feature usage is checked before protected actions, and over-limit requests return upgrade errors.
+
 // Quota middleware — enforce per-plan AI usage limits.
 import { ensureUsagePeriod, getLimits } from "../config/plans.js";
 

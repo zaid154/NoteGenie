@@ -1,3 +1,5 @@
+// FLOW: Document route map. /api/documents requests enter here, auth/quota/upload middleware runs, then documentController handles upload/link/list/share/flashcards.
+
 // Document routes with quota enforcement on AI endpoints.
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";

@@ -1,3 +1,5 @@
+// FLOW: ObjectId helper. Controllers pass route params here, invalid Mongo ids are rejected early before model queries run.
+
 import mongoose from "mongoose";
 
 /** Strict MongoDB ObjectId check (rejects invalid 12-byte strings). */

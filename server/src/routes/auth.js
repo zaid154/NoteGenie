@@ -1,3 +1,5 @@
+// FLOW: Auth route map. /api/auth requests enter here, rate-limit/auth middleware runs, then requests are forwarded to authController functions.
+
 import { Router } from "express";
 import {
   register,

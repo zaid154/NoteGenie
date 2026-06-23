@@ -1,263 +1,740 @@
-# NoteGenie
+﻿# NoteGenie
 
-NoteGenie is a study app that turns a PDF, a web article, or a YouTube video into structured study material — notes, flashcards, and quizzes — and lets you chat with an AI tutor about whatever you uploaded. It runs on Google's Gemini API.
+NoteGenie ek MERN study assistant app hai. User PDF upload kar sakta hai, web article ya YouTube link paste kar sakta hai, aur app us content se AI notes, flashcards, quizzes, mind map, aur tutor chat generate karta hai.
 
-The idea came from a simple problem: reading a long PDF and making notes by hand takes forever. So I built something where you drop the file, and a few seconds later you have clean notes, flashcards, and a quiz to test yourself.
+Frontend React + Vite me hai, backend Express + MongoDB me hai, aur AI Google Gemini API se chalta hai.
 
-Built with React on the front, Express + MongoDB on the back.
+## Main Features
 
-## What it can do
+- PDF, web article, aur YouTube link se notes generation.
+- Notes ke sath key takeaways aur glossary.
+- Output language selection.
+- Flashcards with spaced repetition review.
+- Quiz generation with score, correct answers, explanations.
+- Per-document AI tutor chat.
+- Ask page for cross-document AI questions.
+- Mind map view for note sections.
+- Browser text-to-speech listen mode.
+- Dashboard, analytics, streaks, daily goal.
+- Tags, folders, public share links.
+- JWT login/register, email verification, password reset.
+- Razorpay billing and admin-managed plans.
+- Admin panel for users, content, billing, AI keys, usage, audit logs, rate limits.
 
-- Upload a PDF and get structured notes (Gemini reads the PDF directly), now with **key takeaways** and an auto-built **glossary**.
-- Paste a web link or a YouTube URL — it pulls the text/transcript and generates notes from that.
-- **Output language** — choose the language for notes, flashcards, quizzes, and tutor replies (**English** by default). Source can be Hindi or anything else; output follows your selection.
-- Auto-generated flashcards with spaced-repetition review.
-- Quizzes: pick easy/medium/hard and question count (3–25). Score, correct answers, and explanations included.
-- AI tutor chat per document — streaming responses, history saved in the database.
-- **Ask across all notes** — a cross-document tutor that retrieves from your most relevant materials and answers in one place.
-- **Mind map view** — an interactive node graph of any document, built from its note sections.
-- **Audio "Listen" mode** — text-to-speech playback of notes and hands-free flashcard review (browser speech engine, no API cost).
-- **Study streaks & daily goal** — a consecutive-day streak, daily goal, and a 30-day activity heatmap on the dashboard and analytics.
-- **⌘K command palette** — jump to any page or search your materials from anywhere.
-- Analytics for quiz scores over time.
-- Export notes as Markdown or PDF; flashcards as Anki CSV.
-- Folders and tags on documents.
-- Share links for read-only document viewing.
-- Accounts with JWT login. Each user only sees their own data.
-- **Admin panel** — users, content, billing, AI key pool, usage stats, audit log, rate limits.
-- **Billing** — Free / Pro / Team plans via Razorpay (test mode supported).
-- Dark mode and mobile-friendly layout.
+## Tech Stack
 
-## Tech used
+Frontend: React 18, Vite, React Router, Tailwind CSS, Axios, Framer Motion, React Markdown, Remark GFM.
 
-- **Frontend:** React (Vite), React Router, Tailwind CSS, Axios, Framer Motion; lazy-loaded routes for a small initial bundle
-- **Backend:** Node.js, Express, JWT, Multer, bcrypt
-- **Database:** MongoDB (Mongoose)
-- **AI:** Google Gemini (`@google/genai`) with a multi-key pool, automatic failover, and model fallback
-- **Audio:** Web Speech API (browser-native text-to-speech) — no extra service
-- **Links:** `youtube-transcript` for YouTube, fetch + HTML strip for web pages
-- **Payments:** Razorpay (Stripe legacy optional)
-- **Tooling:** ESLint + Prettier, GitHub Actions CI (lint, test, build), optional Sentry error tracking
+Backend: Node.js 18+, Express, MongoDB, Mongoose, JWT, bcrypt, Multer, Helmet, CORS, Express Rate Limit, Nodemailer, Razorpay, Stripe legacy optional, YouTube Transcript, Google Gemini.
 
-## How a request actually flows
+Tooling: ESLint, Prettier commands, Node test runner, Render backend blueprint, Firebase hosting config.
 
-1. You upload a PDF or paste a link and pick an **output language** (default English).
-2. The backend prepares content — PDF goes to Gemini; links get scraped or YouTube transcript is fetched.
-3. Gemini generates **notes first** (with key takeaways + glossary), then **flashcards** (one request at a time to reduce rate-limit pressure). Large sources use a chunked outline → per-section pipeline.
-4. Results are saved as a document with `outputLanguage` stored for quiz/tutor/regenerate.
-5. From there you can generate a quiz, open the tutor, view the mind map, listen to the notes, or regenerate in a different language.
+## Folder Structure
 
-### AI key pool
-
-Gemini keys can live in two places:
-
-1. **Admin UI** — encrypted in MongoDB (primary for production).
-2. **`.env`** — `GEMINI_API_KEY` and/or comma-separated `GEMINI_API_KEYS` as fallback.
-
-On each AI call the server tries keys in priority order. If one fails (invalid key, quota, transient error), it **automatically fails over** to the next key. Bad admin-pool keys get a short cooldown so working keys are used on the next request.
-
-**Tip:** Multiple keys from the **same Google Cloud project** share the same free-tier daily quota. Extra keys only help if they are from different projects/accounts.
-
-## Folder layout
-
-```
+```text
 NoteGenie/
-├── .env                 # all secrets (not committed)
-├── .env.example         # copy to .env and fill in
-├── .prettierrc.json     # shared formatting config
-├── .github/workflows/   # CI: lint + test + build
-├── package.json         # runs client + server together
-├── dev.mjs              # starts API + Vite together
-├── server/
-│   ├── eslint.config.js
-│   └── src/
-│       ├── index.js
-│       ├── config/      # env, plans, languages, observability (Sentry + req logging)
-│       ├── models/      # User, Document, Quiz, ChatMessage, StudyActivity, Settings, …
-│       ├── routes/
-│       ├── controllers/
-│       ├── services/    # gemini.js, retrieval.js, studyStreak.js, linkExtractor.js, …
-│       ├── middleware/
-│       └── scripts/     # seedData.js
-└── client/
-    ├── eslint.config.js
-    └── src/
-        ├── pages/       # Upload, DocumentView, Ask, admin, billing, …
-        ├── components/  # MindMap, AudioPlayer, CommandPalette, ui, …
-        ├── hooks/       # useSpeech (text-to-speech)
-        ├── config/      # languages.js
-        └── api/
+  README.md                    Project documentation
+  package.json                 Root scripts for client/server
+  package-lock.json            Root npm lock file
+  dev.mjs                      Starts server and client together
+  start-dev.bat                Windows dev starter
+  .env.example                 Root/backend env sample
+  render.yaml                  Render backend deployment config
+  proble.md                    Project notes/problem file
+  client/                      React frontend
+    package.json               Frontend scripts/dependencies
+    index.html                 Vite HTML entry
+    vite.config.js             Vite config and API proxy
+    tailwind.config.js         Tailwind config
+    postcss.config.js          PostCSS config
+    eslint.config.js           Frontend lint config
+    firebase.json              Firebase hosting config
+    .env.example               Frontend API URL sample
+    public/favicon.svg         Browser icon
+    src/main.jsx               React boot file
+    src/App.jsx                Frontend routes/protected route guards
+    src/index.css              Global styles and Tailwind layers
+    src/api/client.js          Axios API client
+    src/config/                Languages/detail/developer constants
+    src/context/               Auth, toast, theme, confirm providers
+    src/hooks/                 Custom hooks like speech
+    src/pages/                 Main app pages
+    src/pages/admin/           Admin pages
+    src/components/            Shared UI components
+    src/components/admin/      Admin-only components
+    src/utils/                 Client helper functions
+  server/                      Express backend
+    package.json               Backend scripts/dependencies
+    eslint.config.js           Backend lint config
+    tests/api.test.js          Backend tests
+    src/index.js               Express entry point
+    src/config/                Env, DB, plans, languages, observability
+    src/routes/                API route definitions
+    src/controllers/           Request business logic
+    src/models/                Mongoose schemas
+    src/middleware/            Auth, upload, quota, rate-limit, errors
+    src/services/              AI, billing, email, retrieval, streak, etc.
+    src/utils/                 Shared backend helpers
+    src/scripts/seedData.js    Seed admin/demo users
 ```
 
-## Running it locally
+## Install And Run Commands
 
-You need Node 18+, MongoDB (e.g. free [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) cluster), and a Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-
-**1. Install dependencies**
+Install client and server dependencies:
 
 ```bash
 npm run install:all
 ```
 
-**2. Environment**
+Create env file on Windows:
+
+```powershell
+copy .env.example .env
+```
+
+Create env file on Git Bash/Linux/macOS:
 
 ```bash
 cp .env.example .env
 ```
 
-Fill in MongoDB URI, a long random `JWT_SECRET`, `ENCRYPTION_SECRET`, and at least one `GEMINI_API_KEY`. See the table below.
-
-Generate secrets (optional):
+Generate random secret for `JWT_SECRET` and `ENCRYPTION_SECRET`:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-**3. Seed accounts**
+Seed admin/demo accounts:
 
 ```bash
 npm run seed
 ```
 
-Uses credentials from `.env` (see `.env.example` for defaults). README examples:
-
-- Admin — values from `ADMIN_EMAIL` / `ADMIN_PASSWORD`
-- Demo user — values from `USER_EMAIL` / `USER_PASSWORD`
-
-**4. Start**
+Run full project in development:
 
 ```bash
 npm run dev
 ```
 
-**Windows:** double-click [`start-dev.bat`](start-dev.bat).
-
-`dev.mjs` starts the API and Vite using `PORT` and `CLIENT_PORT` from `.env` (e.g. **5001** and **3000**). If a port is busy, the next free port is picked — check the terminal for the real URLs.
-
-**Lint & format** (each workspace has its own config):
+Run only backend:
 
 ```bash
-npm run lint              # lints server + client
-npm run lint --prefix server
-npm run format --prefix client   # Prettier write
+npm run server
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint, server tests, and the client build on every push/PR.
+Run only frontend:
 
-## The .env file
+```bash
+npm run client
+```
 
-| Key | What it's for |
-|---|---|
-| `NODE_ENV` | `development` locally; `production` when deploying. |
-| `PORT` | API port (e.g. 5001). |
-| `CLIENT_PORT` | Vite dev port (e.g. 3000). |
-| `CLIENT_URL` | CORS allowed origin(s) — comma-separate multiple. |
-| `MONGO_URI` | MongoDB connection string. |
-| `JWT_SECRET` | Signs login tokens — use a long random value (32+ chars). |
-| `JWT_EXPIRES_IN` | Token lifetime (e.g. `7d`). |
-| `GEMINI_API_KEY` | Primary Gemini key (env fallback). |
-| `GEMINI_API_KEYS` | Optional comma-separated extra keys (same pool). |
-| `GEMINI_MODEL` | Default model (e.g. `gemini-2.5-flash`). Overridable in Admin → AI keys. |
-| `ENCRYPTION_SECRET` | Encrypts API keys stored in the admin pool. **Set once and keep stable** — changing it makes saved keys unreadable until re-added. |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` | Seed admin account. |
-| `USER_EMAIL` / `USER_PASSWORD` / `USER_NAME` | Seed demo user. |
-| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Razorpay test/live keys. |
-| `RAZORPAY_PRO_AMOUNT` / `RAZORPAY_TEAM_AMOUNT` | Default prices in **paise** (74900 = ₹749). |
-| `SUPPORT_EMAIL` | Contact on Pricing page. |
-| `SMTP_*` / `EMAIL_FROM` | Email verification and password reset. |
-| `AI_RATE_LIMIT_MAX` / `AI_RATE_LIMIT_WINDOW_MIN` | Default AI rate limits (overridable in admin). |
-| `SENTRY_DSN` | Optional server error tracking. Activates only if set **and** `@sentry/node` is installed (`npm i @sentry/node`); otherwise it's a no-op. Requests are always logged with timing regardless. |
+Run lint for both:
 
-The `.env` is git-ignored. Do not commit secrets. Prefer keeping the repo **outside** cloud-sync folders (OneDrive, etc.) so `.env` is not synced.
+```bash
+npm run lint
+```
 
-## Admin panel
+Run server tests:
 
-Log in with the admin account, then open **System** in the sidebar.
+```bash
+npm test --prefix server
+```
 
-| Section | Purpose |
-|---|---|
-| **AI keys** | Key pool, model picker, test all keys (shows masked suffix + pass/fail), usage pricing |
-| **Audit log** | Admin actions history |
-| **Rate limits** | Per-user AI generation caps |
+Build frontend:
 
-Other admin areas: Dashboard stats, Users, Content, Billing (plan prices), Usage (cost by key/feature).
+```bash
+npm run build --prefix client
+```
 
-## Output languages
+Preview frontend build:
 
-Supported on upload: English (default), Hindi, Urdu, Arabic, Spanish, French, German, Portuguese, Bengali, Tamil, Telugu, Marathi.
+```bash
+npm run preview --prefix client
+```
 
-On an existing document, change the language dropdown and click **Regenerate** to rebuild notes and flashcards in that language. Quiz and tutor use the document's language (or the dropdown selection before generate).
+Format frontend:
 
-## Razorpay test payments
+```bash
+npm run format --prefix client
+```
 
-Use **test keys** only (`rzp_test_...`) in `.env`.
+Format backend:
 
-### UPI
+```bash
+npm run format --prefix server
+```
 
-1. Choose **UPI** at checkout.
-2. Use `success@razorpay` to simulate success, or `failure@razorpay` for failure.
+Deploy frontend to Firebase:
 
-### Domestic cards (India)
+```bash
+npm run deploy --prefix client
+```
 
-| Network | Card number |
-|---------|-------------|
-| Mastercard | `5267 3181 8797 5449` |
-| Visa | `4111 1111 1111 1111` |
-
-Expiry: any future date · CVV: any 3 digits · Confirm **Success** on the mock bank page.
-
-Docs: [Razorpay test integration](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/test-integration/)
-
-## Main API routes
-
-**Auth:** `POST /api/auth/register`, `login`, `GET /api/auth/me`, profile/password updates, email verify, forgot/reset password
-
-**Documents:** `POST /api/documents/upload`, `POST /api/documents/link` (body: `url`, `outputLanguage`, `folder`, `tags`), `GET /api/documents`, `GET /api/documents/:id`, `POST /api/documents/:id/regenerate`, `DELETE /api/documents/:id`, flashcard rate/generate, `GET /api/documents/review/due`
-
-**Quizzes:** `POST /api/quiz/document/:documentId`, `GET /api/quiz/:id`, `POST /api/quiz/:id/submit`, `GET /api/quiz/analytics/overview` (scores + **streak**, daily goal, 30-day activity)
-
-**Tutor:** `POST /api/tutor/:documentId` (stream), `GET /api/tutor/:documentId/history`, **`POST /api/tutor/global`** (cross-document, stream), `GET`/`DELETE /api/tutor/global/history`
-
-**Admin:** stats, users, documents, settings, `POST /api/admin/settings/test`, `POST /api/admin/settings/test-all`, key CRUD, models list, usage, audit log, billing
-
-## Security notes
-
-- Passwords hashed with bcrypt; JWT for sessions.
-- Gemini keys encrypted at rest when stored via admin UI (`ENCRYPTION_SECRET`).
-- Admin UI only shows masked keys (e.g. `AIza••••xYz9`).
-- Helmet, CORS allowlist, rate limits (stricter on auth and AI routes).
-- SSRF protection on link imports; PDF magic-byte check.
-- Tutor history loaded from DB (not client-supplied).
-
-## If something breaks
-
-**Port in use** — `dev.mjs` auto-picks the next port, or free the port manually:
+Windows shortcut:
 
 ```powershell
-netstat -ano | findstr ":5001"
+.\start-dev.bat
+```
+
+## Local URLs
+
+Default URLs:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:5000`
+- Health: `http://localhost:5000/api/health`
+
+`dev.mjs` agar port busy ho to next free port pick karta hai. Terminal me final URL check karein.
+
+## Environment Variables
+
+Root `.env.example` ko `.env` me copy karke fill karein.
+
+| Key | Working |
+| --- | --- |
+| `PORT` | Backend API port. Empty ho to 5000. |
+| `CLIENT_PORT` | Frontend Vite port. Empty ho to 5173. |
+| `NODE_ENV` | `development` ya `production`. |
+| `CLIENT_URL` | Frontend URL for CORS. |
+| `MONGO_URI` | MongoDB connection string. |
+| `JWT_SECRET` | JWT token signing secret. Strong random value use karein. |
+| `JWT_EXPIRES_IN` | Token expiry, example `7d`. |
+| `GEMINI_API_KEY` | Main Gemini API key. |
+| `GEMINI_API_KEYS` | Extra Gemini keys, comma separated. |
+| `GEMINI_MODEL` | Gemini model, example `gemini-2.5-flash`. |
+| `ENCRYPTION_SECRET` | Admin saved API keys encrypt/decrypt karne ke liye. Change na karein after saving keys. |
+| `SMTP_HOST` | Email server host. |
+| `SMTP_PORT` | Email server port, usually 587. |
+| `SMTP_USER` | SMTP username. |
+| `SMTP_PASS` | SMTP password/app password. |
+| `EMAIL_FROM` | Email sender name/address. |
+| `RAZORPAY_KEY_ID` | Razorpay key id. |
+| `RAZORPAY_KEY_SECRET` | Razorpay secret. |
+| `RAZORPAY_PRO_AMOUNT` | Pro amount in paise. |
+| `RAZORPAY_TEAM_AMOUNT` | Team amount in paise. |
+| `STRIPE_SECRET_KEY` | Optional legacy Stripe secret. |
+| `STRIPE_WEBHOOK_SECRET` | Optional legacy Stripe webhook secret. |
+| `STRIPE_PRICE_PRO` | Optional legacy Stripe Pro price. |
+| `STRIPE_PRICE_TEAM` | Optional legacy Stripe Team price. |
+| `ADMIN_EMAIL` | Seed admin email. |
+| `ADMIN_PASSWORD` | Seed admin password. |
+| `ADMIN_NAME` | Seed admin name. |
+| `USER_EMAIL` | Seed demo user email. |
+| `USER_PASSWORD` | Seed demo user password. |
+| `USER_NAME` | Seed demo user name. |
+| `SUPPORT_EMAIL` | Support email shown in app. |
+| `AI_RATE_LIMIT_MAX` | AI request limit. |
+| `AI_RATE_LIMIT_WINDOW_MIN` | AI limit window in minutes. |
+| `SENTRY_DSN` | Optional monitoring DSN. |
+
+Client production env:
+
+```text
+VITE_API_URL=https://your-backend-domain.com/api
+```
+
+Local development me normally client env file ki zaroorat nahi hoti because Vite proxy `/api` requests backend ko bhejta hai.
+
+## Dependencies And Their Work
+
+Client dependencies:
+
+| Package | Work |
+| --- | --- |
+| `react`, `react-dom` | UI rendering. |
+| `react-router-dom` | Frontend routes/pages. |
+| `axios` | Backend API calls. |
+| `framer-motion` | Animations. |
+| `react-markdown` | Markdown notes render. |
+| `remark-gfm` | Tables/checklists GitHub markdown support. |
+
+Client dev dependencies:
+
+| Package | Work |
+| --- | --- |
+| `vite`, `@vitejs/plugin-react` | Dev server and production build. |
+| `tailwindcss`, `postcss`, `autoprefixer` | Styling pipeline. |
+| `eslint`, React ESLint plugins | Code linting. |
+
+Server dependencies:
+
+| Package | Work |
+| --- | --- |
+| `express` | API server. |
+| `mongoose` | MongoDB models and queries. |
+| `dotenv` | Loads `.env`. |
+| `cors` | Allows frontend origin. |
+| `helmet` | Security headers. |
+| `express-rate-limit` | API/auth/AI rate limiting. |
+| `jsonwebtoken` | Login tokens. |
+| `bcryptjs` | Password hashing. |
+| `multer` | PDF upload handling. |
+| `@google/genai` | Gemini AI calls. |
+| `youtube-transcript` | YouTube transcript fetch. |
+| `nodemailer` | Email verification/password reset. |
+| `razorpay` | Razorpay checkout/payment. |
+| `stripe` | Legacy optional Stripe support. |
+
+Server dev dependencies:
+
+| Package | Work |
+| --- | --- |
+| `nodemon` | Auto restart server in dev. |
+| `eslint` | Backend linting. |
+
+## Full App Working
+
+1. User register/login karta hai.
+2. Email verify hone ke baad protected app pages open hote hain.
+3. User PDF upload karta hai ya link paste karta hai.
+4. Backend content prepare karta hai: PDF bytes, website text, ya YouTube transcript.
+5. Gemini se notes generate hote hain.
+6. Flashcards generate hote hain.
+7. Document MongoDB me save hota hai.
+8. User notes read kar sakta hai, listen mode use kar sakta hai, mind map dekh sakta hai.
+9. User quiz generate/submit kar sakta hai.
+10. Tutor chat document ke context me answer deta hai.
+11. Ask page saare documents se relevant content nikal kar answer deta hai.
+12. Analytics quiz scores, streaks, aur study activity dikhata hai.
+13. Admin users, AI keys, content, billing, usage, aur settings manage karta hai.
+
+## AI Working
+
+- Env keys: `GEMINI_API_KEY` and `GEMINI_API_KEYS`.
+- Admin keys: MongoDB me encrypted save hote hain.
+- `ENCRYPTION_SECRET` admin keys encrypt/decrypt karta hai.
+- AI call ke time key pool se key choose hoti hai.
+- Key fail/quota/temporary error par next key try hoti hai.
+- Large documents chunking pipeline use kar sakte hain.
+- Gemini output JSON/markdown clean karke app me save hota hai.
+
+## Frontend Routes
+
+| Route | Page/Work |
+| --- | --- |
+| `/` | Landing or redirect to app. |
+| `/pricing` | Pricing page. |
+| `/checkout` | Protected checkout. |
+| `/terms` | Terms. |
+| `/privacy` | Privacy. |
+| `/share/:token` | Public shared document. |
+| `/verify-email` | Email verification. |
+| `/login` | Login. |
+| `/register` | Register. |
+| `/forgot-password` | Forgot password. |
+| `/reset-password` | Reset password. |
+| `/app` | Dashboard. |
+| `/upload` | Upload PDF/link. |
+| `/review` | Flashcard review. |
+| `/ask` | Cross-document tutor. |
+| `/document/:id` | Document details. |
+| `/quiz/:id` | Quiz page. |
+| `/analytics` | Analytics. |
+| `/profile` | Profile. |
+| `/billing` | User billing. |
+| `/admin` | Admin dashboard. |
+| `/admin/usage` | Admin usage. |
+| `/admin/users` | Admin users. |
+| `/admin/users/:id` | Admin user detail. |
+| `/admin/content/:section` | Admin content. |
+| `/admin/billing/:section` | Admin billing. |
+| `/admin/settings/:section` | Admin settings. |
+
+## Backend API Routes
+
+Auth:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/verify-email`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
+- `GET /api/auth/me`
+- `POST /api/auth/resend-verification`
+- `POST /api/auth/onboarding/complete`
+- `PUT /api/auth/profile`
+- `PUT /api/auth/password`
+- `DELETE /api/auth/account`
+
+Documents:
+
+- `GET /api/documents/review/due`
+- `GET /api/documents/folders/list`
+- `POST /api/documents/upload/stream`
+- `POST /api/documents/upload`
+- `POST /api/documents/link/stream`
+- `POST /api/documents/link`
+- `GET /api/documents`
+- `GET /api/documents/:id`
+- `PATCH /api/documents/:id/meta`
+- `POST /api/documents/:id/share`
+- `POST /api/documents/:id/flashcards/generate`
+- `DELETE /api/documents/:id/flashcards`
+- `PATCH /api/documents/:id/flashcards/:cardId`
+- `DELETE /api/documents/:id/flashcards/:cardId`
+- `POST /api/documents/:id/flashcards/:cardId/rate`
+- `POST /api/documents/:id/regenerate`
+- `DELETE /api/documents/:id`
+
+Quiz:
+
+- `GET /api/quiz/analytics/overview`
+- `POST /api/quiz/document/:documentId`
+- `GET /api/quiz/:id`
+- `POST /api/quiz/:id/submit`
+
+Tutor:
+
+- `GET /api/tutor/global/history`
+- `DELETE /api/tutor/global/history`
+- `POST /api/tutor/global`
+- `GET /api/tutor/:documentId/history`
+- `DELETE /api/tutor/:documentId/history`
+- `POST /api/tutor/:documentId`
+
+Billing:
+
+- `GET /api/billing/public-config`
+- `POST /api/billing/webhook`
+- `GET /api/billing/status`
+- `GET /api/billing/usage`
+- `POST /api/billing/create-order`
+- `POST /api/billing/verify-payment`
+- `POST /api/billing/portal`
+
+Share:
+
+- `GET /api/share/:token`
+
+Admin routes include stats, users, billing, settings, AI keys, models, documents, quizzes, chat, shares, usage, and audit logs under `/api/admin/...`.
+
+## File Working - Client Pages
+
+| File | Working |
+| --- | --- |
+| `Landing.jsx` | Public home page. |
+| `Login.jsx` | Login form. |
+| `Register.jsx` | Register form. |
+| `VerifyEmail.jsx` | Email/OTP verification. |
+| `ForgotPassword.jsx` | Password reset request. |
+| `ResetPassword.jsx` | New password form. |
+| `Dashboard.jsx` | Main user dashboard. |
+| `Upload.jsx` | PDF/link upload and generation. |
+| `DocumentView.jsx` | Notes, flashcards, quiz, tutor, mind map for one document. |
+| `Review.jsx` | Due flashcards review. |
+| `Ask.jsx` | Ask AI across all notes. |
+| `QuizView.jsx` | Quiz answer/result page. |
+| `Analytics.jsx` | Study and quiz analytics. |
+| `Profile.jsx` | User profile and account settings. |
+| `Pricing.jsx` | Public plans page. |
+| `Checkout.jsx` | Payment checkout. |
+| `Billing.jsx` | User subscription/billing. |
+| `ShareView.jsx` | Public shared notes view. |
+| `Terms.jsx` | Terms page. |
+| `Privacy.jsx` | Privacy page. |
+| `admin/AdminOverview.jsx` | Admin overview. |
+| `admin/AdminUsers.jsx` | Admin user list. |
+| `admin/AdminUserDetail.jsx` | Admin single user detail. |
+| `admin/AdminUsage.jsx` | Admin usage/cost page. |
+| `admin/AdminSettings.jsx` | AI keys, models, rate limits, audit/settings. |
+| `admin/AdminContent.jsx` | Admin documents/quizzes/chat/share content. |
+| `admin/AdminBilling.jsx` | Admin pricing/plans/payments. |
+
+## File Working - Client Components
+
+| File | Working |
+| --- | --- |
+| `ui.jsx` | Shared UI pieces, loaders, shells. |
+| `Layout.jsx` | Main app layout. |
+| `AdminLayout.jsx` | Admin layout/sidebar. |
+| `MarketingShell.jsx` | Public page shell. |
+| `AuthShell.jsx` | Auth page shell. |
+| `Logo.jsx` | App logo. |
+| `icons.jsx` | Shared icons. |
+| `motion.jsx` | Animation helpers. |
+| `FormField.jsx` | Reusable input field. |
+| `OtpInput.jsx` | OTP input boxes. |
+| `EmailVerificationBanner.jsx` | Verification reminder. |
+| `OnboardingWizard.jsx` | First-time onboarding. |
+| `CommandPalette.jsx` | Keyboard command/search palette. |
+| `GenerationOverlay.jsx` | AI generation loading overlay. |
+| `TagInput.jsx` | Tags input. |
+| `NotesTOC.jsx` | Notes table of contents. |
+| `MarkdownContent.jsx` | Markdown renderer. |
+| `MindMap.jsx` | Notes mind map. |
+| `AudioPlayer.jsx` | Text-to-speech controls. |
+| `Flashcards.jsx` | Flashcard area. |
+| `FlashcardUI.jsx` | Single flashcard UI. |
+| `TutorChat.jsx` | AI tutor chat UI. |
+| `Credit.jsx` | Credit/usage display. |
+| `AdminStatCard.jsx` | Admin stats card. |
+| `AdminTableToolbar.jsx` | Admin table filters/actions. |
+| `admin/CustomPlanForm.jsx` | Custom billing plan form. |
+
+## File Working - Client Utils And Context
+
+| File | Working |
+| --- | --- |
+| `api/client.js` | Axios base client and API configuration. |
+| `config/detailLevel.js` | Note detail level options. |
+| `config/developer.js` | Developer constants/config. |
+| `config/languages.js` | Output language options. |
+| `context/AuthContext.jsx` | Auth state and auth API helpers. |
+| `context/ConfirmContext.jsx` | Confirmation dialog state. |
+| `context/ThemeContext.jsx` | Theme state. |
+| `context/ToastContext.jsx` | Toast notification state. |
+| `hooks/useSpeech.js` | Browser text-to-speech hook. |
+| `utils/printExport.jsx` | Print/export helpers. |
+| `utils/parseNoteSections.js` | Markdown headings ko sections me split karta hai. |
+| `utils/objectId.js` | Mongo ObjectId helpers. |
+| `utils/quota.js` | Usage/quota helpers. |
+| `utils/textClean.js` | Text cleanup helpers. |
+
+## File Working - Server
+
+Config:
+
+| File | Working |
+| --- | --- |
+| `index.js` | Express app start, security middleware, routes, DB connect. |
+| `config/env.js` | Env values load/validate. |
+| `config/db.js` | MongoDB connection. |
+| `config/plans.js` | Plan limits and usage summary. |
+| `config/detailLevel.js` | Notes detail level config. |
+| `config/languages.js` | Supported languages. |
+| `config/observability.js` | Request logs and optional monitoring. |
+
+Routes:
+
+| File | Working |
+| --- | --- |
+| `routes/auth.js` | Auth/profile/password/email routes. |
+| `routes/documents.js` | Upload/link/document/flashcard/share routes. |
+| `routes/quiz.js` | Quiz routes. |
+| `routes/tutor.js` | Tutor/global tutor routes. |
+| `routes/admin.js` | Admin routes. |
+| `routes/billing.js` | Billing/payment routes. |
+| `routes/share.js` | Public share route. |
+
+Controllers:
+
+| File | Working |
+| --- | --- |
+| `authController.js` | Register/login/email/profile/password logic. |
+| `documentController.js` | Document upload/link/list/view/update/share/regenerate logic. |
+| `quizController.js` | Quiz create/submit/analytics logic. |
+| `tutorController.js` | Tutor streaming/history logic. |
+| `adminController.js` | Admin users/content/settings/AI keys/usage logic. |
+| `billingController.js` | Billing status/order/payment/pricing logic. |
+| `shareController.js` | Public shared document logic. |
+
+Models:
+
+| File | Working |
+| --- | --- |
+| `User.js` | User, role, plan, usage, verification. |
+| `Document.js` | Documents, notes, flashcards, tags, share data. |
+| `Quiz.js` | Quiz questions. |
+| `QuizAttempt.js` | Quiz scores/answers. |
+| `ChatMessage.js` | Tutor chat history. |
+| `StudyActivity.js` | Daily activity/streak data. |
+| `Settings.js` | Admin settings and AI key pool. |
+| `PaymentEvent.js` | Payment records. |
+| `ApiUsage.js` | AI usage tracking. |
+| `AdminAuditLog.js` | Admin action logs. |
+
+Middleware:
+
+| File | Working |
+| --- | --- |
+| `auth.js` | JWT auth/admin checks. |
+| `upload.js` | PDF upload validation. |
+| `quota.js` | Plan quota checks. |
+| `aiRateLimit.js` | AI rate limit. |
+| `authRateLimit.js` | Login/password reset rate limits. |
+| `errorHandler.js` | 404 and central error handling. |
+
+Services:
+
+| File | Working |
+| --- | --- |
+| `gemini.js` | Gemini generation functions. |
+| `geminiHelpers.js` | Gemini errors, JSON parse, failover helpers. |
+| `generationOrchestrator.js` | Multi-step generation and retry. |
+| `keyBalancer.js` | Least-loaded AI key selection. |
+| `keyCrypto.js` | API key encryption/decryption. |
+| `linkExtractor.js` | Website/YouTube text extraction. |
+| `retrieval.js` | Cross-document context for Ask. |
+| `spacedRepetition.js` | Flashcard review scheduling. |
+| `studyStreak.js` | Streak/activity calculations. |
+| `planCatalog.js` | Plan catalog helpers. |
+| `planExpiry.js` | Plan expiry logic. |
+| `billingPricing.js` | Billing price/plan settings. |
+| `razorpay.js` | Razorpay helpers. |
+| `stripe.js` | Legacy Stripe helpers. |
+| `email.js` | Verification/password reset emails. |
+| `adminAudit.js` | Admin audit logging. |
+| `documentGeneration.js` | Document generation support. |
+
+Utils and scripts:
+
+| File | Working |
+| --- | --- |
+| `utils/textClean.js` | Text cleanup. |
+| `utils/parseNoteSections.js` | Markdown notes section parser. |
+| `utils/objectId.js` | Mongo ObjectId helpers. |
+| `utils/notesChunk.js` | Large notes chunk/merge helpers. |
+| `utils/documentTags.js` | Tag cleanup helpers. |
+| `utils/dateKey.js` | Local date/streak helpers. |
+| `scripts/seedData.js` | Seed admin/demo users. |
+
+## Database Collections
+
+- Users
+- Documents
+- Quizzes
+- Quiz attempts
+- Chat messages
+- Study activities
+- Settings
+- API usage
+- Payment events
+- Admin audit logs
+
+## Security
+
+- Passwords bcrypt se hash hote hain.
+- JWT sessions use hote hain.
+- Admin routes role-protected hain.
+- Helmet security headers enabled hain.
+- CORS only allowed frontend origins ko allow karta hai.
+- Auth/API/AI rate limits hain.
+- Plan quota middleware hai.
+- PDF upload validation hai.
+- Admin saved Gemini keys encrypted hain.
+- Central error handler use hota hai.
+
+## Razorpay Test Payment
+
+UPI:
+
+```text
+success@razorpay
+failure@razorpay
+```
+
+Cards:
+
+| Network | Card |
+| --- | --- |
+| Visa | `4111 1111 1111 1111` |
+| Mastercard | `5267 3181 8797 5449` |
+
+Expiry future date, CVV koi bhi 3 digits.
+
+## Common Problems
+
+Port busy:
+
+```powershell
+netstat -ano | findstr ":5000"
 taskkill /PID <PID> /F
 ```
 
-**MongoDB won't connect** — Atlas → Network Access → add your IP (or `0.0.0.0/0` for local dev only).
+MongoDB issue:
 
-**Gemini model not found** — change model in Admin → AI keys or `GEMINI_MODEL` in `.env`, then use **Test key**.
+- `MONGO_URI` check karein.
+- Atlas Network Access me apna IP allow karein.
+- Local MongoDB use kar rahe hain to service running honi chahiye.
 
-**429 / quota exceeded** — Free tier is ~20 requests/day per model. Wait for daily reset, switch to `gemini-2.0-flash`, enable billing at [ai.google.dev](https://ai.google.dev), or reduce **Test all keys** / upload frequency.
+Gemini issue:
 
-**Admin keys not showing / "Something went wrong"** — `ENCRYPTION_SECRET` may have changed. Delete unreadable keys in Admin → AI keys and re-add them, or restore the original secret.
+- `GEMINI_API_KEY` valid rakhein.
+- Admin panel me key test karein.
+- Quota exceed ho to wait karein ya different project/account key use karein.
 
-**YouTube link fails** — Use a real public video URL with captions. Placeholder URLs like `watch?v=example` will not work.
+Email issue:
 
-**Upload works in test but generate fails** — Check server logs for `[gemini] key … failed`. Failover should try env keys next; if all keys share one project's quota, all will fail until reset.
+- SMTP details check karein.
+- Gmail ke liye app password use karein.
 
-**Admin panel empty** — Log in with the admin account, not the demo user.
+Admin issue:
+
+- `npm run seed` run karein.
+- Admin account se login karein.
+
+Frontend API issue:
+
+- Backend running hai ya nahi check karein.
+- `CLIENT_URL` correct hai ya nahi check karein.
+- Production me `VITE_API_URL` set karein.
+
+## Deployment
+
+Backend on Render:
+
+- Config file: `render.yaml`
+- Root dir: `server`
+- Build: `npm install`
+- Start: `npm start`
+- Secrets Render dashboard me set karein.
+
+Frontend on Firebase:
+
+```bash
+npm run build --prefix client
+npm run deploy --prefix client
+```
+
+Production frontend env:
+
+```text
+VITE_API_URL=https://your-backend-domain.com/api
+```
+
+## First Time Setup Checklist
+
+1. Node.js 18+ install karein.
+2. MongoDB Atlas cluster ready karein.
+3. Gemini API key ready karein.
+4. `.env.example` copy karke `.env` banayein.
+5. `MONGO_URI`, `JWT_SECRET`, `ENCRYPTION_SECRET`, `GEMINI_API_KEY` fill karein.
+6. `npm run install:all` run karein.
+7. `npm run seed` run karein.
+8. `npm run dev` run karein.
+9. Browser me frontend URL open karein.
+10. Admin login karke AI key/settings test karein.
 
 ## Tests
 
-From `server/`:
+Server tests cover:
+
+- Plan limits and usage summary.
+- Spaced repetition.
+- Gemini error/failover/model fallback helpers.
+- Detail level and flashcard count helpers.
+- Large notes chunking.
+- Markdown note section parsing.
+- JSON extraction helpers.
+- Date/streak helpers.
+- Key balancer.
+- Generation retry helper.
+- Cross-document retrieval.
+
+Run:
 
 ```bash
-npm test
+npm test --prefix server
 ```
 
-Runs unit tests (Node's built-in test runner) for plans, spaced repetition, Gemini error/failover/model-fallback helpers, cross-document retrieval, and study-streak logic.
+## Short Flow
+
+```text
+Login/Register
+  -> Upload PDF/link
+  -> Backend extracts content
+  -> Gemini generates notes/flashcards/quiz/tutor answers
+  -> MongoDB stores data
+  -> Frontend shows study tools
+  -> Admin manages users, billing, usage, AI keys
+```

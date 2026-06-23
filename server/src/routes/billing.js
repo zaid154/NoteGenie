@@ -1,3 +1,5 @@
+// FLOW: Billing route map. /api/billing requests enter here, public/protected payment routes are separated, then billingController handles status/orders/webhooks.
+
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import {

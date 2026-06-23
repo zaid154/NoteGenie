@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: AI controllers and generationOrchestrator call this for notes, quizzes, flashcards, tutor, key tests, and models. Values come from env/admin Settings/key pool, prompts are sent to Gemini, parsed output returns to controllers/services, and usage is recorded.
+
 // Google Gemini AI — notes, quiz, flashcards, tutor. Multi-key pool with failover.
 // Uses the current @google/genai SDK. All SDK-shape differences are isolated in the
 // callModel / generateJson adapters and the tutorStream loop below.
@@ -719,3 +723,4 @@ function normalizeSource(source) {
 function outputLanguageInstruction(language = "English") {
   return `\nIMPORTANT: Write ALL generated text exclusively in ${language} (titles, summaries, notes, questions, flashcard text, and explanations). Even if the source is in another language, output must be in ${language}. Keep proper nouns from the source when appropriate.`;
 }
+

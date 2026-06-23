@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Browser starts here. It mounts React, wraps App with router/auth/theme/toast/confirm providers, and calls warmApi from api/client.js for production backend wakeup.
+
 // Yeh file app ka entry point hai. React yahin se start hota hai.
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -41,3 +45,4 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     </ThemeProvider>
   </React.StrictMode>
 );
+

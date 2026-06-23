@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: Document flashcard rating uses this scheduling helper. Card state plus user quality score come in, SM-2 updates interval/ease/repetition/nextReviewAt, then controller saves it to Document.
+
 // SM-2 spaced repetition algorithm for flashcards.
 export function sm2(card, quality) {
   // quality 0-5; below 3 = failed recall
@@ -28,3 +32,4 @@ export function initFlashcard(card) {
     nextReviewAt: card.nextReviewAt ?? new Date(),
   };
 }
+

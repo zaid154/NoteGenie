@@ -1,3 +1,5 @@
+// FLOW: Quiz Mongoose model. Controllers/services create and query this schema, MongoDB stores the fields, and API responses are built from these documents.
+
 // Quiz model = ek document se bana hua MCQ quiz (sawal + options).
 import mongoose from "mongoose";
 

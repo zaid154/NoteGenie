@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Parent page/layout renders this component (FlashcardUI). Data comes through props/context, UI events call callbacks or api/client.js helpers, and the result is displayed back in the parent flow.
+
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Spinner } from "./ui.jsx";
@@ -341,3 +345,4 @@ export function FlashcardSessionComplete({ title = "Review complete", subtitle }
     </div>
   );
 }
+

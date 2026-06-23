@@ -1,3 +1,5 @@
+// FLOW: Notes chunk helper. Source size values come from upload/link pipeline, this decides chunked generation and merges generated section notes.
+
 export const CHUNKED_SECTION_LIMIT = 5;
 export const CHUNKED_SECTION_CONCURRENCY = 2;
 export const CHUNKED_PDF_BYTES = 1_572_864; // 1.5 MB — only very large PDFs use multi-call chunked mode

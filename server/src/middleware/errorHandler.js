@@ -1,3 +1,5 @@
+// FLOW: Error middleware. Unmatched routes and thrown controller errors land here, then a safe JSON error response goes back to the client.
+
 import { formatGeminiError } from "../services/geminiHelpers.js";
 import { captureException } from "../config/observability.js";
 

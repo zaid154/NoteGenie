@@ -1,3 +1,5 @@
+// FLOW: Text cleanup helper. Raw source/generated text comes in, unsafe/noisy formatting is cleaned, and services store or send cleaner text.
+
 /** Plain text for flashcards — no markdown asterisks or backticks. */
 export function stripMarkdownInline(text) {
   return String(text || "")

@@ -1,3 +1,5 @@
+// FLOW: Settings Mongoose model. Controllers/services create and query this schema, MongoDB stores the fields, and API responses are built from these documents.
+
 import mongoose from "mongoose";
 import crypto from "crypto";
 import { encryptKey, decryptKey, tryDecryptKey } from "../services/keyCrypto.js";

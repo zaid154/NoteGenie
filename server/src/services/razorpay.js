@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: Billing controller uses this for Razorpay checkout. Keys come from config/env.js, amount comes from planCatalog, order/payment data goes to Razorpay, and signature verification confirms payment.
+
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import { env } from "../config/env.js";
@@ -59,3 +63,4 @@ export async function fetchOrder(orderId) {
 }
 
 export { resolveAmountForPlan as amountForPlan };
+

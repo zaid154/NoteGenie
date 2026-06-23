@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: App.jsx route renders this page (Ask). Values usually come from AuthContext, route params, local state, and api/client.js calls; processed state is shown through components and user actions are sent back to backend APIs.
+
 import { PageHeader } from "../components/ui.jsx";
 import TutorChat from "../components/TutorChat.jsx";
 
@@ -20,3 +24,4 @@ export default function Ask() {
     </div>
   );
 }
+

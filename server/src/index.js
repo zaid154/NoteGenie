@@ -1,3 +1,5 @@
+// FLOW: Server starts here. Values come from config/env.js, DB connects through config/db.js, middleware is attached, routes receive /api requests, and errors go to errorHandler.
+
 // Yeh server ka entry point hai. Express app banata hai, security/rate-limit lagata hai,
 // saare routes jodta hai, DB se connect karta hai aur server chalu karta hai.
 import express from "express";

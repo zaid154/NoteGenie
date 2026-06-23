@@ -1,3 +1,5 @@
+// FLOW: Notes parser. Markdown notes from Gemini/Document are split into sections, then mind map, flashcards, and section-scoped tutor logic can use them.
+
 export function slugifyHeading(title) {
   return String(title || "")
     .toLowerCase()

@@ -1,3 +1,5 @@
+// FLOW: ChatMessage Mongoose model. Controllers/services create and query this schema, MongoDB stores the fields, and API responses are built from these documents.
+
 import mongoose from "mongoose";
 
 const chatMessageSchema = new mongoose.Schema(

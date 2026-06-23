@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Text-to-speech hook. Text comes from pages/components, browser speechSynthesis speaks it in chunks, and play/pause/stop state returns to UI controls.
+
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // Split long text into short utterances. Short chunks dodge the well-known Chrome
@@ -135,3 +139,4 @@ export function useSpeech() {
     stop,
   };
 }
+

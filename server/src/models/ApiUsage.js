@@ -1,3 +1,5 @@
+// FLOW: ApiUsage Mongoose model. Controllers/services create and query this schema, MongoDB stores the fields, and API responses are built from these documents.
+
 // ApiUsage model = har AI call ka record (kis feature ne, kitne tokens, kitna cost).
 // Admin usage page isi data se banta hai.
 import mongoose from "mongoose";

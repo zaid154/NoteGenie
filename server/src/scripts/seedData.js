@@ -1,3 +1,5 @@
+// FLOW: Seed script. Env values provide admin/demo credentials, DB connects, default users/settings are created or updated, then local dev can log in.
+
 // Seed demo data — admin + user accounts and sample library content.
 // Run: npm run seed   (from project root or server folder)
 import dotenv from "dotenv";

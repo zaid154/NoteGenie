@@ -1,3 +1,5 @@
+// FLOW: Auth rate-limit middleware. Login/register/reset requests pass through these limiters first, repeated attempts are blocked before controller logic.
+
 import rateLimit from "express-rate-limit";
 import { env } from "../config/env.js";
 

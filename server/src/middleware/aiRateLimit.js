@@ -1,3 +1,5 @@
+// FLOW: AI rate-limit middleware. Request/user info comes in before AI routes, limits come from settings/env, and blocked requests stop before Gemini cost is spent.
+
 import { getAppSettings } from "../models/Settings.js";
 import { env } from "../config/env.js";
 

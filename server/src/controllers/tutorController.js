@@ -1,3 +1,5 @@
+// FLOW: Tutor API logic. Tutor routes send question/history/document ids here, this controller builds context, calls Gemini stream, saves ChatMessage, and streams response to UI.
+
 // Yeh file AI tutor chat ki request handle karti hai (purani chat + naya jawab stream karna).
 import { Document } from "../models/Document.js";
 import { ChatMessage } from "../models/ChatMessage.js";

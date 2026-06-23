@@ -1,3 +1,7 @@
+// FLOW: Server source file. Request/model/config values come in here, logic processes them, and the result goes back to controllers, services, database, or API response.
+
+// FLOW: Billing and admin plan changes use this to decide paid plan expiry. Plan duration comes from planCatalog, user plan fields are updated, and expired/paid status is returned to controllers.
+
 import { isPaidPlan as catalogIsPaidPlan, planDurationDays } from "./planCatalog.js";
 
 const PLAN_DAYS = 30;
@@ -30,3 +34,4 @@ export async function applyPlanExpiry(user) {
   }
   return user;
 }
+

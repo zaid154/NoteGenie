@@ -1,3 +1,5 @@
+// FLOW: Date helper. Services pass Date values here, helpers convert them into local day keys/weekday labels, and streak/activity code uses stable day strings.
+
 /** Local calendar date as YYYY-MM-DD (avoids UTC shift from toISOString). */
 export function localDateKey(date = new Date()) {
   const d = new Date(date);

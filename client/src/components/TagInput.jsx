@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Parent page/layout renders this component (TagInput). Data comes through props/context, UI events call callbacks or api/client.js helpers, and the result is displayed back in the parent flow.
+
 import { useState } from "react";
 
 const MAX_TAGS = 10;
@@ -25,7 +29,7 @@ export default function TagInput({ tags = [], onChange, disabled = false, placeh
             {tag}
             {!disabled && (
               <button type="button" className="text-muted hover:text-ink" onClick={() => removeTag(tag)} aria-label={`Remove ${tag}`}>
-                ×
+                Ã—
               </button>
             )}
           </span>
@@ -50,3 +54,4 @@ export default function TagInput({ tags = [], onChange, disabled = false, placeh
     </div>
   );
 }
+

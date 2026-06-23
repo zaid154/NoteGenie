@@ -1,3 +1,5 @@
+// FLOW: Upload middleware. Multipart PDF file comes from Upload page, multer validates/stores it in memory, then documentController receives req.file.
+
 import multer from "multer";
 
 // File ko disk pe save karne ke bajaye memory me rakhte hain (buffer),

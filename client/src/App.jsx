@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: React Router map lives here. Auth state comes from AuthContext, routes decide public/protected/admin access, then render page components inside Layout/AdminLayout.
+
 // Routing — all app pages including billing, legal, share.
 // Common entry points (Landing/Login/Register/Dashboard) are eager; heavier and
 // less-frequent routes are code-split via React.lazy to shrink the initial bundle.
@@ -172,3 +176,4 @@ export default function App() {
     </Suspense>
   );
 }
+

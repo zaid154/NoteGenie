@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Parent page/layout renders this component (Flashcards). Data comes through props/context, UI events call callbacks or api/client.js helpers, and the result is displayed back in the parent flow.
+
 import { useState } from "react";
 import { EmptyState, Spinner } from "./ui.jsx";
 import { IconCards, IconSparkles } from "./icons.jsx";
@@ -110,3 +114,4 @@ export default function Flashcards({
     />
   );
 }
+

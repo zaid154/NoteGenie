@@ -1,3 +1,5 @@
+// FLOW: Admin route map. /api/admin requests enter here, auth/admin middleware checks access, then requests are forwarded to adminController functions.
+
 // Admin routes: /api/admin/... — sirf admin role wale user ke liye.
 import { Router } from "express";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";

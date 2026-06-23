@@ -1,3 +1,5 @@
+// FLOW: Admin API logic. Admin routes send req/user/body/query here, this controller reads models/settings/services, writes admin changes, logs actions, and returns JSON to admin pages.
+
 // Admin area: stats, users, documents, AI settings, usage, key pool.
 import crypto from "crypto";
 import { User } from "../models/User.js";

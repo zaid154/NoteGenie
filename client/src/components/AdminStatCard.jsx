@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Parent page/layout renders this component (AdminStatCard). Data comes through props/context, UI events call callbacks or api/client.js helpers, and the result is displayed back in the parent flow.
+
 // Ek chhota card jo admin pages pe ek number/stat dikhata hai (icon + color ke saath).
 // Example: "Total Users: 120"
 export default function AdminStatCard({ icon: Icon, label, value, sub, accent = "brand" }) {
@@ -39,3 +43,4 @@ export function formatTokens(n) {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 }
+

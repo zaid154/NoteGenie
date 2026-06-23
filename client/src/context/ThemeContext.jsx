@@ -1,3 +1,7 @@
+// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+
+// FLOW: Theme provider. Saved theme comes from localStorage/system preference, class is applied to document, and components read/toggle it through useTheme().
+
 // Yeh file light/dark theme handle karti hai.
 import { createContext, useContext, useEffect, useState } from "react";
 
@@ -37,3 +41,4 @@ export function useTheme() {
   }
   return ctx;
 }
+
