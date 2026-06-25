@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node -e \"const {Type}=require\\('@google/genai'\\); console.log\\('Type:', JSON.stringify\\(Type\\)\\);\")"
+      "Bash(node -e \"const {Type}=require\\('@google/genai'\\); console.log\\('Type:', JSON.stringify\\(Type\\)\\);\")",
+      "PowerShell(npm run build --prefix client 2>&1)",
+      "PowerShell($base=\"c:\\\\Users\\\\LENOVO\\\\Desktop\\\\Zaid Project\\\\NoteGenie\\\\server\\\\src\"; foreach\\($f in @\\(\"config\\\\sampleDocument.js\",\"controllers\\\\documentController.js\",\"routes\\\\documents.js\"\\)\\){ node --check \"$base\\\\$f\"; if\\($?\\){ Write-Output \"OK: $f\" } })"
     ]
   }
 }

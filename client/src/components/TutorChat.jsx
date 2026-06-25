@@ -6,10 +6,12 @@
 // Khaas baat: jawab "streaming" me aata hai (thoda-thoda kar ke, jaise typing).
 import { useState, useRef, useEffect } from "react";
 import { api, apiUrl, getToken, apiError } from "../api/client.js";
-import { IconSend, IconChat, IconTrash } from "./icons.jsx";
+import { IconSend, IconChat, IconTrash, IconMic, IconHeadphones } from "./icons.jsx";
 import { Spinner } from "./ui.jsx";
 import MarkdownContent from "./MarkdownContent.jsx";
 import { useConfirm } from "../context/ConfirmContext.jsx";
+import { useSpeech } from "../hooks/useSpeech.js";
+import { markdownToPlainText } from "../utils/textClean.js";
 
 export default function TutorChat({
   documentId,
@@ -29,6 +31,52 @@ export default function TutorChat({
   const [historyError, setHistoryError] = useState("");
   const [clearing, setClearing] = useState(false);  const scrollRef = useRef(null);   // chat ko apne aap neeche scroll karne ke liye
   const abortRef = useRef(null);    // chalu request ko beech me rokne ke liye
+
+  // Voice output: read assistant replies aloud (uses the browser TTS hook).
+  const { supported: ttsSupported, speaking, play: speak, stop: stopSpeak } = useSpeech();
+  const [autoSpeak, setAutoSpeak] = useState(false);
+  const autoSpeakRef = useRef(false);
+  autoSpeakRef.current = autoSpeak;
+
+  // Voice input: dictate the question via the Web Speech Recognition API.
+  const [sttSupported] = useState(
+    () => typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
+  );
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  function stopListening() {
+    try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+    recognitionRef.current = null;
+    setListening(false);
+  }
+
+  function toggleListen() {
+    if (!sttSupported || streaming) return;
+    if (listening) { stopListening(); return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SR();
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.onresult = (e) => {
+      let text = "";
+      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+      setInput(text);
+    };
+    rec.onend = () => { recognitionRef.current = null; setListening(false); };
+    rec.onerror = () => { recognitionRef.current = null; setListening(false); };
+    recognitionRef.current = rec;
+    setListening(true);
+    try { rec.start(); } catch { setListening(false); }
+  }
+
+  function toggleAutoSpeak() {
+    setAutoSpeak((prev) => {
+      const next = !prev;
+      if (!next) stopSpeak();
+      return next;
+    });
+  }
 
   useEffect(() => {
     let ignore = false;
@@ -54,9 +102,12 @@ export default function TutorChat({
 
     return () => {
       ignore = true;
-      // Document change/unmount par chalu stream cancel.
+      // Document change/unmount par chalu stream + voice cancel.
       abortRef.current?.abort();
+      stopListening();
+      stopSpeak();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base]);
 
   // Jab bhi naya message aaye, chat ko sabse neeche scroll kar do.
@@ -73,7 +124,10 @@ export default function TutorChat({
     setMessages((m) => [...m, { role: "user", content: question }, { role: "assistant", content: "" }]);
     setInput("");
     setStreaming(true);
+    stopListening();
+    if (ttsSupported) stopSpeak();
 
+    let acc = "";
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -109,6 +163,7 @@ export default function TutorChat({
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
+        acc += chunk;
         // Aakhri (assistant) message me chunk add karte jao.
         setMessages((m) => {
           const copy = [...m];
@@ -119,6 +174,8 @@ export default function TutorChat({
           return copy;
         });
       }
+      // Auto-speak the finished reply if voice output is enabled.
+      if (autoSpeakRef.current && acc.trim()) speak(markdownToPlainText(acc));
     } catch (err) {
       // Abort (document change/unmount) par UI update mat karo.
       if (err.name === "AbortError") return;
@@ -159,17 +216,35 @@ export default function TutorChat({
 
   return (
     <div className="flex min-h-[32rem] flex-col lg:min-h-[calc(100vh-22rem)]">
-      {messages.length > 0 && (
-        <div className="mb-2 flex justify-end">
-          <button
-            type="button"
-            onClick={clearChat}
-            disabled={streaming || clearing}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:underline dark:text-red-400"
-          >
-            {clearing ? <Spinner size={12} /> : <IconTrash width={14} height={14} />}
-            Clear chat
-          </button>
+      {(ttsSupported || messages.length > 0) && (
+        <div className="mb-2 flex items-center justify-between gap-2">
+          {ttsSupported ? (
+            <button
+              type="button"
+              onClick={toggleAutoSpeak}
+              aria-pressed={autoSpeak}
+              className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                autoSpeak ? "text-accent-600 dark:text-accent-400" : "text-muted hover:text-ink"
+              }`}
+              title="Read tutor answers aloud"
+            >
+              <IconHeadphones width={14} height={14} />
+              {autoSpeak ? (speaking ? "Speaking…" : "Voice on") : "Voice off"}
+            </button>
+          ) : (
+            <span />
+          )}
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={clearChat}
+              disabled={streaming || clearing}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+            >
+              {clearing ? <Spinner size={12} /> : <IconTrash width={14} height={14} />}
+              Clear chat
+            </button>
+          )}
         </div>
       )}
       <div ref={scrollRef} className="chat-scroll flex-1 space-y-4 overflow-y-auto p-1">
@@ -179,7 +254,7 @@ export default function TutorChat({
           </div>
         ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center text-muted">
-            <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+            <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400">
               <IconChat />
             </span>
             <p className="font-500 text-ink">{emptyTitle}</p>
@@ -194,7 +269,7 @@ export default function TutorChat({
               <div
                 className={`rounded-2xl px-4 py-2.5 text-sm ${
                   m.role === "user"
-                    ? "max-w-[85%] whitespace-pre-wrap bg-indigo-600 text-white"
+                    ? "max-w-[85%] whitespace-pre-wrap bg-accent-600 text-white"
                     : "max-w-[92%] border border-line bg-white text-ink shadow-sm lg:max-w-[85%]"
                 }`}
               >
@@ -216,7 +291,7 @@ export default function TutorChat({
           <p className="text-xs text-red-500">{historyError}</p>
           <button
             type="button"
-            className="text-xs font-500 text-indigo-600 hover:underline dark:text-indigo-400"
+            className="text-xs font-500 text-accent-600 hover:underline dark:text-accent-400"
             onClick={() => {
               setHistoryError("");
               setLoadingHistory(true);
@@ -242,9 +317,22 @@ export default function TutorChat({
           className="input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your question..."
+          placeholder={listening ? "Listening… speak now" : placeholder}
           disabled={streaming}
         />
+        {sttSupported && (
+          <button
+            type="button"
+            onClick={toggleListen}
+            disabled={streaming}
+            aria-pressed={listening}
+            aria-label={listening ? "Stop dictation" : "Dictate your question"}
+            title={listening ? "Stop dictation" : "Dictate your question"}
+            className={`btn-ghost rounded-lg p-2.5 ${listening ? "animate-pulse text-red-600 dark:text-red-400" : "text-muted hover:text-ink"}`}
+          >
+            <IconMic width={18} height={18} />
+          </button>
+        )}
         <button
           className="btn-primary px-3"
           disabled={streaming || !input.trim()}

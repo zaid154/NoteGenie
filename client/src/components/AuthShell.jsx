@@ -17,7 +17,7 @@ export default function AuthShell({ children }) {
     <div className="relative grid min-h-screen lg:grid-cols-2">
       <div className="mesh-bg" aria-hidden="true" />
 
-      <div className="relative hidden flex-col justify-between bg-gradient-to-br from-indigo-600 to-indigo-800 p-12 text-white lg:flex">
+      <div className="relative hidden flex-col justify-between bg-gradient-to-br from-accent-600 to-accent-800 p-12 text-white lg:flex">
         <Logo variant="light" />
         <div>
           <h2 className="text-3xl font-semibold leading-snug text-white/95">

@@ -102,7 +102,7 @@ export default function Review() {
             type="button"
             onClick={toggleListen}
             aria-pressed={listen}
-            className={`btn-outline text-sm ${listen ? "border-indigo-300 text-indigo-600 dark:text-indigo-400" : ""}`}
+            className={`btn-outline text-sm ${listen ? "border-accent-300 text-accent-600 dark:text-accent-400" : ""}`}
           >
             <IconHeadphones width={16} height={16} />
             {listen ? "Hands-free on" : "Hands-free"}

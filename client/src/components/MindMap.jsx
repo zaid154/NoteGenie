@@ -182,7 +182,7 @@ export default function MindMap({ title, notes }) {
                       type="button"
                       onClick={() => toggleBranch(node.slug)}
                       title={collapsed.has(node.slug) ? "Expand" : "Collapse"}
-                      className="flex h-full w-full items-center justify-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-2 text-center text-xs font-semibold text-indigo-700 shadow-sm transition hover:border-indigo-400 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300"
+                      className="flex h-full w-full items-center justify-center gap-1 rounded-xl border border-accent-200 bg-accent-50 px-2 text-center text-xs font-semibold text-accent-700 shadow-sm transition hover:border-accent-400 dark:border-accent-900 dark:bg-accent-950/60 dark:text-accent-300"
                     >
                       <span className="line-clamp-2">{node.label}</span>
                       {node.count > 0 && (
@@ -192,7 +192,7 @@ export default function MindMap({ title, notes }) {
                       )}
                     </button>
                   ) : node.kind === "root" ? (
-                    <div className="flex h-full w-full items-center justify-center rounded-xl border border-indigo-500 bg-indigo-600 px-2 text-center text-sm font-bold text-white shadow">
+                    <div className="flex h-full w-full items-center justify-center rounded-xl border border-accent-500 bg-accent-600 px-2 text-center text-sm font-bold text-white shadow">
                       <span className="line-clamp-2">{node.label}</span>
                     </div>
                   ) : (

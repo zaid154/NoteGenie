@@ -7,14 +7,15 @@ import { Link, useParams } from "react-router-dom";
 import MarkdownContent from "../components/MarkdownContent.jsx";
 import { api, apiError } from "../api/client.js";
 import { PageLoader, Alert, Badge, EmptyState } from "../components/ui.jsx";
+import { sourceMeta } from "../utils/sourceMeta.jsx";
 import Logo from "../components/Logo.jsx";
 import { StaggerContainer, StaggerItem } from "../components/motion.jsx";
 import { IconCards } from "../components/icons.jsx";
 
 function FlashcardPreview({ card }) {
   return (
-    <div className="group relative min-h-[120px] rounded-xl border border-line bg-gradient-to-br from-surface to-indigo-50/30 p-4 shadow-sm transition hover:border-indigo-200 dark:from-surface dark:to-indigo-950/20">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600">Question</p>
+    <div className="group relative min-h-[120px] rounded-xl border border-line bg-gradient-to-br from-surface to-accent-50/30 p-4 shadow-sm transition hover:border-accent-200 dark:from-surface dark:to-accent-950/20">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-accent-600">Question</p>
       <p className="mt-2 text-sm font-medium leading-relaxed text-ink">{card.front}</p>
       <div className="mt-4 border-t border-line pt-3">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Answer</p>
@@ -71,9 +72,7 @@ export default function ShareView() {
           <StaggerItem>
             <article className="panel p-8">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge color={doc.sourceType === "pdf" ? "brand" : "blue"}>
-                  {doc.sourceType === "pdf" ? "PDF" : "Link"}
-                </Badge>
+                <Badge color={sourceMeta(doc.sourceType).badge}>{sourceMeta(doc.sourceType).label}</Badge>
                 <span className="text-xs text-muted">Shared material</span>
               </div>
               <h1 className="mt-3 text-2xl font-semibold text-ink">{doc.title}</h1>
@@ -87,7 +86,7 @@ export default function ShareView() {
               <div className="panel p-6">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <IconCards width={18} height={18} className="text-indigo-600" />
+                    <IconCards width={18} height={18} className="text-accent-600" />
                     <h2 className="font-semibold text-ink">{doc.flashcards.length} flashcards</h2>
                   </div>
                   <button type="button" className="btn-outline text-sm" onClick={() => setShowCards((s) => !s)}>
@@ -106,7 +105,7 @@ export default function ShareView() {
           )}
 
           <StaggerItem>
-            <div className="cta-glow rounded-xl border border-indigo-100 bg-indigo-50/50 px-6 py-8 text-center dark:border-indigo-900 dark:bg-indigo-950/30">
+            <div className="cta-glow rounded-xl border border-accent-100 bg-accent-50/50 px-6 py-8 text-center dark:border-accent-900 dark:bg-accent-950/30">
               <p className="text-sm text-muted">Want your own study kits?</p>
               <Link to="/register" className="btn-primary mt-4 inline-flex">
                 Sign up free

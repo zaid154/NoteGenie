@@ -11,6 +11,7 @@ import { recordStudyActivity, getRecentActivity, currentStreakValue } from "../s
 import { normalizeOutputLanguage } from "../config/languages.js";
 import { localDateKey, weekdayShort } from "../utils/dateKey.js";
 import { assertValidObjectId } from "../utils/objectId.js";
+import { findReadableDocument } from "../services/workspaceAccess.js";
 
 // Document ke content se ek naya quiz generate karta hai.
 // POST /api/quiz/document/:documentId   body: { difficulty, count }
@@ -39,10 +40,7 @@ export const createQuiz = asyncHandler(async (req, res) => {
   const requested = Number(req.body.count) || 5;
   const count = Math.min(25, Math.max(3, Math.round(requested)));
 
-  const doc = await Document.findOne({
-    _id: req.params.documentId,
-    userId: req.user._id,
-  });
+  const doc = await findReadableDocument(req.params.documentId, req.user);
   if (!doc) return res.status(404).json({ message: "Document not found" });
 
   const questions = await generateQuiz(doc.sourceText || doc.notes, {

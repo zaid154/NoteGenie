@@ -59,6 +59,30 @@ const settingsSchema = new mongoose.Schema(
     customPlans: { type: [customPlanSchema], default: [] },
     aiRateLimitMax: { type: Number, default: null },
     aiRateLimitWindowMinutes: { type: Number, default: null },
+    // Master switch for all AI generation (notes, assignment, guess, quiz, tutor,
+    // flashcards). Admin can turn AI off when the free API is unreliable; non-AI
+    // features (viewing, review, browsing) keep working.
+    aiEnabled: { type: Boolean, default: true },
+    // Public storefront content (utility bar, hero, contact). Exposed via
+    // GET /api/catalog/storefront; editable in Admin → Settings → Storefront.
+    storefront: {
+      type: new mongoose.Schema(
+        {
+          utilityBarText: { type: String, default: "" },
+          whatsappNumber: { type: String, default: "" },
+          supportEmail: { type: String, default: "" },
+          heroTitle: { type: String, default: "" },
+          heroSubtitle: { type: String, default: "" },
+          heroBannerUrl: { type: String, default: "" },
+          instagram: { type: String, default: "" },
+          facebook: { type: String, default: "" },
+          youtube: { type: String, default: "" },
+          telegram: { type: String, default: "" },
+        },
+        { _id: false }
+      ),
+      default: () => ({}),
+    },
   },
   { timestamps: true }
 );

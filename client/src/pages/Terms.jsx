@@ -33,7 +33,7 @@ export default function Terms() {
           source material.
         </p>
         <p className="not-prose mt-8">
-          <Link to="/privacy" className="text-indigo-600 underline dark:text-indigo-400">
+          <Link to="/privacy" className="text-accent-600 underline dark:text-accent-400">
             Privacy Policy
           </Link>
         </p>

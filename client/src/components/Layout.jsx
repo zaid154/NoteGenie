@@ -6,17 +6,16 @@ import { useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useTheme } from "../context/ThemeContext.jsx";
 import EmailVerificationBanner from "./EmailVerificationBanner.jsx";
 import CommandPalette from "./CommandPalette.jsx";
+import InstallButton from "./InstallButton.jsx";
+import ThemePicker from "./ThemePicker.jsx";
 import Logo from "./Logo.jsx";
 import { PageTransition, DrawerPanel } from "./motion.jsx";
 import {
   IconHome,
   IconUpload,
   IconChart,
-  IconSun,
-  IconMoon,
   IconLogout,
   IconMenu,
   IconX,
@@ -26,13 +25,18 @@ import {
   IconCoins,
   IconChat,
   IconSearch,
+  IconLayers,
+  IconDownload,
 } from "./icons.jsx";
 
 const navItems = [
   { to: "/app", label: "Library", icon: IconHome, end: true },
   { to: "/upload", label: "Upload", icon: IconUpload },
+  { to: "/store", label: "Store", icon: IconLayers },
+  { to: "/my-downloads", label: "My downloads", icon: IconDownload },
   { to: "/ask", label: "Ask AI", icon: IconChat },
   { to: "/analytics", label: "Analytics", icon: IconChart },
+  { to: "/workspaces", label: "Workspaces", icon: IconUsers },
   { to: "/billing", label: "Billing", icon: IconCoins },
   { to: "/profile", label: "Profile", icon: IconUsers },
 ];
@@ -56,7 +60,6 @@ function NavItem({ to, label, icon: Icon, end, onClick }) {
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -83,8 +86,13 @@ export default function Layout({ children }) {
             onClick={() => setMobileOpen(false)}
           />
         ))}
-        {user?.role === "admin" && (
-          <NavItem to="/admin" label="Admin" icon={IconShield} onClick={() => setMobileOpen(false)} />
+        {(user?.role === "admin" || user?.role === "staff") && (
+          <NavItem
+            to="/admin"
+            label={user?.role === "admin" ? "Admin" : "Staff"}
+            icon={IconShield}
+            onClick={() => setMobileOpen(false)}
+          />
         )}
       </nav>
 
@@ -93,23 +101,21 @@ export default function Layout({ children }) {
           <button
             type="button"
             onClick={() => navigate("/pricing")}
-            className="mb-2 w-full rounded-xl bg-indigo-50 p-3 text-left transition hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-950/60"
+            className="mb-2 w-full rounded-xl bg-accent-50 p-3 text-left transition hover:bg-accent-100 dark:bg-accent-950/40 dark:hover:bg-accent-950/60"
           >
             <div className="flex items-center gap-3">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-indigo-600 text-white">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent-600 text-white">
                 <IconSparkles width={16} height={16} />
               </span>
               <div className="min-w-0">
-                <span className="block text-xs font-semibold text-indigo-700 dark:text-indigo-300">Free plan</span>
+                <span className="block text-xs font-semibold text-accent-700 dark:text-accent-300">Free plan</span>
                 <span className="block text-xs text-muted">Upgrade for more uploads</span>
               </div>
             </div>
           </button>
         )}
-        <button onClick={toggleTheme} className="nav-item-idle w-full">
-          {theme === "dark" ? <IconSun width={18} height={18} /> : <IconMoon width={18} height={18} />}
-          {theme === "dark" ? "Light mode" : "Dark mode"}
-        </button>
+        <div className="px-1 pb-1"><ThemePicker /></div>
+        <InstallButton className="nav-item-idle w-full" />
         <button onClick={handleLogout} className="nav-item-idle w-full text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30">
           <IconLogout width={18} height={18} />
           Sign out
@@ -162,9 +168,9 @@ export default function Layout({ children }) {
             </button>
             <div className="flex items-center gap-2.5">
               {user?.avatar ? (
-                <img src={user.avatar} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-indigo-100 dark:ring-indigo-900" />
+                <img src={user.avatar} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-accent-100 dark:ring-accent-900" />
               ) : (
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 ring-2 ring-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:ring-indigo-900">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-accent-100 text-xs font-bold text-accent-700 ring-2 ring-accent-100 dark:bg-accent-950 dark:text-accent-300 dark:ring-accent-900">
                   {user?.name?.[0]?.toUpperCase()}
                 </span>
               )}
@@ -208,12 +214,12 @@ export default function Layout({ children }) {
                 {isActive && (
                   <motion.span
                     layoutId="mobileNavIndicator"
-                    className="absolute inset-x-2 -top-1.5 h-0.5 rounded-full bg-indigo-600"
+                    className="absolute inset-x-2 -top-1.5 h-0.5 rounded-full bg-accent-600"
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 )}
-                <Icon width={20} height={20} className={isActive ? "text-indigo-600" : "text-muted"} />
-                <span className={isActive ? "text-indigo-600" : "text-muted"}>{label}</span>
+                <Icon width={20} height={20} className={isActive ? "text-accent-600" : "text-muted"} />
+                <span className={isActive ? "text-accent-600" : "text-muted"}>{label}</span>
               </>
             )}
           </NavLink>

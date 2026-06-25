@@ -43,7 +43,21 @@ const SECTIONS = {
   keys: { title: "AI keys", subtitle: "Gemini API key pool, model selection, and failover." },
   audit: { title: "Audit log", subtitle: "Admin actions across the platform." },
   "rate-limit": { title: "Rate limits", subtitle: "AI generation limits per user." },
+  storefront: { title: "Storefront", subtitle: "Public store: utility bar, WhatsApp, hero & socials." },
 };
+
+const STOREFRONT_FIELDS = [
+  ["utilityBarText", "Utility bar text", "India's #1 study material store"],
+  ["whatsappNumber", "WhatsApp number (e.g. 9193…)", "919350849407"],
+  ["supportEmail", "Support email", "support@example.com"],
+  ["heroTitle", "Hero title", "Solved assignments, papers & books"],
+  ["heroSubtitle", "Hero subtitle", "Everything you need to score better"],
+  ["heroBannerUrl", "Hero banner image URL", "https://…"],
+  ["instagram", "Instagram URL", ""],
+  ["facebook", "Facebook URL", ""],
+  ["youtube", "YouTube URL", ""],
+  ["telegram", "Telegram URL", ""],
+];
 
 export default function AdminSettings() {
   const { section: sectionParam = "keys" } = useParams();
@@ -68,6 +82,10 @@ export default function AdminSettings() {
   const [aiRateLimitMax, setAiRateLimitMax] = useState("120");
   const [aiRateLimitWindowMinutes, setAiRateLimitWindowMinutes] = useState("15");
   const [savingRateLimit, setSavingRateLimit] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [togglingAi, setTogglingAi] = useState(false);
+  const [storefront, setStorefront] = useState({});
+  const [savingStore, setSavingStore] = useState(false);
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditPage, setAuditPage] = useState(1);
   const [auditTotalPages, setAuditTotalPages] = useState(1);
@@ -86,6 +104,8 @@ export default function AdminSettings() {
       if (data.defaultPricing) setDefaultPricing(data.defaultPricing);
       setAiRateLimitMax(String(data.aiRateLimitMax ?? 120));
       setAiRateLimitWindowMinutes(String(data.aiRateLimitWindowMinutes ?? 15));
+      setAiEnabled(data.aiEnabled !== false);
+      setStorefront(data.storefront || {});
       if (data.hasApiKey) {
         try {
           const m = await api.get("/admin/models");
@@ -154,6 +174,36 @@ export default function AdminSettings() {
       setError(apiError(err));
     } finally {
       setSavingRateLimit(false);
+    }
+  }
+
+  async function toggleAi(next) {
+    setTogglingAi(true);
+    setError("");
+    setSuccess("");
+    try {
+      await api.put("/admin/settings", { aiEnabled: next });
+      setAiEnabled(next);
+      setSuccess(next ? "AI features enabled for everyone." : "AI features turned off for students (admins/staff can still use them).");
+    } catch (e) {
+      setError(apiError(e));
+    } finally {
+      setTogglingAi(false);
+    }
+  }
+
+  async function handleSaveStorefront(e) {
+    e.preventDefault();
+    setSavingStore(true);
+    setError("");
+    setSuccess("");
+    try {
+      await api.put("/admin/settings", { storefront });
+      setSuccess("Storefront settings saved.");
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setSavingStore(false);
     }
   }
 
@@ -352,8 +402,60 @@ export default function AdminSettings() {
             </div>
           </form>
         </>
+      ) : section === "storefront" ? (
+        <>
+          {error && <Alert>{error}</Alert>}
+          {success && <Alert type="success">{success}</Alert>}
+          <form onSubmit={handleSaveStorefront} className="card space-y-4 p-6">
+            <SectionTitle>Public storefront</SectionTitle>
+            <p className="text-sm text-muted">
+              These appear on the public /store pages (utility bar, hero, WhatsApp & social links).
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {STOREFRONT_FIELDS.map(([key, label, ph]) => (
+                <div key={key}>
+                  <label className="label" htmlFor={`sf-${key}`}>{label}</label>
+                  <input
+                    id={`sf-${key}`}
+                    className="input"
+                    placeholder={ph}
+                    value={storefront[key] || ""}
+                    onChange={(e) => setStorefront((s) => ({ ...s, [key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+            <button type="submit" className="btn-primary" disabled={savingStore}>
+              {savingStore ? <Spinner /> : "Save storefront"}
+            </button>
+          </form>
+        </>
       ) : (
       <>
+      <div className={`card mb-5 flex flex-wrap items-center justify-between gap-4 p-5 ${aiEnabled ? "" : "border-amber-300 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30"}`}>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <SectionTitle>AI features</SectionTitle>
+            <Badge color={aiEnabled ? "green" : "amber"}>{aiEnabled ? "ON" : "OFF"}</Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            Master switch for all AI generation (notes, assignment, guess paper, quiz, tutor, flashcards).
+            Turn OFF when the free API is unreliable — students see a friendly message, everything else keeps working.
+            Admins &amp; staff can still use AI while it&apos;s off.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={aiEnabled}
+          disabled={togglingAi}
+          onClick={() => toggleAi(!aiEnabled)}
+          className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${aiEnabled ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"} ${togglingAi ? "opacity-60" : ""}`}
+        >
+          <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${aiEnabled ? "translate-x-6" : "translate-x-1"}`} />
+        </button>
+      </div>
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-stone-800/10 text-stone-700">

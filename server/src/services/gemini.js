@@ -240,6 +240,44 @@ export function pdfPart(buffer) {
   };
 }
 
+// Generic inline part for any media Gemini reads natively: images (OCR),
+// audio + video (transcription/understanding). mimeType must be the real type.
+export function mediaPart(buffer, mimeType) {
+  return {
+    inlineData: { data: buffer.toString("base64"), mimeType },
+  };
+}
+
+// --- Embeddings (Vector RAG) ------------------------------------------------
+// text-embedding-004 outputs 768-dim vectors. Uses the same key pool + failover.
+export const EMBEDDING_MODEL = "text-embedding-004";
+export const EMBEDDING_DIM = 768;
+
+/**
+ * Embed one or many texts. Returns an array of number[] vectors aligned to input.
+ * Throws if AI isn't configured / all keys fail (callers treat this as non-fatal).
+ */
+export async function embedTexts(texts, { preferredKeyId } = {}) {
+  const list = (Array.isArray(texts) ? texts : [texts])
+    .map((t) => String(t || "").trim().slice(0, 8000))
+    .filter(Boolean);
+  if (!list.length) return [];
+
+  const { vectors } = await withKeyFailover(
+    async ({ ai }) => {
+      const resp = await ai.models.embedContent({
+        model: EMBEDDING_MODEL,
+        contents: list,
+      });
+      const out = (resp?.embeddings || []).map((e) => e?.values || e?.value || []);
+      return { vectors: out };
+    },
+    { preferredKeyId, overrides: { model: EMBEDDING_MODEL } }
+  );
+
+  return vectors;
+}
+
 // --- @google/genai adapters -------------------------------------------------
 // One call into the SDK. Returns the raw GenerateContentResponse (response.text
 // getter, response.usageMetadata, response.candidates[].finishReason).
@@ -590,6 +628,107 @@ export async function generateNotesWithMode(source, meta = {}) {
 
   const result = await generateNotes(source, meta);
   return { ...result, generationMode: "single" };
+}
+
+// IGNOU / distance-learning solved assignment. The source is the assignment
+// QUESTION paper (PDF/image/text); we answer every question exam-style and return
+// the result shaped like notes (title/summary/notes/sourceExcerpt) so it reuses the
+// Document model, viewer, sharing, and RAG with zero extra plumbing.
+export async function generateAssignment(source, meta = {}) {
+  const language = meta.language || "English";
+  const wordLimit = Number(meta.wordLimit) || 0;
+  const courseCode = String(meta.courseCode || "").trim();
+
+  const config = {
+    maxOutputTokens: 16384,
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.OBJECT,
+      properties: {
+        title: { type: Type.STRING },
+        summary: { type: Type.STRING },
+        notes: { type: Type.STRING },
+        sourceExcerpt: { type: Type.STRING },
+      },
+      required: ["title", "summary", "notes", "sourceExcerpt"],
+    },
+  };
+
+  const lengthRule =
+    wordLimit > 0
+      ? `Write approximately ${wordLimit} words per question (respect the IGNOU word limit) — do not pad with filler.`
+      : `Match each answer's length to its marks: ~250-300 words for short questions, ~500-600 words for long/essay questions.`;
+
+  const courseLine = courseCode ? `This assignment is for IGNOU course ${courseCode}. ` : "";
+
+  const prompt = `You are an expert IGNOU assignment writer. ${courseLine}The provided content is an IGNOU assignment QUESTION paper — it lists numbered questions, often with parts (a), (b), (c) and marks.
+Write a complete, well-structured SOLVED ASSIGNMENT that answers EVERY question.
+Return JSON with:
+- "title": a short title, e.g. "${courseCode ? courseCode + " — " : ""}Solved Assignment".
+- "summary": a 1-2 sentence plain-text overview of what the assignment covers (no markdown).
+- "notes": the full solved assignment in GitHub-flavored Markdown. For EACH question:
+  - Begin with a "## Q1." heading that restates the question concisely.
+  - Then write a clear, academic answer in your own words. Use short paragraphs, **bold** key terms, bullet lists, and examples where useful.
+  - Answer every sub-part (a, b, c) under its question heading.
+  - ${lengthRule}
+- "sourceExcerpt": the list of questions as plain text (no markdown), up to 4000 characters, for reference.
+Answer accurately and originally — do NOT copy long verbatim passages. If a question asks for a diagram, describe it clearly in words.${outputLanguageInstruction(language)}`;
+
+  const contents = [{ text: prompt }, normalizeSource(source)];
+  const out = await withKeyFailover(
+    async ({ ai, modelName }) => generateJson(ai, { model: modelName, contents, config }),
+    { preferredKeyId: meta.preferredKeyId }
+  );
+
+  await recordUsage({ ...meta, feature: "assignment", keyId: out.keyId }, out.modelName, out.response.usageMetadata);
+  return out.parsed;
+}
+
+// Guess paper / important questions. From the study material (or syllabus), produce
+// the most exam-likely questions with model answers, ranked by importance — the
+// "Important Guess Questions" product students pay for. Same output shape as notes so
+// it reuses the Document model, viewer, sharing, and RAG.
+export async function generateGuessPaper(source, meta = {}) {
+  const language = meta.language || "English";
+  const count = Math.min(Math.max(Number(meta.count) || 12, 5), 30);
+  const courseCode = String(meta.courseCode || "").trim();
+
+  const config = {
+    maxOutputTokens: 16384,
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.OBJECT,
+      properties: {
+        title: { type: Type.STRING },
+        summary: { type: Type.STRING },
+        notes: { type: Type.STRING },
+        sourceExcerpt: { type: Type.STRING },
+      },
+      required: ["title", "summary", "notes", "sourceExcerpt"],
+    },
+  };
+
+  const courseLine = courseCode ? `This is for the course ${courseCode}. ` : "";
+
+  const prompt = `You are an expert exam coach who predicts which questions are most likely to appear in the term-end exam. ${courseLine}Read the provided study material / syllabus and produce a GUESS PAPER of the ${count} most important, most exam-likely questions, each with a model answer.
+Return JSON with:
+- "title": a short title, e.g. "${courseCode ? courseCode + " — " : ""}Important Questions (Guess Paper)".
+- "summary": a 1-2 sentence plain-text note on how to use this guess paper (no markdown).
+- "notes": GitHub-flavored Markdown. Order questions from MOST to least likely. For EACH question:
+  - A "## Q1." heading with the question.
+  - An "**Importance:** High/Medium" line and an estimated marks hint if inferable.
+  - A clear, exam-ready model answer (concise but complete) using short paragraphs, **bold** key terms, and bullet points.
+- "sourceExcerpt": the bare list of the questions as plain text (no markdown), up to 4000 characters.
+Focus on the topics most likely to be tested (definitions, comparisons, frequently-examined concepts, numericals). Cover the breadth of the syllabus — do not cluster all questions on one topic.${outputLanguageInstruction(language)}`;
+
+  const contents = [{ text: prompt }, normalizeSource(source)];
+  const out = await withKeyFailover(
+    async ({ ai, modelName }) => generateJson(ai, { model: modelName, contents, config }),
+    { preferredKeyId: meta.preferredKeyId }
+  );
+
+  await recordUsage({ ...meta, feature: "guess", keyId: out.keyId }, out.modelName, out.response.usageMetadata);
+  return out.parsed;
 }
 
 export async function generateQuiz(source, { difficulty = "medium", count = 5, preferredKeyId, language = "English", ...meta } = {}) {

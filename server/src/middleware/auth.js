@@ -36,10 +36,30 @@ export async function requireAuth(req, res, next) {
   }
 }
 
-// Sirf admin users ke liye (Settings, users list, etc.).
+// Sirf admin users ke liye (Settings, API keys, billing, user create/delete).
 export function requireAdmin(req, res, next) {
   if (!req.user || req.user.role !== "admin") {
     return res.status(403).json({ message: "Admin access required" });
   }
   next();
+}
+
+// Staff ya admin dono ke liye (stats dekhna, content moderation, user usage reset).
+// Admin-only kaam ke liye requireAdmin use karo, ye nahi.
+export function requireStaff(req, res, next) {
+  if (!req.user || (req.user.role !== "staff" && req.user.role !== "admin")) {
+    return res.status(403).json({ message: "Staff access required" });
+  }
+  next();
+}
+
+// Granular gate: admin always passes; staff passes only if they hold `key`
+// (see config/permissions.js). Regular users are always rejected.
+export function requirePermission(key) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ message: "Login required" });
+    if (req.user.role === "admin") return next();
+    if (req.user.role === "staff" && (req.user.permissions || []).includes(key)) return next();
+    return res.status(403).json({ message: "You don't have permission to do that." });
+  };
 }

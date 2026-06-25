@@ -294,7 +294,7 @@ export default function Pricing() {
 
           Questions?{" "}
 
-          <a href={`mailto:${supportEmail}`} className="font-medium text-indigo-600 underline dark:text-indigo-400">
+          <a href={`mailto:${supportEmail}`} className="font-medium text-accent-600 underline dark:text-accent-400">
 
             {supportEmail}
 
@@ -338,7 +338,7 @@ export default function Pricing() {
 
                     className={`card-solid relative flex h-full flex-col p-8 transition-shadow hover:shadow-soft ${
 
-                      p.popular ? "border-2 border-indigo-600 ring-2 ring-indigo-100 dark:ring-indigo-900/50" : ""
+                      p.popular ? "border-2 border-accent-600 ring-2 ring-accent-100 dark:ring-accent-900/50" : ""
 
                     }`}
 
@@ -346,7 +346,7 @@ export default function Pricing() {
 
                     {showPopular && (
 
-                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md bg-accent-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
 
                         Popular
 
@@ -380,7 +380,7 @@ export default function Pricing() {
 
                         <li key={f} className="flex items-center gap-2">
 
-                          <span className="text-indigo-600">✓</span> {f}
+                          <span className="text-accent-600">✓</span> {f}
 
                         </li>
 
@@ -466,7 +466,7 @@ export default function Pricing() {
 
                   <th className="px-4 py-3 font-semibold text-ink">Free</th>
 
-                  <th className="px-4 py-3 font-semibold text-indigo-600">Pro</th>
+                  <th className="px-4 py-3 font-semibold text-accent-600">Pro</th>
 
                   <th className="px-4 py-3 font-semibold text-ink">Team</th>
 
@@ -508,7 +508,7 @@ export default function Pricing() {
 
         <p className="mt-8 text-center text-sm text-muted">
 
-          <Link to="/billing" className="font-medium text-indigo-600 underline dark:text-indigo-400">
+          <Link to="/billing" className="font-medium text-accent-600 underline dark:text-accent-400">
 
             Manage billing & usage
 

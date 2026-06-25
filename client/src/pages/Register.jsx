@@ -160,13 +160,13 @@ export default function Register() {
               setAcceptedTerms(e.target.checked);
               setFieldErrors((fe) => ({ ...fe, terms: "" }));
             }}
-            className="mt-0.5 h-4 w-4 rounded border-line accent-indigo-600"
+            className="mt-0.5 h-4 w-4 rounded border-line accent-accent-600"
           />
           <span>
             I agree to the{" "}
-            <Link to="/terms" className="text-indigo-600 underline underline-offset-2 dark:text-indigo-400">Terms</Link>
+            <Link to="/terms" className="text-accent-600 underline underline-offset-2 dark:text-accent-400">Terms</Link>
             {" "}and{" "}
-            <Link to="/privacy" className="text-indigo-600 underline underline-offset-2 dark:text-indigo-400">Privacy Policy</Link>
+            <Link to="/privacy" className="text-accent-600 underline underline-offset-2 dark:text-accent-400">Privacy Policy</Link>
           </span>
         </label>
         {fieldErrors.terms && <p className="text-xs text-red-600">{fieldErrors.terms}</p>}
@@ -178,7 +178,7 @@ export default function Register() {
 
       <p className="mt-6 text-center text-sm text-muted">
         Already have an account?{" "}
-        <Link to="/login" className="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-700 dark:text-indigo-400">
+        <Link to="/login" className="font-medium text-accent-600 underline underline-offset-2 hover:text-accent-700 dark:text-accent-400">
           Log in
         </Link>
       </p>

@@ -158,7 +158,7 @@ export default function Checkout() {
                 <ul className="space-y-2 text-sm text-muted">
                   {planMeta.features.map((f) => (
                     <li key={f} className="flex items-center gap-2">
-                      <span className="text-indigo-600">✓</span> {f}
+                      <span className="text-accent-600">✓</span> {f}
                     </li>
                   ))}
                 </ul>
@@ -176,7 +176,7 @@ export default function Checkout() {
                       <span className="text-muted">Support</span>
                       <a
                         href={`mailto:${config.supportEmail}`}
-                        className="font-medium text-indigo-600 underline dark:text-indigo-400"
+                        className="font-medium text-accent-600 underline dark:text-accent-400"
                       >
                         {config.supportEmail}
                       </a>

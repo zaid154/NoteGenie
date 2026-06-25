@@ -269,7 +269,9 @@ export default function Profile() {
     { to: "/upload", label: "Upload", icon: IconUpload },
     { to: "/analytics", label: "Analytics", icon: IconChart },
     { to: "/billing", label: "Billing", icon: IconCoins },
-    ...(user?.role === "admin" ? [{ to: "/admin", label: "Admin", icon: IconShield }] : []),
+    ...(user?.role === "admin" || user?.role === "staff"
+      ? [{ to: "/admin", label: user?.role === "admin" ? "Admin" : "Staff", icon: IconShield }]
+      : []),
     ...(!user?.emailVerified
       ? [{ to: verifyUrl, label: "Verify email", icon: IconMail, accent: true }]
       : []),
@@ -312,11 +314,11 @@ export default function Profile() {
         <StaggerItem>
           <div className="panel flex flex-col gap-6 p-6 sm:flex-row sm:items-start">
             <div className="relative shrink-0">
-              <div className="h-24 w-24 overflow-hidden rounded-2xl border border-line bg-indigo-600 ring-2 ring-indigo-100 dark:ring-indigo-900">
+              <div className="h-24 w-24 overflow-hidden rounded-2xl border border-line bg-accent-600 ring-2 ring-accent-100 dark:ring-accent-900">
                 {user?.avatar ? (
                   <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
                 ) : (
-                  <div className="grid h-full w-full place-items-center bg-indigo-700 text-3xl font-bold text-white">
+                  <div className="grid h-full w-full place-items-center bg-accent-700 text-3xl font-bold text-white">
                     {initialsOf(user?.name)}
                   </div>
                 )}
@@ -332,7 +334,7 @@ export default function Profile() {
                 disabled={uploadingAvatar}
                 title="Change photo"
                 aria-label="Change photo"
-                className="absolute -bottom-1 -right-1 grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-indigo-600 text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                className="absolute -bottom-1 -right-1 grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-accent-600 text-white transition hover:bg-accent-700 disabled:opacity-60"
               >
                 <IconCamera width={16} height={16} />
               </button>
@@ -348,8 +350,8 @@ export default function Profile() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-2xl font-semibold text-ink">{user?.name}</h2>
-                <Badge color={user?.role === "admin" ? "amber" : "brand"}>
-                  {user?.role === "admin" ? "Admin" : "Member"}
+                <Badge color={user?.role === "admin" ? "amber" : user?.role === "staff" ? "indigo" : "brand"}>
+                  {user?.role === "admin" ? "Admin" : user?.role === "staff" ? "Staff" : "Member"}
                 </Badge>
                 <Badge color="brand">{plan}</Badge>
                 <Badge color={user?.emailVerified ? "green" : "amber"}>
@@ -600,7 +602,7 @@ export default function Profile() {
                 <SectionTitle
                   action={
                     quizStats.recent.length > 0 ? (
-                      <Link to="/analytics" className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                      <Link to="/analytics" className="text-xs font-medium text-accent-600 dark:text-accent-400">
                         View all
                       </Link>
                     ) : null
@@ -615,7 +617,7 @@ export default function Profile() {
                     title="No quizzes yet"
                     subtitle="Generate a quiz from your materials."
                     action={
-                      <Link to="/upload" className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                      <Link to="/upload" className="text-xs font-medium text-accent-600 dark:text-accent-400">
                         Upload material
                       </Link>
                     }

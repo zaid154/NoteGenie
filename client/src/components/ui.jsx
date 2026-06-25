@@ -8,16 +8,28 @@ import { Link } from "react-router-dom";
 import { isQuotaExceeded } from "../utils/quota.js";
 
 const TILE_COLORS = {
-  indigo: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400",
+  accent: "bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400",
+  indigo: "bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400", // alias → accent
   violet: "bg-violet-50 text-violet-600 dark:bg-violet-950/60 dark:text-violet-400",
   emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400",
   amber: "bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400",
+  blue: "bg-sky-50 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400",
+};
+
+// Semantic metric → color so the SAME metric is the SAME color on every page.
+// Pass <StatCard metric="quizzes" .../> instead of an ad-hoc color.
+const STAT_COLORS = {
+  materials: "accent", documents: "accent", uploads: "accent",
+  quizzes: "violet",
+  flashcards: "emerald", cards: "emerald",
+  score: "amber", tutor: "amber",
+  downloads: "blue",
 };
 
 export function Spinner({ size = 18 }) {
   return (
     <span
-      className="inline-block animate-spin rounded-full border-2 border-indigo-300 border-t-indigo-600"
+      className="inline-block animate-spin rounded-full border-2 border-accent-300 border-t-accent-600"
       style={{ width: size, height: size }}
     />
   );
@@ -29,19 +41,26 @@ export function Skeleton({ className = "" }) {
 }
 
 // Thin wrapper over the existing .btn-* classes so callers can pass variant/size props.
-export function Button({ variant = "primary", size = "md", className = "", children, ...props }) {
+export function Button({ variant = "primary", size = "md", loading = false, className = "", children, ...props }) {
   const variants = {
     primary: "btn-primary",
     outline: "btn-outline",
     ghost: "btn-ghost",
     danger: "btn-outline text-red-600 hover:border-red-300",
   };
-  const sizes = { sm: "text-xs", md: "text-sm", lg: "text-base" };
+  // Real padding scale so callers stop overriding py-2/2.5/3 ad hoc.
+  const sizes = {
+    sm: "!px-3 !py-1.5 text-xs",
+    md: "text-sm",
+    lg: "!px-5 !py-3 text-base",
+  };
   return (
     <button
       className={`${variants[variant] || variants.primary} ${sizes[size] || sizes.md} ${className}`}
+      disabled={loading || props.disabled}
       {...props}
     >
+      {loading && <Spinner size={size === "sm" ? 14 : 16} />}
       {children}
     </button>
   );
@@ -65,7 +84,8 @@ export function PageLoader() {
   return <PageShellSkeleton />;
 }
 
-export function StatCard({ icon: Icon, label, value, numericValue, suffix = "", hint, color = "indigo" }) {
+export function StatCard({ icon: Icon, label, value, numericValue, suffix = "", hint, color = "accent", metric }) {
+  const tile = TILE_COLORS[metric ? STAT_COLORS[metric] || color : color] || TILE_COLORS.accent;
   return (
     <div className="stat-card">
       <div className="flex items-start justify-between gap-3">
@@ -84,7 +104,7 @@ export function StatCard({ icon: Icon, label, value, numericValue, suffix = "", 
           {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
         </div>
         {Icon && (
-          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${TILE_COLORS[color] || TILE_COLORS.indigo}`}>
+          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${tile}`}>
             <Icon width={20} height={20} />
           </span>
         )}
@@ -174,7 +194,7 @@ export function UsageMeter({ label, used, limit }) {
         <span className="font-semibold tabular-nums text-ink">{used} / {limit}</span>
       </div>
       <div className="progress-bar mt-1.5">
-        <div className="h-full rounded-full bg-indigo-600 transition-all duration-500" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-accent-600 transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -194,7 +214,7 @@ export function EmptyState({ icon: Icon = IconSparkles, title, subtitle, action,
   if (compact) {
     return (
       <div className="rounded-lg border border-dashed border-line px-4 py-5 text-center">
-        <div className="mx-auto mb-2 grid h-8 w-8 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+        <div className="mx-auto mb-2 grid h-8 w-8 place-items-center rounded-lg bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400">
           <Icon width={16} height={16} />
         </div>
         <p className="text-sm font-medium text-ink">{title}</p>
@@ -205,7 +225,7 @@ export function EmptyState({ icon: Icon = IconSparkles, title, subtitle, action,
   }
   return (
     <div className="card-solid flex flex-col items-center px-6 py-16 text-center">
-      <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+      <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400">
         <Icon width={24} height={24} />
       </div>
       <h3 className="text-lg font-bold text-ink">{title}</h3>
@@ -295,7 +315,7 @@ export function Alert({ type = "error", children }) {
   const styles = {
     error: "bg-red-50 text-red-700 border-red-100 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900",
     success: "bg-emerald-50 text-emerald-800 border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
-    info: "bg-indigo-50 text-indigo-800 border-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900",
+    info: "bg-accent-50 text-accent-800 border-accent-100 dark:bg-accent-950/40 dark:text-accent-300 dark:border-accent-900",
     warning: "bg-amber-50 text-amber-800 border-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900",
   };
   return (
@@ -305,7 +325,7 @@ export function Alert({ type = "error", children }) {
 
 export function Badge({ children, color = "brand" }) {
   const styles = {
-    brand: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300",
+    brand: "bg-accent-50 text-accent-700 dark:bg-accent-950/60 dark:text-accent-300",
     amber: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
     green: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
     gray: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
@@ -319,8 +339,8 @@ export function PageHeader({ title, subtitle, action }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-ink">{title}</h2>
-        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+        <h1 className="h1">{title}</h1>
+        {subtitle && <p className="mt-1 text-body">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -330,7 +350,7 @@ export function PageHeader({ title, subtitle, action }) {
 export function SectionTitle({ children, action }) {
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
-      <h3 className="text-lg font-semibold text-ink">{children}</h3>
+      <h2 className="h2">{children}</h2>
       {action}
     </div>
   );
@@ -348,7 +368,7 @@ export function Stats({ cols = 3, items = [] }) {
   );
 }
 
-export function ProgressRing({ value, max, label, sublabel, color = "#4f46e5" }) {
+export function ProgressRing({ value, max, label, sublabel, color = "rgb(var(--accent-600))" }) {
   const pct = max ? Math.min(100, (value / max) * 100) : 0;
   const r = 42;
   const circ = 2 * Math.PI * r;
@@ -393,9 +413,9 @@ export function Heatmap({ data = [], label = "Study activity", sublabel }) {
   const max = Math.max(...data.map((d) => d.count || 0), 1);
   const levelClass = {
     0: "bg-slate-100 dark:bg-slate-800/70",
-    1: "bg-indigo-200 dark:bg-indigo-900/70",
-    2: "bg-indigo-400 dark:bg-indigo-700",
-    3: "bg-indigo-600 dark:bg-indigo-500",
+    1: "bg-accent-200 dark:bg-accent-900/70",
+    2: "bg-accent-400 dark:bg-accent-700",
+    3: "bg-accent-600 dark:bg-accent-500",
   };
   const levelOf = (c) => {
     if (!c) return 0;
@@ -452,14 +472,14 @@ export function MiniBarChart({ data, label, empty = false }) {
             >
               <div className="flex h-28 w-full flex-col items-center justify-end">
                 {d.v > 0 && (
-                  <span className="mb-1 text-[10px] font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
+                  <span className="mb-1 text-[10px] font-semibold tabular-nums text-accent-600 dark:text-accent-400">
                     {d.v}%
                   </span>
                 )}
                 <div
                   className={`w-full max-w-[32px] rounded-t-md transition-all ${
                     d.v > 0
-                      ? "bg-gradient-to-t from-indigo-600 to-indigo-400"
+                      ? "bg-gradient-to-t from-accent-600 to-accent-400"
                       : "bg-slate-100 dark:bg-slate-800/80"
                   }`}
                   style={{ height: d.v > 0 ? `${barPct}%` : "4px" }}

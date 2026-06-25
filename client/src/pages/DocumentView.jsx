@@ -6,10 +6,12 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import MarkdownContent from "../components/MarkdownContent.jsx";
+import NotesReveal from "../components/NotesReveal.jsx";
 import NotesTOC from "../components/NotesTOC.jsx";
 import { parseNoteSections } from "../utils/parseNoteSections.js";
 import { api, apiError } from "../api/client.js";
 import { Alert, Badge, Spinner, EmptyState, PageShellSkeleton } from "../components/ui.jsx";
+import { sourceMeta } from "../utils/sourceMeta.jsx";
 import Flashcards from "../components/Flashcards.jsx";
 import TutorChat from "../components/TutorChat.jsx";
 import TagInput from "../components/TagInput.jsx";
@@ -55,11 +57,14 @@ export default function DocumentView() {
   const [regenerating, setRegenerating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [studyMode, setStudyMode] = useState(searchParams.get("study") === "due");
+  const [fresh, setFresh] = useState(searchParams.get("fresh") === "1");
   const [folder, setFolder] = useState("");
   const [tags, setTags] = useState([]);
   const [folders, setFolders] = useState([]);
   const [shareEnabled, setShareEnabled] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+  const [workspaces, setWorkspaces] = useState([]);
+  const [docWorkspaceId, setDocWorkspaceId] = useState("");
   const [sharing, setSharing] = useState(false);
   const [outputLanguage, setOutputLanguage] = useState(DEFAULT_OUTPUT_LANGUAGE);
   const [detailLevel, setDetailLevel] = useState(DEFAULT_DETAIL_LEVEL);
@@ -94,9 +99,10 @@ export default function DocumentView() {
 
     async function load() {
       try {
-        const [docRes, foldersRes] = await Promise.all([
+        const [docRes, foldersRes, wsRes] = await Promise.all([
           api.get(`/documents/${id}`),
           api.get("/documents/folders/list").catch(() => ({ data: { folders: [] } })),
+          api.get("/workspaces").catch(() => ({ data: { workspaces: [] } })),
         ]);
         if (!ignore) {
           const data = docRes.data.document;
@@ -108,6 +114,8 @@ export default function DocumentView() {
           setOutputLanguage(data.outputLanguage || DEFAULT_OUTPUT_LANGUAGE);
           setDetailLevel(data.detailLevel || DEFAULT_DETAIL_LEVEL);
           setFolders(foldersRes.data.folders || []);
+          setWorkspaces(wsRes.data.workspaces || []);
+          setDocWorkspaceId(data.workspaceId || "");
           if (searchParams.get("study") === "due") {
             setTab("flashcards");
             setStudyMode(true);
@@ -261,6 +269,18 @@ export default function DocumentView() {
     await saveMeta({ tags: nextTags });
   }
 
+  async function changeWorkspace(value) {
+    const prev = docWorkspaceId;
+    setDocWorkspaceId(value);
+    try {
+      await api.patch(`/documents/${id}/workspace`, { workspaceId: value || null });
+      toast(value ? "Shared to workspace" : "Removed from workspace", "success");
+    } catch (err) {
+      setDocWorkspaceId(prev);
+      toast(apiError(err), "error");
+    }
+  }
+
   async function toggleShare() {
     setSharing(true);
     try {
@@ -348,6 +368,7 @@ export default function DocumentView() {
   }
 
   const dueOnly = searchParams.get("study") === "due";
+  const isOwner = doc?.isOwner !== false;
   const now = new Date();
   const allCards = dueOnly
     ? (doc?.flashcards || []).filter((c) => !c.nextReviewAt || new Date(c.nextReviewAt) <= now)
@@ -364,11 +385,18 @@ export default function DocumentView() {
 
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge color={doc.sourceType === "pdf" ? "brand" : "amber"}>
-            {doc.sourceType === "pdf" ? "PDF" : "Link"}
-          </Badge>
+          <Badge color={sourceMeta(doc.sourceType).badge}>{sourceMeta(doc.sourceType).label}</Badge>
+          {doc.contentType === "assignment" && (
+            <Badge color="brand">Solved Assignment</Badge>
+          )}
+          {doc.contentType === "guess" && (
+            <Badge color="brand">Guess Paper</Badge>
+          )}
+          {doc.courseCode && <Badge color="gray">{doc.courseCode}</Badge>}
           <Badge color="gray">{outputLanguage}</Badge>
-          <Badge color="gray">{detailLevel === "detailed" ? "Detailed" : "Standard"}</Badge>
+          {doc.contentType === "notes" && (
+            <Badge color="gray">{detailLevel === "detailed" ? "Detailed" : "Standard"}</Badge>
+          )}
           {doc.generationMode === "chunked" && (
             <Badge color="brand">Chunked notes</Badge>
           )}
@@ -379,17 +407,21 @@ export default function DocumentView() {
           <MarkdownContent className="text-muted">{doc.summary}</MarkdownContent>
         )}
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <input
-            className="input max-w-[200px] py-1.5 text-sm"
-            placeholder="Folder"
-            value={folder}
-            onChange={(e) => setFolder(e.target.value)}
-            onBlur={saveFolder}
-            list="folder-suggestions"
-          />
-          <datalist id="folder-suggestions">
-            {folders.map((f) => <option key={f} value={f} />)}
-          </datalist>
+          {isOwner && (
+            <>
+              <input
+                className="input max-w-[200px] py-1.5 text-sm"
+                placeholder="Folder"
+                value={folder}
+                onChange={(e) => setFolder(e.target.value)}
+                onBlur={saveFolder}
+                list="folder-suggestions"
+              />
+              <datalist id="folder-suggestions">
+                {folders.map((f) => <option key={f} value={f} />)}
+              </datalist>
+            </>
+          )}
           <select
             className="input max-w-[160px] py-1.5 text-sm"
             value={outputLanguage}
@@ -413,44 +445,74 @@ export default function DocumentView() {
             ))}
           </select>
           <div className="ml-auto flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={toggleShare}
-              className={`btn-outline text-sm ${shareEnabled ? "border-indigo-300 text-indigo-600" : ""}`}
-              disabled={sharing}
-            >
-              {sharing ? <Spinner size={16} /> : <IconShare width={16} height={16} />}
-              {shareEnabled ? "Sharing on" : "Share"}
-            </button>
-            {shareEnabled && shareUrl && (
-              <button type="button" onClick={copyShareLink} className="btn-outline text-sm">
-                Copy link
-              </button>
+            {isOwner && workspaces.length > 0 && (
+              <select
+                className="input max-w-[200px] py-1.5 text-sm"
+                value={docWorkspaceId}
+                onChange={(e) => changeWorkspace(e.target.value)}
+                title="Share this material to a workspace"
+                aria-label="Share to workspace"
+              >
+                <option value="">Not in a workspace</option>
+                {workspaces.map((w) => (
+                  <option key={w._id} value={w._id}>
+                    Share to: {w.name}
+                  </option>
+                ))}
+              </select>
             )}
-            <button onClick={handleRegenerate} className="btn-outline text-sm" disabled={regenerating}>
-              {regenerating ? <Spinner size={16} /> : <IconSparkles width={16} height={16} />}
-              Regenerate
-            </button>
+            {isOwner && (
+              <>
+                <button
+                  type="button"
+                  onClick={toggleShare}
+                  className={`btn-outline text-sm ${shareEnabled ? "border-accent-300 text-accent-600" : ""}`}
+                  disabled={sharing}
+                >
+                  {sharing ? <Spinner size={16} /> : <IconShare width={16} height={16} />}
+                  {shareEnabled ? "Sharing on" : "Share"}
+                </button>
+                {shareEnabled && shareUrl && (
+                  <button type="button" onClick={copyShareLink} className="btn-outline text-sm">
+                    Copy link
+                  </button>
+                )}
+                <button onClick={handleRegenerate} className="btn-outline text-sm" disabled={regenerating}>
+                  {regenerating ? <Spinner size={16} /> : <IconSparkles width={16} height={16} />}
+                  Regenerate
+                </button>
+              </>
+            )}
             <button onClick={exportNotes} className="btn-outline text-sm" title="Markdown">
               <IconDownload width={16} height={16} /> MD
             </button>
             <button onClick={exportPdf} className="btn-outline text-sm">PDF</button>
             <button onClick={exportAnki} className="btn-outline text-sm">Anki</button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="btn-outline text-sm text-red-600 hover:border-red-300"
-              title="Delete all content"
-            >
-              {deleting ? <Spinner size={16} /> : <IconTrash width={16} height={16} />}
-              Delete
-            </button>
+            {isOwner && (
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="btn-outline text-sm text-red-600 hover:border-red-300"
+                title="Delete all content"
+              >
+                {deleting ? <Spinner size={16} /> : <IconTrash width={16} height={16} />}
+                Delete
+              </button>
+            )}
           </div>
         </div>
-        <div className="pt-2">
-          <p className="label mb-2">Tags</p>
-          <TagInput tags={tags} onChange={saveTags} />
-        </div>
+        {isOwner ? (
+          <div className="pt-2">
+            <p className="label mb-2">Tags</p>
+            <TagInput tags={tags} onChange={saveTags} />
+          </div>
+        ) : tags.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5 pt-2">
+            {tags.map((t) => (
+              <Badge key={t} color="gray">{t}</Badge>
+            ))}
+          </div>
+        ) : null}
       </header>
 
       <GenerationBanner
@@ -471,7 +533,7 @@ export default function DocumentView() {
                   onClick={() => setDifficulty(d)}
                   className={`flex-1 rounded-lg border px-3 py-2 text-sm capitalize transition ${
                     difficulty === d
-                      ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+                      ? "border-accent-600 bg-accent-50 text-accent-700 dark:bg-accent-950/50 dark:text-accent-300"
                       : "border-line text-muted hover:border-slate-300"
                   }`}
                 >
@@ -488,7 +550,7 @@ export default function DocumentView() {
               max={25}
               value={questionCount}
               onChange={(e) => setQuestionCount(Number(e.target.value))}
-              className="w-full accent-indigo-600"
+              className="w-full accent-accent-600"
             />
             <div className="mt-2 flex gap-2">
               {[5, 10, 15, 20].map((n) => (
@@ -497,7 +559,7 @@ export default function DocumentView() {
                   type="button"
                   onClick={() => setQuestionCount(n)}
                   className={`rounded-md border px-2 py-0.5 text-xs ${
-                    questionCount === n ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300" : "border-line text-muted"
+                    questionCount === n ? "border-accent-600 bg-accent-50 text-accent-700 dark:bg-accent-950/50 dark:text-accent-300" : "border-line text-muted"
                   }`}
                 >
                   {n}
@@ -518,13 +580,13 @@ export default function DocumentView() {
             key={tid}
             onClick={() => setTab(tid)}
             className={`relative flex items-center gap-2 pb-3 pt-1 text-sm font-medium transition ${
-              tab === tid ? "text-indigo-600 dark:text-indigo-400" : "text-muted hover:text-ink"
+              tab === tid ? "text-accent-600 dark:text-accent-400" : "text-muted hover:text-ink"
             }`}
           >
             {tab === tid && (
               <motion.span
                 layoutId="docTab"
-                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-indigo-600"
+                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-accent-600"
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
               />
             )}
@@ -548,7 +610,7 @@ export default function DocumentView() {
                   <div className="border-b border-line px-4 py-3 lg:hidden">
                     <button
                       type="button"
-                      className="text-sm font-medium text-indigo-600 dark:text-indigo-400"
+                      className="text-sm font-medium text-accent-600 dark:text-accent-400"
                       onClick={() => setTocOpen((o) => !o)}
                     >
                       {tocOpen ? "Hide" : "Show"} sections ({noteSections.length})
@@ -585,18 +647,18 @@ export default function DocumentView() {
                   <div className="space-y-6 p-6 lg:p-8">
                     <AudioPlayer text={listenText} label="Listen to notes" />
                     {doc.keyTakeaways?.length > 0 && (
-                      <div className="rounded-xl border border-indigo-200/60 bg-indigo-50/50 p-4 dark:border-indigo-900/50 dark:bg-indigo-950/20">
-                        <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
+                      <div className="rounded-xl border border-accent-200/60 bg-accent-50/50 p-4 dark:border-accent-900/50 dark:bg-accent-950/20">
+                        <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-accent-700 dark:text-accent-300">
                           <IconSparkles width={16} height={16} /> Key takeaways
                         </p>
-                        <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink/90 marker:text-indigo-400">
+                        <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink/90 marker:text-accent-400">
                           {doc.keyTakeaways.map((t, i) => (
                             <li key={i}>{t}</li>
                           ))}
                         </ul>
                       </div>
                     )}
-                    <MarkdownContent>{doc.notes}</MarkdownContent>
+                    <NotesReveal notes={doc.notes} fresh={fresh} onComplete={() => setFresh(false)} />
                     {doc.glossary?.length > 0 && (
                       <div className="rounded-xl border border-line bg-canvas/40 p-4">
                         <p className="mb-3 text-sm font-semibold text-ink">Glossary</p>
@@ -629,7 +691,7 @@ export default function DocumentView() {
           {tab === "map" && (
             <div className="panel overflow-hidden p-4 lg:p-6">
               <div className="mb-3 flex items-center gap-2">
-                <IconMap width={18} height={18} className="text-indigo-600 dark:text-indigo-400" />
+                <IconMap width={18} height={18} className="text-accent-600 dark:text-accent-400" />
                 <p className="text-sm font-semibold text-ink">Mind map</p>
                 <span className="text-xs text-muted">Built from your note sections</span>
               </div>
@@ -640,7 +702,7 @@ export default function DocumentView() {
             <div className="panel overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-4 lg:px-6">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600 dark:bg-accent-950/50 dark:text-accent-400">
                     <IconCards width={20} height={20} />
                   </div>
                   <div>

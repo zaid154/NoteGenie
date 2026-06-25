@@ -78,7 +78,7 @@ export function ConfirmProvider({ children }) {
                   className={`mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full ${
                     state.danger
                       ? "bg-red-500/10 text-red-600"
-                      : "bg-indigo-500/10 text-indigo-600"
+                      : "bg-accent-500/10 text-accent-600"
                   }`}
                   aria-hidden
                 >

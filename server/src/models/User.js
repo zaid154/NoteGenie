@@ -36,7 +36,12 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     bio: { type: String, default: "", trim: true, maxlength: 280 },
     avatar: { type: String, default: "" },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
+    // "staff" = support/moderation role: can view stats/users and moderate content,
+    // but NOT settings/API keys, billing, or user create/delete/role changes.
+    role: { type: String, enum: ["user", "staff", "admin"], default: "user" },
+    // Granular capabilities granted to a staff user by an admin (see config/permissions.js).
+    // Ignored for "user" (none) and "admin" (implicitly has all).
+    permissions: { type: [String], default: [] },
     plan: { type: String, default: "free" },
     stripeCustomerId: { type: String, default: "" },
     stripeSubscriptionId: { type: String, default: "" },
@@ -85,6 +90,7 @@ userSchema.methods.toSafeObject = function () {
     name: this.name,
     email: this.email,
     role: this.role,
+    permissions: this.permissions || [],
     plan: this.plan || "free",
     bio: this.bio || "",
     avatar: this.avatar || "",

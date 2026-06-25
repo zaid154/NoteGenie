@@ -133,7 +133,7 @@ function PlanPreview({ form }) {
   return (
     <div className="card-solid relative flex h-full flex-col p-6">
       {form.popular && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md bg-accent-600 px-3 py-1 text-xs font-semibold text-white">
           Popular
         </span>
       )}
@@ -147,7 +147,7 @@ function PlanPreview({ form }) {
         {features.length ? (
           features.map((f) => (
             <li key={f} className="flex items-start gap-2">
-              <span className="text-indigo-600">✓</span>
+              <span className="text-accent-600">✓</span>
               <span>{f}</span>
             </li>
           ))

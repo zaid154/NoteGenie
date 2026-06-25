@@ -25,7 +25,7 @@ function formatElapsed(seconds) {
 function phaseToStep(phase, sectionProgress) {
   if (phase === "uploading") return 0;
   if (phase === "extracting" || phase === "validating") return 1;
-  if (phase === "outline" || phase === "section" || phase === "notes") return 2;
+  if (phase === "outline" || phase === "section" || phase === "notes" || phase === "assignment" || phase === "guess") return 2;
   if (phase === "cards" || phase === "saving") return 3;
   return sectionProgress ? 2 : 2;
 }
@@ -69,11 +69,15 @@ export default function GenerationOverlay({
             ? "Building outline…"
             : phase === "section" && sectionProgress
               ? `Writing section ${sectionProgress.current}/${sectionProgress.total}…`
-              : phase === "saving"
-                ? "Saving your study kit…"
-                : phase === "cards"
-                  ? "Building flashcards…"
-                  : "Creating your notes…";
+              : phase === "assignment"
+                ? "Solving your assignment…"
+                : phase === "guess"
+                ? "Building your guess paper…"
+                : phase === "saving"
+                  ? "Saving your study kit…"
+                  : phase === "cards"
+                    ? "Building flashcards…"
+                    : "Creating your notes…";
 
   const determinatePct =
     sectionProgress?.total > 0
@@ -91,7 +95,7 @@ export default function GenerationOverlay({
         className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-soft"
       >
         <div className="flex items-start gap-4">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400">
             <motion.span
               animate={{ rotate: [0, 8, -8, 0] }}
               transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
@@ -110,7 +114,7 @@ export default function GenerationOverlay({
         <div className="progress-bar mt-5 h-2">
           {determinatePct != null ? (
             <motion.div
-              className="h-full rounded-full bg-indigo-600"
+              className="h-full rounded-full bg-accent-600"
               initial={false}
               animate={{ width: `${determinatePct}%` }}
               transition={{ duration: 0.35 }}
@@ -129,7 +133,7 @@ export default function GenerationOverlay({
             <span
               key={p}
               className={`h-1.5 flex-1 rounded-full transition-colors ${
-                activeStep >= i ? "bg-indigo-500" : "bg-slate-200 dark:bg-slate-700"
+                activeStep >= i ? "bg-accent-500" : "bg-slate-200 dark:bg-slate-700"
               }`}
             />
           ))}
@@ -159,11 +163,11 @@ export function GenerationBanner({ message, loading = true }) {
     <motion.div
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 dark:border-indigo-900 dark:bg-indigo-950/40"
+      className="flex items-center gap-3 rounded-xl border border-accent-200 bg-accent-50/80 px-4 py-3 dark:border-accent-900 dark:bg-accent-950/40"
     >
       <Spinner size={16} />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-indigo-800 dark:text-indigo-200">
+        <p className="text-sm font-medium text-accent-800 dark:text-accent-200">
           {message || "Building flashcards from your notes…"}
         </p>
         <div className="progress-bar mt-2 h-1">

@@ -18,10 +18,14 @@ import AdminTableToolbar from "../../components/AdminTableToolbar.jsx";
 import { IconTrash, IconUsers, IconPlus } from "../../components/icons.jsx";
 import { useConfirm } from "../../context/ConfirmContext.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 const PLANS = ["free", "pro", "team"];
 
 export default function AdminUsers() {
+  const { user: currentUser } = useAuth();
+  // Staff has read-only access to users (can view + reset usage); writes are admin-only.
+  const canManageUsers = currentUser?.role === "admin";
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -173,6 +177,7 @@ export default function AdminUsers() {
             options: [
               { value: "", label: "All roles" },
               { value: "user", label: "user" },
+              { value: "staff", label: "staff" },
               { value: "admin", label: "admin" },
             ],
           },
@@ -182,10 +187,12 @@ export default function AdminUsers() {
         loading={loading}
         onPageChange={setPage}
         actions={
-          <button type="button" className="btn-primary text-sm" onClick={() => setShowCreate(true)}>
-            <IconPlus width={16} height={16} />
-            Create user
-          </button>
+          canManageUsers ? (
+            <button type="button" className="btn-primary text-sm" onClick={() => setShowCreate(true)}>
+              <IconPlus width={16} height={16} />
+              Create user
+            </button>
+          ) : null
         }
       />
 
@@ -203,6 +210,7 @@ export default function AdminUsers() {
             </select>
             <select className="input" value={createForm.role} onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}>
               <option value="user">user</option>
+              <option value="staff">staff</option>
               <option value="admin">admin</option>
             </select>
             <label className="flex items-center gap-2 text-sm">
@@ -234,22 +242,26 @@ export default function AdminUsers() {
             {users.map((u) => (
               <tr key={u.id} className="hover:bg-ink/[0.02]">
                 <td className="px-4 py-3 font-500">
-                  <Link to={`/admin/users/${u.id}`} className="text-indigo-600 hover:underline">
+                  <Link to={`/admin/users/${u.id}`} className="text-accent-600 hover:underline">
                     {u.name}
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-muted">{u.email}</td>
                 <td className="px-4 py-3">
-                  <select
-                    className="input py-1.5 text-sm capitalize"
-                    value={u.plan || "free"}
-                    disabled={savingPlan === u.id}
-                    onChange={(e) => changePlan(u.id, e.target.value)}
-                  >
-                    {plans.map((plan) => (
-                      <option key={plan} value={plan}>{plan}</option>
-                    ))}
-                  </select>
+                  {canManageUsers ? (
+                    <select
+                      className="input py-1.5 text-sm capitalize"
+                      value={u.plan || "free"}
+                      disabled={savingPlan === u.id}
+                      onChange={(e) => changePlan(u.id, e.target.value)}
+                    >
+                      {plans.map((plan) => (
+                        <option key={plan} value={plan}>{plan}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="capitalize text-sm text-muted">{u.plan || "free"}</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <Badge color={u.role === "admin" ? "brand" : "gray"}>{u.role}</Badge>
@@ -257,7 +269,7 @@ export default function AdminUsers() {
                 <td className="px-4 py-3">{u.documentCount}</td>
                 <td className="px-4 py-3 text-muted">{new Date(u.createdAt).toLocaleDateString()}</td>
                 <td className="px-4 py-3 text-right">
-                  {u.role !== "admin" && (
+                  {canManageUsers && u.role !== "admin" && (
                     <button
                       onClick={() => remove(u.id)}
                       disabled={deleting === u.id}

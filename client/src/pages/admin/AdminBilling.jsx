@@ -238,7 +238,7 @@ export default function AdminBilling() {
       {tab === "pricing" && (
         <>
           <div className="flex items-start gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-500/10 text-indigo-600">
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent-500/10 text-accent-600">
               <IconCoins width={22} height={22} />
             </span>
             <div>

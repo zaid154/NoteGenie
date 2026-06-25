@@ -17,6 +17,8 @@ import {
   IconDoc,
   IconActivity,
   IconCoins,
+  IconLayers,
+  IconDownload,
   IconSun,
   IconMoon,
   IconLogout,
@@ -26,13 +28,50 @@ import {
   IconShield,
 } from "./icons.jsx";
 
+// adminOnly items are hidden from staff (support/moderation role).
 const topNav = [
   { to: "/admin", label: "Dashboard", icon: IconChart, end: true },
-  { to: "/admin/usage", label: "Usage", icon: IconActivity },
+  { to: "/admin/usage", label: "Usage", icon: IconActivity, adminOnly: true },
   { to: "/admin/users", label: "Users", icon: IconUsers },
 ];
 
 const sectionGroups = [
+  {
+    label: "Catalog",
+    icon: IconLayers,
+    prefix: "/admin/catalog",
+    to: "/admin/catalog/universities",
+    permission: "manage_catalog",
+    items: [
+      { to: "/admin/catalog/universities", label: "Universities" },
+      { to: "/admin/catalog/programs", label: "Programs" },
+      { to: "/admin/catalog/courses", label: "Courses" },
+    ],
+  },
+  {
+    label: "Resources",
+    icon: IconDownload,
+    prefix: "/admin/resources",
+    to: "/admin/resources",
+    permission: "manage_resources",
+    items: [{ to: "/admin/resources", label: "All resources" }],
+  },
+  {
+    label: "Combos",
+    icon: IconLayers,
+    prefix: "/admin/combos",
+    to: "/admin/combos",
+    permission: "manage_combos",
+    items: [{ to: "/admin/combos", label: "All combos" }],
+  },
+  {
+    label: "Orders",
+    icon: IconCoins,
+    prefix: "/admin/orders",
+    to: "/admin/orders",
+    permission: "manage_orders",
+    items: [{ to: "/admin/orders", label: "All orders" }],
+  },
   {
     label: "Content",
     icon: IconDoc,
@@ -50,6 +89,7 @@ const sectionGroups = [
     icon: IconCoins,
     prefix: "/admin/billing",
     to: "/admin/billing/pricing",
+    adminOnly: true,
     items: [
       { to: "/admin/billing/pricing", label: "Pricing" },
       { to: "/admin/billing/plans", label: "Custom plans" },
@@ -63,8 +103,10 @@ const sectionGroups = [
     icon: IconSettings,
     prefix: "/admin/settings",
     to: "/admin/settings/keys",
+    adminOnly: true,
     items: [
       { to: "/admin/settings/keys", label: "AI keys" },
+      { to: "/admin/settings/storefront", label: "Storefront" },
       { to: "/admin/settings/audit", label: "Audit log" },
       { to: "/admin/settings/rate-limit", label: "Rate limits" },
     ],
@@ -112,12 +154,19 @@ function AdminSubNav() {
 }
 
 function AdminNav({ onNavigate }) {
+  const { user, hasPermission } = useAuth();
+  const isAdmin = user?.role === "admin";
+  // Visible if: admin, OR (not admin-only AND any required permission is held).
+  const canSee = (item) =>
+    isAdmin || (!item.adminOnly && (!item.permission || hasPermission(item.permission)));
+  const visibleTopNav = topNav.filter(canSee);
+  const visibleGroups = sectionGroups.filter(canSee);
   return (
     <nav className="space-y-0.5 p-2">
-      {topNav.map(({ to, label, icon, end }) => (
+      {visibleTopNav.map(({ to, label, icon, end }) => (
         <NavItem key={to} to={to} label={label} icon={icon} end={end} onClick={onNavigate} />
       ))}
-      {sectionGroups.map(({ to, label, icon, prefix }) => (
+      {visibleGroups.map(({ to, label, icon, prefix }) => (
         <SectionNavItem key={prefix} to={to} label={label} icon={icon} prefix={prefix} onClick={onNavigate} />
       ))}
     </nav>
@@ -156,8 +205,8 @@ export default function AdminLayout() {
             <Logo size={32} />
             <div className="min-w-0 border-l border-line pl-3">
               <div className="flex items-center gap-2">
-                <IconShield width={16} height={16} className="shrink-0 text-indigo-600 dark:text-indigo-400" />
-                <h1 className="truncate text-lg font-bold text-ink">Admin Panel</h1>
+                <IconShield width={16} height={16} className="shrink-0 text-accent-600 dark:text-accent-400" />
+                <h1 className="truncate text-lg font-bold text-ink">{user?.role === "admin" ? "Admin Panel" : "Staff Panel"}</h1>
               </div>
             </div>
           </div>
@@ -175,9 +224,9 @@ export default function AdminLayout() {
               <IconLogout width={18} height={18} />
             </button>
             {user?.avatar ? (
-              <img src={user.avatar} alt="" className="hidden h-9 w-9 rounded-full object-cover ring-2 ring-indigo-100 sm:block dark:ring-indigo-900" />
+              <img src={user.avatar} alt="" className="hidden h-9 w-9 rounded-full object-cover ring-2 ring-accent-100 sm:block dark:ring-accent-900" />
             ) : (
-              <span className="hidden h-9 w-9 place-items-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 sm:grid dark:bg-indigo-950 dark:text-indigo-300">
+              <span className="hidden h-9 w-9 place-items-center rounded-full bg-accent-100 text-sm font-bold text-accent-700 sm:grid dark:bg-accent-950 dark:text-accent-300">
                 {user?.name?.[0]?.toUpperCase()}
               </span>
             )}

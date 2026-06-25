@@ -165,7 +165,7 @@ export default function CommandPalette() {
                   onClick={() => go(item)}
                   className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
                     i === active
-                      ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+                      ? "bg-accent-50 text-accent-700 dark:bg-accent-950/50 dark:text-accent-300"
                       : "text-ink"
                   }`}
                 >

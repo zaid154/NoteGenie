@@ -96,6 +96,13 @@ export const IconDownload = make(
     <path d="M5 19h14" />
   </>
 );
+export const IconCart = make(
+  <>
+    <circle cx="9" cy="20" r="1" />
+    <circle cx="18" cy="20" r="1" />
+    <path d="M2 3h3l2.4 12.3a1 1 0 0 0 1 .7h9.2a1 1 0 0 0 1-.8L21 7H6" />
+  </>
+);
 export const IconSparkles = make(
   <>
     <path d="M12 4l1.6 4.4L18 10l-4.4 1.6L12 16l-1.6-4.4L6 10l4.4-1.6L12 4Z" />
@@ -263,6 +270,14 @@ export const IconSearch = make(
   <>
     <circle cx="11" cy="11" r="7" />
     <path d="m20 20-3.5-3.5" />
+  </>
+);
+export const IconMic = make(
+  <>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5 11a7 7 0 0 0 14 0" />
+    <path d="M12 18v3" />
+    <path d="M8 21h8" />
   </>
 );
 

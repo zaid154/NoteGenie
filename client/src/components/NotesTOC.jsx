@@ -21,7 +21,7 @@ export default function NotesTOC({ sections = [], onGenerateSection }) {
             <button
               type="button"
               onClick={() => scrollTo(slug)}
-              className="w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-muted transition hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400"
+              className="w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-muted transition hover:bg-slate-100 hover:text-accent-600 dark:hover:bg-slate-800 dark:hover:text-accent-400"
             >
               {title}
             </button>
@@ -29,7 +29,7 @@ export default function NotesTOC({ sections = [], onGenerateSection }) {
               <button
                 type="button"
                 onClick={() => onGenerateSection(title)}
-                className="ml-2 text-[10px] font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                className="ml-2 text-[10px] font-medium text-accent-600 hover:underline dark:text-accent-400"
               >
                 + cards
               </button>

@@ -79,7 +79,7 @@ export default function AudioPlayer({ text, label = "Listen", className = "" }) 
       {speaking && (
         <div className="h-1 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
           <div
-            className="h-full rounded-full bg-indigo-500 transition-all duration-300"
+            className="h-full rounded-full bg-accent-500 transition-all duration-300"
             style={{ width: `${pct}%` }}
           />
         </div>

@@ -80,9 +80,17 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // hasPermission: admin ke paas sab hai; staff ke paas sirf granted permissions; user ke paas kuch nahi.
+  function hasPermission(key) {
+    if (!user) return false;
+    if (user.role === "admin") return true;
+    if (user.role === "staff") return (user.permissions || []).includes(key);
+    return false;
+  }
+
   // value = jo bhi cheezein hum dusre components ko dena chahte hain.
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );

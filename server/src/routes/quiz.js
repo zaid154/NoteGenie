@@ -5,6 +5,7 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { requireQuota } from "../middleware/quota.js";
 import { aiRateLimitMiddleware } from "../middleware/aiRateLimit.js";
+import { requireAiEnabled } from "../middleware/aiEnabled.js";
 import {
   createQuiz,
   getQuiz,
@@ -16,7 +17,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get("/analytics/overview", getAnalytics);
-router.post("/document/:documentId", aiRateLimitMiddleware, requireQuota("quizzes"), createQuiz);
+router.post("/document/:documentId", requireAiEnabled, aiRateLimitMiddleware, requireQuota("quizzes"), createQuiz);
 router.get("/:id", getQuiz);
 router.post("/:id/submit", submitQuiz);
 

@@ -5,13 +5,15 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { api, apiError, uploadDocumentStream, importLinkStream } from "../api/client.js";
+import { api, apiError, uploadDocumentStream, importLinkStream, importTextStream } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { Alert, Spinner, Badge, UsageMeter, QuotaBlocked, StatCard } from "../components/ui.jsx";
 import TagInput from "../components/TagInput.jsx";
 import { isQuotaExceeded } from "../utils/quota.js";
 import { OUTPUT_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE } from "../config/languages.js";
 import { DETAIL_LEVELS, DEFAULT_DETAIL_LEVEL, CHUNKED_PDF_BYTES } from "../config/detailLevel.js";
+import { ACCEPT_ATTR, isSupportedFile, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, SUPPORTED_LABEL } from "../config/uploadTypes.js";
+import { sourceMeta } from "../utils/sourceMeta.jsx";
 import GenerationOverlay from "../components/GenerationOverlay.jsx";
 import { StaggerContainer, StaggerItem } from "../components/motion.jsx";
 import {
@@ -32,7 +34,7 @@ import {
 } from "../components/icons.jsx";
 
 const OUTPUT_STEPS = [
-  { icon: IconDoc, label: "Structured notes", desc: "Headings, summaries, key points", color: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400" },
+  { icon: IconDoc, label: "Structured notes", desc: "Headings, summaries, key points", color: "bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400" },
   { icon: IconCards, label: "Flashcards", desc: "Spaced repetition ready", color: "bg-violet-50 text-violet-600 dark:bg-violet-950/60 dark:text-violet-400" },
   { icon: IconChat, label: "AI tutor", desc: "Ask questions about your material", color: "bg-sky-50 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400" },
 ];
@@ -46,7 +48,7 @@ const WORKFLOW = [
 const FAQ = [
   {
     q: "What file types work?",
-    a: "PDFs up to 15MB, or public web links (articles, blogs, YouTube).",
+    a: "PDF, Word (.docx), PowerPoint (.pptx), text files, images, audio, and video up to 15MB — plus public web links (articles, blogs, YouTube) and pasted text.",
   },
   {
     q: "How long does generation take?",
@@ -66,7 +68,10 @@ const EXAMPLE_LINKS = [
 const LOADING_PHASE = {
   pdf: "uploading",
   link: "extracting",
+  text: "notes",
 };
+
+const MIN_TEXT_CHARS = 40;
 
 function formatBytes(bytes) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -79,6 +84,8 @@ export default function Upload() {
   const [tab, setTab] = useState("pdf");
   const [file, setFile] = useState(null);
   const [url, setUrl] = useState("");
+  const [pastedText, setPastedText] = useState("");
+  const [pastedTitle, setPastedTitle] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState("notes");
@@ -89,6 +96,11 @@ export default function Upload() {
   const [tags, setTags] = useState([]);
   const [outputLanguage, setOutputLanguage] = useState(DEFAULT_OUTPUT_LANGUAGE);
   const [detailLevel, setDetailLevel] = useState(DEFAULT_DETAIL_LEVEL);
+  // "notes" = study notes (default). "assignment" = solve an IGNOU-style question paper.
+  const [contentType, setContentType] = useState("notes");
+  const [courseCode, setCourseCode] = useState("");
+  const [wordLimit, setWordLimit] = useState("");
+  const [questionCount, setQuestionCount] = useState("");
   const [folders, setFolders] = useState([]);
   const [recentDocs, setRecentDocs] = useState([]);
   const [materialCount, setMaterialCount] = useState(0);
@@ -96,7 +108,6 @@ export default function Upload() {
   const [dueCount, setDueCount] = useState(0);
   const [openFaq, setOpenFaq] = useState(0);
   const fileInput = useRef(null);
-  const MAX_BYTES = 15 * 1024 * 1024;
   const quotaBlocked = isQuotaExceeded(usage, "documents");
   const uploadsLeft =
     usage?.limits?.documents != null
@@ -122,13 +133,12 @@ export default function Upload() {
 
   function pickFile(f) {
     if (!f) return;
-    const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
-    if (!isPdf) {
-      setError("Only PDF files are allowed.");
+    if (!isSupportedFile(f)) {
+      setError(`Unsupported file. Upload ${SUPPORTED_LABEL}.`);
       return;
     }
-    if (f.size > MAX_BYTES) {
-      setError("That PDF is larger than 15MB.");
+    if (f.size > MAX_UPLOAD_BYTES) {
+      setError(`That file is larger than ${MAX_UPLOAD_MB}MB.`);
       return;
     }
     setError("");
@@ -158,9 +168,13 @@ export default function Upload() {
         if (tags.length) formData.append("tags", JSON.stringify(tags));
         formData.append("outputLanguage", outputLanguage);
         formData.append("detailLevel", detailLevel);
+        formData.append("contentType", contentType);
+        if (courseCode.trim()) formData.append("courseCode", courseCode.trim());
+        if (contentType === "assignment" && wordLimit) formData.append("wordLimit", String(wordLimit));
+        if (contentType === "guess" && questionCount) formData.append("count", String(questionCount));
         const result = await uploadDocumentStream(formData, { onPhase: handlePhase });
         documentId = result.documentId;
-      } else {
+      } else if (tab === "link") {
         if (!url.trim()) throw new Error("Please enter a URL.");
         try {
           new URL(url.trim());
@@ -168,12 +182,42 @@ export default function Upload() {
           throw new Error("Please enter a valid URL (include https://).");
         }
         const result = await importLinkStream(
-          { url: url.trim(), folder: folder.trim(), tags, outputLanguage, detailLevel },
+          {
+            url: url.trim(),
+            folder: folder.trim(),
+            tags,
+            outputLanguage,
+            detailLevel,
+            contentType,
+            courseCode: courseCode.trim(),
+            ...(contentType === "assignment" && wordLimit ? { wordLimit } : {}),
+            ...(contentType === "guess" && questionCount ? { count: questionCount } : {}),
+          },
+          { onPhase: handlePhase }
+        );
+        documentId = result.documentId;
+      } else if (tab === "text") {
+        if (pastedText.trim().length < MIN_TEXT_CHARS) {
+          throw new Error(`Please paste at least ${MIN_TEXT_CHARS} characters of text.`);
+        }
+        const result = await importTextStream(
+          {
+            text: pastedText.trim(),
+            title: pastedTitle.trim(),
+            folder: folder.trim(),
+            tags,
+            outputLanguage,
+            detailLevel,
+            contentType,
+            courseCode: courseCode.trim(),
+            ...(contentType === "assignment" && wordLimit ? { wordLimit } : {}),
+            ...(contentType === "guess" && questionCount ? { count: questionCount } : {}),
+          },
           { onPhase: handlePhase }
         );
         documentId = result.documentId;
       }
-      navigate(`/document/${documentId}`);
+      navigate(`/document/${documentId}?fresh=1`);
     } catch (err) {
       setError(err.message || apiError(err));
       setLoading(false);
@@ -190,14 +234,24 @@ export default function Upload() {
     setError("");
     setFile(null);
     setUrl("");
+    setPastedText("");
+    setPastedTitle("");
   }
 
   const tabs = [
-    { id: "pdf", label: "PDF upload", icon: IconUpload, hint: "Documents up to 15MB" },
+    // id stays "pdf" for backward-compat; this tab now accepts any supported file.
+    { id: "pdf", label: "Upload file", icon: IconUpload, hint: "PDF, Word, slides, image, audio, video" },
     { id: "link", label: "Web link", icon: IconLink, hint: "Articles, blogs, YouTube" },
+    { id: "text", label: "Paste text", icon: IconDoc, hint: "Notes, transcripts, any text" },
   ];
 
-  const canSubmit = !quotaBlocked && (tab === "pdf" ? !!file : url.trim().length > 0);
+  const canSubmit =
+    !quotaBlocked &&
+    (tab === "pdf"
+      ? !!file
+      : tab === "link"
+        ? url.trim().length > 0
+        : pastedText.trim().length >= MIN_TEXT_CHARS);
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -205,7 +259,7 @@ export default function Upload() {
         <StaggerItem>
           <Link
             to="/app"
-            className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition hover:text-indigo-600 dark:hover:text-indigo-400"
+            className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition hover:text-accent-600 dark:hover:text-accent-400"
           >
             <IconArrowLeft width={16} height={16} /> Back to library
           </Link>
@@ -213,7 +267,7 @@ export default function Upload() {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-ink lg:text-3xl">Add material</h1>
               <p className="mt-1 max-w-xl text-sm text-muted">
-                Upload a PDF or paste a link — notes and starter flashcards in one step.
+                Upload a PDF, paste a link, or drop in your own text — notes and starter flashcards in one step.
               </p>
             </div>
             <Link to="/app" className="btn-outline text-sm">
@@ -269,7 +323,7 @@ export default function Upload() {
           <div className="grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             {WORKFLOW.map(({ step, label, desc }) => (
               <div key={step} className="flex items-center gap-3 px-5 py-4">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-indigo-50 text-sm font-bold text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-50 text-sm font-bold text-accent-600 dark:bg-accent-950/60 dark:text-accent-400">
                   {step}
                 </span>
                 <div>
@@ -293,13 +347,13 @@ export default function Upload() {
                       onClick={() => switchTab(id)}
                       className={`relative flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                         tab === id
-                          ? "bg-white text-indigo-700 shadow-soft dark:bg-surface dark:text-indigo-300"
+                          ? "bg-white text-accent-700 shadow-soft dark:bg-surface dark:text-accent-300"
                           : "text-muted hover:text-ink"
                       }`}
                     >
                       <Icon width={16} height={16} />
                       <span className="hidden sm:inline">{label}</span>
-                      <span className="sm:hidden">{id === "pdf" ? "PDF" : "Link"}</span>
+                      <span className="sm:hidden">{id === "pdf" ? "File" : id === "link" ? "Link" : "Text"}</span>
                     </button>
                   ))}
                 </div>
@@ -310,6 +364,98 @@ export default function Upload() {
 
               <form onSubmit={handleSubmit} className="space-y-5 p-6 sm:p-8">
                 <QuotaBlocked feature="documents" usage={usage} />
+
+                {/* Generation mode: study notes (default), solved assignment, or guess paper. */}
+                <div>
+                  <span className="label">What do you want to create?</span>
+                  <div className="mt-1 grid gap-2 sm:grid-cols-3">
+                    {[
+                      { id: "notes", label: "Study notes", desc: "Summary, flashcards & quiz", icon: IconCards },
+                      { id: "assignment", label: "Solve assignment", desc: "Answer a question paper", icon: IconDoc },
+                      { id: "guess", label: "Guess paper", desc: "Important exam questions", icon: IconSparkles },
+                    ].map(({ id, label, desc, icon: Icon }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setContentType(id)}
+                        disabled={loading}
+                        className={`flex items-start gap-3 rounded-xl border p-3 text-left transition ${
+                          contentType === id
+                            ? "border-accent-400 bg-accent-50 dark:border-accent-500 dark:bg-accent-950/40"
+                            : "border-line hover:border-accent-200 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                        }`}
+                      >
+                        <span
+                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
+                            contentType === id
+                              ? "bg-accent-100 text-accent-600 dark:bg-accent-900/60 dark:text-accent-300"
+                              : "bg-slate-100 text-slate-500 dark:bg-slate-800"
+                          }`}
+                        >
+                          <Icon width={16} height={16} />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-ink">{label}</span>
+                          <span className="block text-xs text-muted">{desc}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {contentType !== "notes" && (
+                    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="label" htmlFor="course-code">Course code (optional)</label>
+                        <input
+                          id="course-code"
+                          className="input py-1.5 text-sm uppercase"
+                          placeholder="e.g. BCS-011"
+                          value={courseCode}
+                          onChange={(e) => setCourseCode(e.target.value)}
+                          disabled={loading}
+                          maxLength={40}
+                        />
+                      </div>
+                      {contentType === "assignment" ? (
+                        <div>
+                          <label className="label" htmlFor="word-limit">Words per answer (optional)</label>
+                          <input
+                            id="word-limit"
+                            type="number"
+                            min="50"
+                            max="2000"
+                            step="50"
+                            className="input py-1.5 text-sm"
+                            placeholder="e.g. 500"
+                            value={wordLimit}
+                            onChange={(e) => setWordLimit(e.target.value)}
+                            disabled={loading}
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="label" htmlFor="question-count">Number of questions (optional)</label>
+                          <input
+                            id="question-count"
+                            type="number"
+                            min="5"
+                            max="30"
+                            step="1"
+                            className="input py-1.5 text-sm"
+                            placeholder="e.g. 12"
+                            value={questionCount}
+                            onChange={(e) => setQuestionCount(e.target.value)}
+                            disabled={loading}
+                          />
+                        </div>
+                      )}
+                      <p className="text-xs text-muted sm:col-span-2">
+                        {contentType === "assignment"
+                          ? "Upload your IGNOU assignment question paper (PDF / photo) or paste the questions — every question is answered exam-style."
+                          : "Upload your syllabus / notes (PDF, photo or text) — AI predicts the most exam-likely questions with model answers."}
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div>
@@ -402,7 +548,7 @@ export default function Upload() {
                           <input
                             ref={fileInput}
                             type="file"
-                            accept=".pdf,application/pdf"
+                            accept={ACCEPT_ATTR}
                             className="hidden"
                             onChange={(e) => pickFile(e.target.files[0])}
                           />
@@ -410,8 +556,8 @@ export default function Upload() {
                           <span
                             className={`mx-auto grid h-14 w-14 place-items-center rounded-xl ${
                               file
-                                ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400"
-                                : "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400"
+                                ? "bg-accent-100 text-accent-600 dark:bg-accent-950 dark:text-accent-400"
+                                : "bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400"
                             }`}
                           >
                             {file ? <IconCheck width={24} height={24} /> : <IconUpload width={24} height={24} />}
@@ -429,19 +575,19 @@ export default function Upload() {
                           ) : (
                             <div className="mt-5">
                               <p className="font-semibold text-ink">
-                                {dragOver ? "Drop your PDF here" : "Drop a PDF or click to browse"}
+                                {dragOver ? "Drop your file here" : "Drop a file or click to browse"}
                               </p>
-                              <p className="mt-1 text-sm text-muted">Maximum 15MB · text-based PDFs work best</p>
+                              <p className="mt-1 text-sm text-muted">PDF, Word, slides, image, audio or video · max {MAX_UPLOAD_MB}MB</p>
                             </div>
                           )}
                         </motion.div>
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {["PDF only", "Max 15MB", "Text-based preferred"].map((t) => (
+                          {["PDF · Word · Slides", "Image · Audio · Video", `Max ${MAX_UPLOAD_MB}MB`].map((t) => (
                             <span key={t} className="chip text-xs">{t}</span>
                           ))}
                         </div>
                       </>
-                    ) : (
+                    ) : tab === "link" ? (
                       <div className="space-y-4">
                         <div className="relative">
                           <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
@@ -465,7 +611,7 @@ export default function Upload() {
                               <button
                                 key={label}
                                 type="button"
-                                className="chip hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                                className="chip hover:border-accent-300 hover:bg-accent-50 dark:hover:bg-accent-950/40"
                                 onClick={() => setUrl(exampleUrl)}
                               >
                                 {label}
@@ -477,6 +623,45 @@ export default function Upload() {
                           </div>
                         </div>
                       </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="label" htmlFor="paste-title">Title (optional)</label>
+                          <input
+                            id="paste-title"
+                            className="input py-1.5 text-sm"
+                            value={pastedTitle}
+                            onChange={(e) => setPastedTitle(e.target.value)}
+                            placeholder="e.g. Lecture 4 — Cell Biology"
+                            disabled={loading}
+                            maxLength={140}
+                          />
+                        </div>
+                        <div>
+                          <label className="label" htmlFor="paste-text">Your text</label>
+                          <textarea
+                            id="paste-text"
+                            className="input min-h-[220px] resize-y py-2 font-mono text-sm leading-relaxed"
+                            value={pastedText}
+                            onChange={(e) => setPastedText(e.target.value)}
+                            placeholder="Paste lecture notes, a transcript, an article, or any study text here…"
+                            disabled={loading}
+                          />
+                          <div className="mt-1.5 flex items-center justify-between text-xs text-muted">
+                            <span>Notes, flashcards &amp; quizzes are generated from this text.</span>
+                            <span
+                              className={
+                                pastedText.trim().length > 0 && pastedText.trim().length < MIN_TEXT_CHARS
+                                  ? "text-amber-600 dark:text-amber-400"
+                                  : ""
+                              }
+                            >
+                              {pastedText.trim().length.toLocaleString()} chars
+                              {pastedText.trim().length < MIN_TEXT_CHARS ? ` · need ${MIN_TEXT_CHARS}+` : ""}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </motion.div>
                 </AnimatePresence>
@@ -485,12 +670,20 @@ export default function Upload() {
                   {loading ? (
                     <>
                       <Spinner />
-                      Creating your notes…
+                      {contentType === "assignment"
+                        ? "Solving your assignment…"
+                        : contentType === "guess"
+                          ? "Building your guess paper…"
+                          : "Creating your notes…"}
                     </>
                   ) : (
                     <>
                       <IconSparkles width={16} height={16} />
-                      Generate study kit
+                      {contentType === "assignment"
+                        ? "Solve assignment"
+                        : contentType === "guess"
+                          ? "Generate guess paper"
+                          : "Generate study kit"}
                     </>
                   )}
                 </button>
@@ -501,7 +694,7 @@ export default function Upload() {
               <div className="panel p-5 shadow-soft">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-ink">Recent uploads</p>
-                  <Link to="/app" className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                  <Link to="/app" className="text-xs font-medium text-accent-600 dark:text-accent-400">
                     View all
                   </Link>
                 </div>
@@ -512,15 +705,14 @@ export default function Upload() {
                         to={`/document/${doc._id}`}
                         className="group flex items-center gap-3 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800/40"
                       >
-                        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
-                          doc.sourceType === "pdf"
-                            ? "bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400"
-                            : "bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400"
-                        }`}>
-                          {doc.sourceType === "pdf" ? <IconDoc width={16} height={16} /> : <IconLink width={16} height={16} />}
+                        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${sourceMeta(doc.sourceType).tint}`}>
+                          {(() => {
+                            const SrcIcon = sourceMeta(doc.sourceType).Icon;
+                            return <SrcIcon width={16} height={16} />;
+                          })()}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-ink group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                          <p className="truncate text-sm font-medium text-ink group-hover:text-accent-600 dark:group-hover:text-accent-400">
                             {doc.title}
                           </p>
                           <p className="text-xs text-muted">
@@ -580,20 +772,20 @@ export default function Upload() {
 
             <div className="rail-card">
               <div className="flex items-center gap-2">
-                <IconChart width={16} height={16} className="text-indigo-600" />
+                <IconChart width={16} height={16} className="text-accent-600" />
                 <p className="text-sm font-semibold text-ink">Tips for best results</p>
               </div>
               <ul className="mt-3 space-y-2 text-xs leading-relaxed text-muted">
                 <li className="flex gap-2">
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-indigo-400" />
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent-400" />
                   Use clear, text-based PDFs — scanned images may work less well.
                 </li>
                 <li className="flex gap-2">
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-indigo-400" />
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent-400" />
                   For links, make sure the page is publicly accessible.
                 </li>
                 <li className="flex gap-2">
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-indigo-400" />
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent-400" />
                   Add a folder and tags now to stay organized later.
                 </li>
               </ul>
@@ -609,7 +801,7 @@ export default function Upload() {
                 {user?.plan === "free" && (
                   <Link
                     to="/pricing"
-                    className="mt-3 inline-flex text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                    className="mt-3 inline-flex text-xs font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400"
                   >
                     Upgrade for more uploads →
                   </Link>
@@ -619,7 +811,7 @@ export default function Upload() {
 
             <div className="rail-card">
               <div className="flex items-center gap-2">
-                <IconMail width={16} height={16} className="text-indigo-600" />
+                <IconMail width={16} height={16} className="text-accent-600" />
                 <p className="text-sm font-semibold text-ink">Help & support</p>
               </div>
               <div className="mt-3 space-y-2">
@@ -655,11 +847,21 @@ export default function Upload() {
         open={loading}
         phase={loadingPhase}
         sectionProgress={sectionProgress}
-        title="Creating your notes…"
+        title={
+          contentType === "assignment"
+            ? "Solving your assignment…"
+            : contentType === "guess"
+              ? "Building your guess paper…"
+              : "Creating your notes…"
+        }
         subtitle={
-          file && file.size > CHUNKED_PDF_BYTES
-            ? "Large PDF — generating section by section for full coverage."
-            : "Flashcards will be ready on the next screen — read your notes while they generate."
+          contentType === "assignment"
+            ? "Answering every question in your paper — keep this tab open."
+            : contentType === "guess"
+              ? "Predicting the most exam-likely questions with model answers — keep this tab open."
+              : file && file.size > CHUNKED_PDF_BYTES
+                ? "Large file — generating section by section for full coverage."
+                : "Flashcards will be ready on the next screen — read your notes while they generate."
         }
       />
     </div>

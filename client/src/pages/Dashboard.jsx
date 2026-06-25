@@ -3,7 +3,7 @@
 // FLOW: App.jsx route renders this page (Dashboard). Values usually come from AuthContext, route params, local state, and api/client.js calls; processed state is shown through components and user actions are sent back to backend APIs.
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api, apiError } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -34,7 +34,9 @@ import {
   IconCalendar,
   IconTrash,
   IconFlame,
+  IconSparkles,
 } from "../components/icons.jsx";
+import { sourceMeta } from "../utils/sourceMeta.jsx";
 
 function MaterialCard({ doc, onDelete, deleting }) {
   const date = new Date(doc.createdAt).toLocaleDateString(undefined, {
@@ -42,7 +44,8 @@ function MaterialCard({ doc, onDelete, deleting }) {
     day: "numeric",
     year: "numeric",
   });
-  const isPdf = doc.sourceType === "pdf";
+  const meta = sourceMeta(doc.sourceType);
+  const SrcIcon = meta.Icon;
 
   return (
     <MotionDiv whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
@@ -61,24 +64,18 @@ function MaterialCard({ doc, onDelete, deleting }) {
         )}
         <Link to={`/document/${doc._id}`} className="block flex-1">
         <div className="flex items-start gap-3">
-          <span
-            className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${
-              isPdf
-                ? "bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400"
-                : "bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400"
-            }`}
-          >
-            {isPdf ? <IconDoc width={18} height={18} /> : <IconLink width={18} height={18} />}
+          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${meta.tint}`}>
+            <SrcIcon width={18} height={18} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge color={isPdf ? "red" : "blue"}>{isPdf ? "PDF" : "Link"}</Badge>
+              <Badge color={meta.badge}>{meta.label}</Badge>
               {doc.folder && <Badge color="gray">{doc.folder}</Badge>}
               {doc.tags?.slice(0, 3).map((tag) => (
                 <Badge key={tag} color="gray">{tag}</Badge>
               ))}
             </div>
-            <h3 className="mt-2 line-clamp-2 font-semibold leading-snug text-ink group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+            <h3 className="mt-2 line-clamp-2 font-semibold leading-snug text-ink group-hover:text-accent-600 dark:group-hover:text-accent-400">
               {doc.title}
             </h3>
             {doc.summary && (
@@ -98,7 +95,7 @@ function MaterialCard({ doc, onDelete, deleting }) {
             </span>
           )}
         </div>
-        <span className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-50 py-2.5 text-sm font-semibold text-indigo-600 transition group-hover:bg-indigo-600 group-hover:text-white dark:bg-indigo-950/50 dark:text-indigo-300 dark:group-hover:bg-indigo-600 dark:group-hover:text-white">
+        <span className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent-50 py-2.5 text-sm font-semibold text-accent-600 transition group-hover:bg-accent-600 group-hover:text-white dark:bg-accent-950/50 dark:text-accent-300 dark:group-hover:bg-accent-600 dark:group-hover:text-white">
           Open material
           <IconChevronRight width={14} height={14} />
         </span>
@@ -127,6 +124,20 @@ export default function Dashboard() {
   const [dueItems, setDueItems] = useState([]);
   const [usage, setUsage] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [loadingSample, setLoadingSample] = useState(false);
+  const navigate = useNavigate();
+
+  async function loadSample() {
+    setLoadingSample(true);
+    try {
+      const { data } = await api.post("/documents/sample");
+      toast("Sample material added", "success");
+      navigate(`/document/${data.document._id}`);
+    } catch (err) {
+      setError(apiError(err));
+      setLoadingSample(false);
+    }
+  }
 
   async function handleDeleteDoc(docId) {
     const ok = await confirm({
@@ -229,9 +240,9 @@ export default function Dashboard() {
   const heatCell = (c) => {
     if (!c) return "bg-slate-100 dark:bg-slate-800/70";
     const r = c / activityMax;
-    if (r > 0.66) return "bg-indigo-600 dark:bg-indigo-500";
-    if (r > 0.33) return "bg-indigo-400 dark:bg-indigo-700";
-    return "bg-indigo-200 dark:bg-indigo-900/70";
+    if (r > 0.66) return "bg-accent-600 dark:bg-accent-500";
+    if (r > 0.33) return "bg-accent-400 dark:bg-accent-700";
+    return "bg-accent-200 dark:bg-accent-900/70";
   };
 
   const statItems = [
@@ -319,6 +330,10 @@ export default function Dashboard() {
                   <option value="all">All types</option>
                   <option value="pdf">PDF</option>
                   <option value="link">Link</option>
+                  <option value="text">Text</option>
+                  <option value="image">Image</option>
+                  <option value="audio">Audio</option>
+                  <option value="video">Video</option>
                 </select>
               </div>
             </div>
@@ -379,11 +394,17 @@ export default function Dashboard() {
                   <EmptyState
                     icon={IconDoc}
                     title="Nothing here yet"
-                    subtitle="Upload a PDF or paste a link. Notes, flashcards, and quizzes are generated automatically."
+                    subtitle="Upload a file or paste a link — notes, flashcards, and quizzes are generated automatically. New here? Load a sample to look around first."
                     action={
-                      <Link to="/upload" className="btn-primary">
-                        <IconPlus width={16} height={16} /> Upload your first source
-                      </Link>
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <Link to="/upload" className="btn-primary">
+                          <IconPlus width={16} height={16} /> Upload your first source
+                        </Link>
+                        <button type="button" onClick={loadSample} disabled={loadingSample} className="btn-outline">
+                          <IconSparkles width={16} height={16} />
+                          {loadingSample ? "Adding sample…" : "Try a sample"}
+                        </button>
+                      </div>
                     }
                   />
                 ) : (
@@ -472,9 +493,9 @@ export default function Dashboard() {
                     <StaggerItem key={item.cardId}>
                       <Link
                         to={`/document/${item.documentId}?study=due`}
-                        className="group flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                        className="group flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition hover:bg-accent-50 dark:hover:bg-accent-950/40"
                       >
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-500" />
                         <div className="min-w-0 flex-1">
                           <p className="line-clamp-1 font-medium text-ink">{item.front}</p>
                           <p className="line-clamp-1 text-xs text-muted">{item.documentTitle}</p>
@@ -499,7 +520,7 @@ export default function Dashboard() {
             <div className="rail-card">
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <p className="font-semibold text-ink">Recent quizzes</p>
-                <Link to="/analytics" className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">
+                <Link to="/analytics" className="text-xs font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400">
                   View all
                 </Link>
               </div>
@@ -516,7 +537,7 @@ export default function Dashboard() {
                     title="No quizzes yet"
                     subtitle="Take a quiz from any material."
                     action={
-                      <Link to="/app" className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                      <Link to="/app" className="text-xs font-medium text-accent-600 dark:text-accent-400">
                         Browse library
                       </Link>
                     }
@@ -558,7 +579,7 @@ export default function Dashboard() {
                 <div className="mt-3 space-y-3">
                   <UsageMeter label="Uploads" used={usage.used.documents} limit={usage.limits.documents} />
                   {user?.plan === "free" && (
-                    <Link to="/pricing" className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">
+                    <Link to="/pricing" className="text-xs font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400">
                       Upgrade for more →
                     </Link>
                   )}

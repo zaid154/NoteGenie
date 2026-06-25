@@ -24,7 +24,7 @@ function FlashcardFace({ kind, children, subtitle }) {
       <div className="flashcard-face-accent" aria-hidden />
       <div className="relative flex min-h-[240px] flex-col p-6 sm:min-h-[260px] sm:p-8">
         {subtitle && (
-          <p className="mb-3 truncate text-xs font-medium text-indigo-600 dark:text-indigo-400">{subtitle}</p>
+          <p className="mb-3 truncate text-xs font-medium text-accent-600 dark:text-accent-400">{subtitle}</p>
         )}
         <div className="flex items-center gap-2">
           <span className={`flashcard-badge ${isQuestion ? "flashcard-badge-question" : "flashcard-badge-answer"}`}>
@@ -241,9 +241,9 @@ function GridFlipCard({ index, front, back, section, cardId, onUpdate, onDelete 
     <div className="flashcard-grid-inner flashcard-grid-question">
       <span className="flashcard-grid-index">#{index + 1}</span>
       {section && (
-        <p className="truncate text-[10px] font-medium text-indigo-600 dark:text-indigo-400">{section}</p>
+        <p className="truncate text-[10px] font-medium text-accent-600 dark:text-accent-400">{section}</p>
       )}
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600/80 dark:text-indigo-400/80">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-accent-600/80 dark:text-accent-400/80">
         Question
       </p>
       <p className="mt-2 line-clamp-5 text-sm leading-relaxed text-ink">{stripMarkdownInline(front)}</p>
@@ -337,7 +337,7 @@ export function FlashcardGrid({ cards, onUpdate, onDelete }) {
 export function FlashcardSessionComplete({ title = "Review complete", subtitle }) {
   return (
     <div className="flashcard-complete">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-600 dark:bg-accent-950/50 dark:text-accent-400">
         <IconCards width={28} height={28} />
       </div>
       <h3 className="mt-4 text-lg font-semibold text-ink">{title}</h3>

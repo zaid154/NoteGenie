@@ -25,6 +25,8 @@ const DocumentView = lazy(() => import("./pages/DocumentView.jsx"));
 const QuizView = lazy(() => import("./pages/QuizView.jsx"));
 const Analytics = lazy(() => import("./pages/Analytics.jsx"));
 const Profile = lazy(() => import("./pages/Profile.jsx"));
+const Workspaces = lazy(() => import("./pages/Workspaces.jsx"));
+const WorkspaceDetail = lazy(() => import("./pages/WorkspaceDetail.jsx"));
 const Pricing = lazy(() => import("./pages/Pricing.jsx"));
 const Billing = lazy(() => import("./pages/Billing.jsx"));
 const Terms = lazy(() => import("./pages/Terms.jsx"));
@@ -34,8 +36,27 @@ const VerifyEmail = lazy(() => import("./pages/VerifyEmail.jsx"));
 const Checkout = lazy(() => import("./pages/Checkout.jsx"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
+const ResourceDetail = lazy(() => import("./pages/ResourceDetail.jsx"));
+const MyDownloads = lazy(() => import("./pages/MyDownloads.jsx"));
+const StoreLayout = lazy(() => import("./components/StoreLayout.jsx"));
+const StoreHome = lazy(() => import("./pages/store/StoreHome.jsx"));
+const StoreCategory = lazy(() => import("./pages/store/StoreCategory.jsx"));
+const StoreCourse = lazy(() => import("./pages/store/StoreCourse.jsx"));
+const StoreSearch = lazy(() => import("./pages/store/StoreSearch.jsx"));
+const Cart = lazy(() => import("./pages/store/Cart.jsx"));
+const CombosList = lazy(() => import("./pages/store/CombosList.jsx"));
+const ComboDetail = lazy(() => import("./pages/store/ComboDetail.jsx"));
+const About = lazy(() => import("./pages/store/About.jsx"));
+const FAQ = lazy(() => import("./pages/store/FAQ.jsx"));
+const HowToBuy = lazy(() => import("./pages/store/HowToBuy.jsx"));
+const Contact = lazy(() => import("./pages/store/Contact.jsx"));
+const Support = lazy(() => import("./pages/store/Support.jsx"));
 
 const AdminOverview = lazy(() => import("./pages/admin/AdminOverview.jsx"));
+const AdminCatalog = lazy(() => import("./pages/admin/AdminCatalog.jsx"));
+const AdminResources = lazy(() => import("./pages/admin/AdminResources.jsx"));
+const AdminOrders = lazy(() => import("./pages/admin/AdminOrders.jsx"));
+const AdminCombos = lazy(() => import("./pages/admin/AdminCombos.jsx"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers.jsx"));
 const AdminUserDetail = lazy(() => import("./pages/admin/AdminUserDetail.jsx"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings.jsx"));
@@ -70,12 +91,27 @@ function Protected({ children }) {
   );
 }
 
+// Admin panel access: staff (support/moderation) and admin both allowed in.
 function ProtectedAdmin({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
-  if (user.role !== "admin") return <Navigate to="/app" replace />;
+  if (user.role !== "admin" && user.role !== "staff") return <Navigate to="/app" replace />;
+  return children;
+}
+
+// Admin-only sub-pages (usage, billing, settings): staff is redirected to the dashboard.
+function AdminOnly({ children }) {
+  const { user } = useAuth();
+  if (user?.role !== "admin") return <Navigate to="/admin" replace />;
+  return children;
+}
+
+// Admin sub-pages gated by a granular permission (admin always passes).
+function RequirePermission({ permission, children }) {
+  const { hasPermission } = useAuth();
+  if (!hasPermission(permission)) return <Navigate to="/admin" replace />;
   return children;
 }
 
@@ -155,20 +191,49 @@ export default function App() {
       <Route path="/document/:id" element={<Protected><DocumentView /></Protected>} />
       <Route path="/quiz/:id" element={<Protected><QuizView /></Protected>} />
       <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
+      <Route path="/workspaces" element={<Protected><Workspaces /></Protected>} />
+      <Route path="/workspaces/:id" element={<Protected><WorkspaceDetail /></Protected>} />
       <Route path="/profile" element={<Protected><Profile /></Protected>} />
       <Route path="/billing" element={<Protected><Billing /></Protected>} />
 
+      {/* Old catalog routes now live in the public storefront */}
+      <Route path="/catalog" element={<Navigate to="/store" replace />} />
+      <Route path="/catalog/courses/:id" element={<Navigate to="/store" replace />} />
+      <Route path="/my-downloads" element={<Protected><MyDownloads /></Protected>} />
+
+      {/* Public storefront (StoreLayout chrome via Outlet) */}
+      <Route element={<StoreLayout />}>
+        <Route path="/store" element={<StoreHome />} />
+        <Route path="/store/search" element={<StoreSearch />} />
+        <Route path="/store/cart" element={<Cart />} />
+        <Route path="/store/combos" element={<CombosList />} />
+        <Route path="/store/combos/:id" element={<ComboDetail />} />
+        <Route path="/store/course/:id" element={<StoreCourse />} />
+        <Route path="/store/how-to-buy" element={<HowToBuy />} />
+        <Route path="/store/:category" element={<StoreCategory />} />
+        <Route path="/resources/:id" element={<ResourceDetail />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/support" element={<Support />} />
+      </Route>
+
       <Route path="/admin" element={<ProtectedAdmin><AdminLayout /></ProtectedAdmin>}>
         <Route index element={<AdminOverview />} />
-        <Route path="usage" element={<AdminUsage />} />
+        <Route path="usage" element={<AdminOnly><AdminUsage /></AdminOnly>} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="users/:id" element={<AdminUserDetail />} />
+        <Route path="catalog" element={<Navigate to="universities" replace />} />
+        <Route path="catalog/:section" element={<RequirePermission permission="manage_catalog"><AdminCatalog /></RequirePermission>} />
+        <Route path="resources" element={<RequirePermission permission="manage_resources"><AdminResources /></RequirePermission>} />
+        <Route path="combos" element={<RequirePermission permission="manage_combos"><AdminCombos /></RequirePermission>} />
+        <Route path="orders" element={<RequirePermission permission="manage_orders"><AdminOrders /></RequirePermission>} />
         <Route path="content" element={<Navigate to="materials" replace />} />
         <Route path="content/:section" element={<AdminContent />} />
         <Route path="billing" element={<Navigate to="pricing" replace />} />
-        <Route path="billing/:section" element={<AdminBilling />} />
+        <Route path="billing/:section" element={<AdminOnly><AdminBilling /></AdminOnly>} />
         <Route path="settings" element={<Navigate to="keys" replace />} />
-        <Route path="settings/:section" element={<AdminSettings />} />
+        <Route path="settings/:section" element={<AdminOnly><AdminSettings /></AdminOnly>} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

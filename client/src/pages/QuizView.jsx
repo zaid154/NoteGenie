@@ -140,7 +140,7 @@ export default function QuizView() {
           </div>
           <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <motion.div
-              className="h-full rounded-full bg-indigo-600"
+              className="h-full rounded-full bg-accent-600"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}

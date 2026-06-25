@@ -15,12 +15,21 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { ToastProvider } from "./context/ToastContext.jsx";
 import { ConfirmProvider } from "./context/ConfirmContext.jsx";
+import { CartProvider } from "./context/CartContext.jsx";
 
 // Saare styles (Tailwind) yahan se load hote hain.
 import "./index.css";
 import { warmApi } from "./api/client.js";
 
 warmApi();
+
+// Register the PWA service worker in production only (it must not interfere with
+// the Vite dev server / HMR). Failures are non-fatal.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
 
 // To enable client error tracking: `npm i @sentry/react`, set VITE_SENTRY_DSN, then add a
 // static `import * as Sentry from "@sentry/react"` and call `Sentry.init({ dsn: ... })` here.
@@ -35,11 +44,13 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
-          <ToastProvider>
-            <ConfirmProvider>
-              <App />
-            </ConfirmProvider>
-          </ToastProvider>
+          <CartProvider>
+            <ToastProvider>
+              <ConfirmProvider>
+                <App />
+              </ConfirmProvider>
+            </ToastProvider>
+          </CartProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

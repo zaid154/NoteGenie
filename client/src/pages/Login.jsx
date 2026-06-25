@@ -123,13 +123,13 @@ export default function Login() {
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="h-4 w-4 rounded border-line accent-indigo-600"
+            className="h-4 w-4 rounded border-line accent-accent-600"
           />
           Remember my email
         </label>
 
         <p className="text-right text-sm">
-          <Link to="/forgot-password" className="text-indigo-600 underline underline-offset-2 hover:text-indigo-700 dark:text-indigo-400">Forgot password?</Link>
+          <Link to="/forgot-password" className="text-accent-600 underline underline-offset-2 hover:text-accent-700 dark:text-accent-400">Forgot password?</Link>
         </p>
 
         <button className="btn-primary w-full" disabled={loading || rateLimited}>
@@ -139,7 +139,7 @@ export default function Login() {
 
       <p className="mt-6 text-center text-sm text-muted">
         New here?{" "}
-        <Link to="/register" className="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-700 dark:text-indigo-400">
+        <Link to="/register" className="font-medium text-accent-600 underline underline-offset-2 hover:text-accent-700 dark:text-accent-400">
           Create an account
         </Link>
       </p>

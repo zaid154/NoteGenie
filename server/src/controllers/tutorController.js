@@ -8,6 +8,8 @@ import { asyncHandler } from "../middleware/errorHandler.js";
 import { incrementUsage } from "../middleware/quota.js";
 import { recordStudyActivity } from "../services/studyStreak.js";
 import { assembleGlobalContext, sourceTitles } from "../services/retrieval.js";
+import { vectorSearchChunks, assembleChunkContext } from "../services/rag.js";
+import { findReadableDocument } from "../services/workspaceAccess.js";
 import { normalizeOutputLanguage } from "../config/languages.js";
 import { assertValidObjectId } from "../utils/objectId.js";
 
@@ -15,10 +17,7 @@ import { assertValidObjectId } from "../utils/objectId.js";
 export const getHistory = asyncHandler(async (req, res) => {
   assertValidObjectId(req.params.documentId, "document ID");
 
-  const doc = await Document.findOne({
-    _id: req.params.documentId,
-    userId: req.user._id,
-  });
+  const doc = await findReadableDocument(req.params.documentId, req.user);
   if (!doc) return res.status(404).json({ message: "Document not found" });
 
   const messages = await ChatMessage.find({
@@ -41,10 +40,7 @@ export const getHistory = asyncHandler(async (req, res) => {
 export const clearHistory = asyncHandler(async (req, res) => {
   assertValidObjectId(req.params.documentId, "document ID");
 
-  const doc = await Document.findOne({
-    _id: req.params.documentId,
-    userId: req.user._id,
-  });
+  const doc = await findReadableDocument(req.params.documentId, req.user);
   if (!doc) return res.status(404).json({ message: "Document not found" });
 
   const result = await ChatMessage.deleteMany({
@@ -162,30 +158,41 @@ export async function globalChat(req, res, next) {
       return res.status(400).json({ message: "That question is too long." });
     }
 
-    // Lexical retrieval: pick the most relevant materials by full-text score,
-    // falling back to the most recent ones for short/no-match queries.
-    let docs = await Document.find(
-      { userId: req.user._id, $text: { $search: question } },
-      { score: { $meta: "textScore" }, title: 1, notes: 1, sourceText: 1 }
-    )
-      .sort({ score: { $meta: "textScore" } })
-      .limit(3)
-      .lean();
+    // Semantic retrieval first: embed the question and find the closest note
+    // chunks (Atlas vector search). Falls back to lexical full-text search if RAG
+    // is off, embedding fails, or the vector index isn't created yet.
+    let context = "";
+    let titles = [];
 
-    if (!docs.length) {
-      docs = await Document.find({ userId: req.user._id })
-        .sort({ createdAt: -1 })
+    const chunks = await vectorSearchChunks(req.user._id, question, { limit: 6 });
+    if (chunks.length) {
+      const built = assembleChunkContext(chunks);
+      context = built.context;
+      titles = built.titles;
+    } else {
+      let docs = await Document.find(
+        { userId: req.user._id, $text: { $search: question } },
+        { score: { $meta: "textScore" }, title: 1, notes: 1, sourceText: 1 }
+      )
+        .sort({ score: { $meta: "textScore" } })
         .limit(3)
-        .select("title notes sourceText")
         .lean();
-    }
 
-    if (!docs.length) {
-      return res.status(400).json({ message: "Add some materials first, then ask across them." });
-    }
+      if (!docs.length) {
+        docs = await Document.find({ userId: req.user._id })
+          .sort({ createdAt: -1 })
+          .limit(3)
+          .select("title notes sourceText")
+          .lean();
+      }
 
-    const context = assembleGlobalContext(docs);
-    const titles = sourceTitles(docs);
+      if (!docs.length) {
+        return res.status(400).json({ message: "Add some materials first, then ask across them." });
+      }
+
+      context = assembleGlobalContext(docs);
+      titles = sourceTitles(docs);
+    }
 
     const past = await ChatMessage.find({ userId: req.user._id, scope: "global" })
       .sort({ createdAt: -1 })

@@ -21,6 +21,8 @@ import tutorRoutes from "./routes/tutor.js";
 import adminRoutes from "./routes/admin.js";
 import billingRoutes from "./routes/billing.js";
 import shareRoutes from "./routes/share.js";
+import workspaceRoutes from "./routes/workspaces.js";
+import catalogRoutes from "./routes/catalog.js";
 
 validateEnv();
 
@@ -71,6 +73,8 @@ app.use("/api/tutor", tutorRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/share", shareRoutes);
+app.use("/api/workspaces", workspaceRoutes);
+app.use("/api/catalog", catalogRoutes);
 
 // Inhe sabse last me lagana zaroori hai:
 app.use(notFound);      // koi route match na ho to 404

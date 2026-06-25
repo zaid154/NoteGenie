@@ -123,7 +123,7 @@ export default function VerifyEmail() {
         {user ? (
           <button
             type="button"
-            className="font-medium text-indigo-600 underline underline-offset-2 dark:text-indigo-400"
+            className="font-medium text-accent-600 underline underline-offset-2 dark:text-accent-400"
             onClick={resend}
             disabled={resending}
           >
@@ -132,7 +132,7 @@ export default function VerifyEmail() {
         ) : (
           <Link
             to="/login"
-            className="font-medium text-indigo-600 underline underline-offset-2 dark:text-indigo-400"
+            className="font-medium text-accent-600 underline underline-offset-2 dark:text-accent-400"
           >
             Log in to resend OTP
           </Link>

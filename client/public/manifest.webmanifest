@@ -1,0 +1,20 @@
+{
+  "name": "NoteGenie — AI Study Assistant",
+  "short_name": "NoteGenie",
+  "description": "Turn PDFs, slides, docs, images, audio, video and links into AI notes, flashcards, quizzes and a tutor.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

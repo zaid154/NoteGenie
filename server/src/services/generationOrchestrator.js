@@ -3,8 +3,11 @@
 // FLOW: DocumentGeneration calls this as the main material pipeline. Source data comes from PDF buffer or extracted link text, Gemini creates notes/flashcards, Document is saved, and progress phases go back to SSE/UI.
 
 import { Document } from "../models/Document.js";
-import { generateNotesWithMode, generateFlashcards, pdfPart, pickKeyForSlot } from "./gemini.js";
+import { generateNotesWithMode, generateAssignment, generateGuessPaper, generateFlashcards, pdfPart, mediaPart, pickKeyForSlot } from "./gemini.js";
 import { extractTextFromUrl } from "./linkExtractor.js";
+import { extractTextFromFile } from "./fileExtractor.js";
+import { resolveUploadType } from "../config/uploadTypes.js";
+import { indexDocumentSafe } from "./rag.js";
 import { normalizeOutputLanguage } from "../config/languages.js";
 import { normalizeDetailLevel, clampFlashcardCount } from "../config/detailLevel.js";
 import { shouldUseChunkedNotes } from "../utils/notesChunk.js";
@@ -56,6 +59,83 @@ async function saveDocument(fields) {
   return Document.create(fields);
 }
 
+// Optional IGNOU / distance-learning metadata, normalized from the request body.
+function parseCourseMeta(body = {}) {
+  return {
+    courseCode: String(body.courseCode || "").trim().toUpperCase().slice(0, 40),
+    program: String(body.program || "").trim().slice(0, 80),
+    session: String(body.session || "").trim().slice(0, 40),
+  };
+}
+
+// Direct-answer content types (assignment, guess paper): one Gemini call, no
+// flashcards, stored as markdown notes. Each maps a contentType to its generator
+// and the progress phase shown in the UI.
+const DIRECT_ANSWER_TYPES = {
+  assignment: { generate: generateAssignment, phase: "assignment", feature: "assignment" },
+  guess: { generate: generateGuessPaper, phase: "guess", feature: "guess" },
+};
+
+/**
+ * Direct-answer pipeline (assignment / guess paper): generate → save.
+ * Single Gemini call (cheaper than chunked notes), no flashcards.
+ */
+async function runDirectAnswerPipeline({
+  contentType,
+  source,
+  sourceType,
+  sourceName,
+  userId,
+  body,
+  onProgress,
+  outputLanguage,
+  courseMeta,
+}) {
+  const spec = DIRECT_ANSWER_TYPES[contentType];
+  onProgress?.({ phase: spec.phase });
+
+  const key = await pickKeyForSlot(0);
+  const result = await withStepRetry(
+    () =>
+      spec.generate(source, {
+        userId,
+        feature: spec.feature,
+        preferredKeyId: key.id,
+        language: outputLanguage,
+        wordLimit: body.wordLimit,
+        count: body.count,
+        courseCode: courseMeta.courseCode,
+      }),
+    { retries: 1 }
+  );
+
+  onProgress?.({ phase: "saving" });
+
+  const doc = await saveDocument({
+    userId,
+    title: result.title || sourceName,
+    sourceType,
+    sourceName,
+    folder: body.folder?.trim() || "",
+    tags: parseTags(body),
+    contentType,
+    ...courseMeta,
+    notes: result.notes,
+    summary: result.summary,
+    keyTakeaways: [],
+    glossary: [],
+    flashcards: [],
+    sourceText: (result.sourceExcerpt || result.notes || "").slice(0, 15000),
+    outputLanguage,
+    detailLevel: "detailed",
+    generationMode: "single",
+  });
+
+  indexDocumentSafe(doc);
+
+  return { doc, flashcardsAdded: 0, generationMode: "single" };
+}
+
 /**
  * Unified material pipeline: notes → flashcards → save.
  * Flashcard failure is non-fatal (notes still saved).
@@ -72,6 +152,24 @@ export async function runMaterialPipeline({
 }) {
   const outputLanguage = normalizeOutputLanguage(body.outputLanguage);
   const detailLevel = normalizeDetailLevel(body.detailLevel);
+  const contentType = DIRECT_ANSWER_TYPES[body.contentType] ? body.contentType : "notes";
+  const courseMeta = parseCourseMeta(body);
+
+  // Assignment / guess-paper modes produce answers instead of summarizing into notes.
+  if (DIRECT_ANSWER_TYPES[contentType]) {
+    return runDirectAnswerPipeline({
+      contentType,
+      source,
+      sourceType,
+      sourceName,
+      userId,
+      body,
+      onProgress,
+      outputLanguage,
+      courseMeta,
+    });
+  }
+
   const chunked = shouldUseChunkedNotes({ pdfBytes, textLength });
 
   if (chunked) onProgress?.({ phase: "outline" });
@@ -115,6 +213,8 @@ export async function runMaterialPipeline({
     sourceName,
     folder: body.folder?.trim() || "",
     tags: parseTags(body),
+    contentType: "notes",
+    ...courseMeta,
     notes: notesResult.notes,
     summary: notesResult.summary,
     keyTakeaways: Array.isArray(notesResult.keyTakeaways) ? notesResult.keyTakeaways.slice(0, 8) : [],
@@ -129,6 +229,9 @@ export async function runMaterialPipeline({
     detailLevel,
     generationMode: notesResult.generationMode || "single",
   });
+
+  // Embed the notes for semantic retrieval (best-effort, runs in background).
+  indexDocumentSafe(doc);
 
   return {
     doc,
@@ -158,6 +261,54 @@ export async function runPdfPipeline({ buffer, originalname, userId, body, onPro
   });
 }
 
+/**
+ * Universal file pipeline. Detects the upload type and routes:
+ *  - PDF / image / audio / video → sent to Gemini inline (multimodal).
+ *  - DOCX / PPTX / TXT → text extracted first, then the text pipeline.
+ */
+export async function runFilePipeline({ buffer, originalname, mimetype, userId, body, onProgress }) {
+  const type = resolveUploadType(mimetype, originalname);
+  if (!type) {
+    const err = new Error("Unsupported file type.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // PDFs keep their dedicated path (header validation + chunking by size).
+  if (type.category === "pdf") {
+    return runPdfPipeline({ buffer, originalname, userId, body, onProgress });
+  }
+
+  onProgress?.({ phase: "validating" });
+
+  if (type.handling === "extract") {
+    const text = await extractTextFromFile(buffer, type.category);
+    const source = text.slice(0, 200000);
+    onProgress?.({ phase: "notes" });
+    return runMaterialPipeline({
+      source,
+      sourceType: type.sourceType,
+      sourceName: originalname,
+      userId,
+      body,
+      onProgress,
+      textLength: source.length,
+    });
+  }
+
+  // Inline media (image / audio / video) — Gemini reads it natively.
+  const mime = type.mimes.includes(mimetype) ? mimetype : type.mimes[0];
+  onProgress?.({ phase: "notes" });
+  return runMaterialPipeline({
+    source: mediaPart(buffer, mime),
+    sourceType: type.sourceType,
+    sourceName: originalname,
+    userId,
+    body,
+    onProgress,
+  });
+}
+
 export async function runLinkPipeline({ url, userId, body, onProgress }) {
   onProgress?.({ phase: "extracting" });
   const { text } = await extractTextFromUrl(url);
@@ -170,6 +321,33 @@ export async function runLinkPipeline({ url, userId, body, onProgress }) {
     body,
     onProgress,
     textLength: text.length,
+  });
+}
+
+const MIN_TEXT_CHARS = 40;
+const MAX_TEXT_CHARS = 200000;
+
+export async function runTextPipeline({ text, title, userId, body, onProgress }) {
+  const clean = String(text || "").trim();
+  if (clean.length < MIN_TEXT_CHARS) {
+    const err = new Error(`Please paste at least ${MIN_TEXT_CHARS} characters of text.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const source = clean.slice(0, MAX_TEXT_CHARS);
+  const sourceName = String(title || "").trim() || "Pasted notes";
+
+  onProgress?.({ phase: "notes" });
+
+  return runMaterialPipeline({
+    source,
+    sourceType: "text",
+    sourceName,
+    userId,
+    body,
+    onProgress,
+    textLength: source.length,
   });
 }
 

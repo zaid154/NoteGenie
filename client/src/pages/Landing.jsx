@@ -47,7 +47,7 @@ function ProductPreview() {
               </div>
             ))}
           </div>
-          <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50/50 px-4 py-8 text-center dark:border-indigo-900 dark:bg-indigo-950/20">
+          <div className="rounded-xl border border-dashed border-accent-200 bg-accent-50/50 px-4 py-8 text-center dark:border-accent-900 dark:bg-accent-950/20">
             <p className="text-sm font-medium text-ink">Drop PDF or paste a link</p>
             <p className="mt-1 text-xs text-muted">Notes · flashcards · quiz in minutes</p>
           </div>
@@ -61,7 +61,7 @@ function ProductPreview() {
                 <div
                   key={opt}
                   className={`rounded-md border px-2 py-1.5 text-xs ${
-                    i === 0 ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40" : "border-line text-muted"
+                    i === 0 ? "border-accent-300 bg-accent-50 text-accent-700 dark:bg-accent-950/40" : "border-line text-muted"
                   }`}
                 >
                   {opt}
@@ -155,7 +155,7 @@ export default function Landing() {
             <ul className="mt-4 flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-ink">
               {benefits.map((b) => (
                 <li key={b} className="flex items-center gap-2">
-                  <span className="text-indigo-600">✓</span> {b}
+                  <span className="text-accent-600">✓</span> {b}
                 </li>
               ))}
             </ul>
@@ -202,7 +202,7 @@ export default function Landing() {
         </ScrollReveal>
 
         <ScrollReveal delay={0.1}>
-          <section className="cta-glow mt-16 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-indigo-100 bg-indigo-50/50 px-8 py-10 dark:border-indigo-900 dark:bg-indigo-950/30">
+          <section className="cta-glow mt-16 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-accent-100 bg-accent-50/50 px-8 py-10 dark:border-accent-900 dark:bg-accent-950/30">
             <div>
               <h2 className="text-2xl font-semibold text-ink">Free to start</h2>
               <p className="mt-1 text-muted">3 uploads/month. Upgrade when you need more.</p>

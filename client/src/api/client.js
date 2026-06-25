@@ -202,3 +202,32 @@ export async function importLinkStream(body, { onPhase, signal } = {}) {
   return result;
 }
 
+/** Import pasted text with SSE progress. Returns { documentId, generationMode }. */
+export async function importTextStream(body, { onPhase, signal } = {}) {
+  const res = await fetch(apiUrl("/documents/text/stream"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || "Text import failed");
+  }
+
+  let result = null;
+  await readSseStream(res, {
+    onEvent: (event, data) => {
+      if (event === "phase") onPhase?.(data);
+      if (event === "done") result = data;
+    },
+  });
+
+  if (!result?.documentId) throw new Error("Import finished without a document ID");
+  return result;
+}
+

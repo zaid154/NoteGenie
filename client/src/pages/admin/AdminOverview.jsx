@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiError } from "../../api/client.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { Alert, PageLoader, PageHeader, EmptyState } from "../../components/ui.jsx";
 import AdminStatCard, { formatCost } from "../../components/AdminStatCard.jsx";
 import { StaggerContainer, StaggerItem } from "../../components/motion.jsx";
@@ -19,6 +20,8 @@ import {
 } from "../../components/icons.jsx";
 
 export default function AdminOverview() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -55,9 +58,11 @@ export default function AdminOverview() {
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-display text-lg font-600 text-ink">AI usage</h2>
-              <Link to="/admin/usage" className="text-sm font-500 text-stone-700 hover:underline">
-                View details →
-              </Link>
+              {isAdmin && (
+                <Link to="/admin/usage" className="text-sm font-500 text-stone-700 hover:underline">
+                  View details →
+                </Link>
+              )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <AdminStatCard
@@ -82,7 +87,7 @@ export default function AdminOverview() {
             <section className="card-solid p-4">
               <p className="text-xs font-semibold uppercase text-muted">Support email</p>
               <p className="mt-1 text-sm text-ink">
-                <a href={`mailto:${data.supportEmail}`} className="font-medium text-indigo-600 underline dark:text-indigo-400">
+                <a href={`mailto:${data.supportEmail}`} className="font-medium text-accent-600 underline dark:text-accent-400">
                   {data.supportEmail}
                 </a>
               </p>

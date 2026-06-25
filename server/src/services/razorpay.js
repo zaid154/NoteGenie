@@ -49,6 +49,54 @@ export async function createOrder(user, plan) {
   };
 }
 
+// One-time order for a single marketplace resource (uses the resource's own price).
+export async function createResourceOrder(user, resource) {
+  const rz = getClient();
+  const amount = Math.round(Number(resource?.price) || 0);
+  if (!rz || amount <= 0) {
+    throw Object.assign(new Error("Billing is not configured"), { statusCode: 503 });
+  }
+
+  const order = await rz.orders.create({
+    amount,
+    currency: resource.currency || "INR",
+    receipt: `res_${String(resource._id).slice(-8)}_${Date.now()}`,
+    notes: {
+      userId: String(user._id),
+      resourceId: String(resource._id),
+      kind: "resource",
+    },
+  });
+
+  return {
+    orderId: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    keyId: env.razorpayKeyId,
+  };
+}
+
+// One Razorpay order for a multi-item cart (total already summed + validated server-side).
+export async function createCartOrder(user, totalPaise, extraNotes = {}) {
+  const rz = getClient();
+  const amount = Math.round(Number(totalPaise) || 0);
+  if (!rz || amount <= 0) {
+    throw Object.assign(new Error("Billing is not configured"), { statusCode: 503 });
+  }
+  const order = await rz.orders.create({
+    amount,
+    currency: "INR",
+    receipt: `cart_${String(user._id).slice(-8)}_${Date.now()}`,
+    notes: { userId: String(user._id), kind: "cart", ...extraNotes },
+  });
+  return {
+    orderId: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    keyId: env.razorpayKeyId,
+  };
+}
+
 export function verifyPaymentSignature({ orderId, paymentId, signature }) {
   if (!env.razorpayKeySecret) return false;
   const body = `${orderId}|${paymentId}`;

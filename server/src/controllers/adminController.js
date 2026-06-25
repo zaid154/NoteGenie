@@ -21,6 +21,8 @@ import {
 } from "../models/Settings.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { invalidateAiRateLimitCache } from "../middleware/aiRateLimit.js";
+import { invalidateAiEnabledCache } from "../middleware/aiEnabled.js";
+import { PERMISSION_KEYS, PERMISSION_LABELS, sanitizePermissions } from "../config/permissions.js";
 import { env } from "../config/env.js";
 import {
   testApiKey,
@@ -83,7 +85,7 @@ function userFilterFromQuery(query) {
     ];
   }
   if (query.plan) filter.plan = query.plan;
-  if (query.role && ["user", "admin"].includes(query.role)) filter.role = query.role;
+  if (query.role && ["user", "staff", "admin"].includes(query.role)) filter.role = query.role;
   return filter;
 }
 
@@ -381,7 +383,7 @@ export const createUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Password must be at least 8 characters" });
   }
   if (await rejectInvalidPlan(plan, res)) return;
-  if (!["user", "admin"].includes(role)) {
+  if (!["user", "staff", "admin"].includes(role)) {
     return res.status(400).json({ message: "Invalid role" });
   }
 
@@ -419,7 +421,7 @@ export const updateUser = asyncHandler(async (req, res) => {
     user.email = next;
   }
   if (role !== undefined) {
-    if (!["user", "admin"].includes(role)) {
+    if (!["user", "staff", "admin"].includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
     }
     if (String(user._id) === String(req.user._id) && role !== "admin") {
@@ -427,12 +429,29 @@ export const updateUser = asyncHandler(async (req, res) => {
     }
     user.role = role;
   }
+  // Granular permissions only apply to staff; clear them for user/admin.
+  if (req.body.permissions !== undefined || role !== undefined) {
+    user.permissions =
+      user.role === "staff" ? sanitizePermissions(req.body.permissions ?? user.permissions) : [];
+  }
   if (emailVerified !== undefined) user.emailVerified = Boolean(emailVerified);
   if (bio !== undefined) user.bio = String(bio).trim().slice(0, 280);
 
   await user.save();
-  await logAdminAction(req, "user.update", "user", user._id, { name: user.name, role: user.role });
+  await logAdminAction(req, "user.update", "user", user._id, {
+    name: user.name,
+    role: user.role,
+    permissions: user.permissions,
+  });
   res.json({ message: "User updated", user: user.toSafeObject() });
+});
+
+// Permission catalog for the admin UI (checkbox list when assigning to staff).
+export const getPermissions = asyncHandler(async (_req, res) => {
+  res.json({
+    keys: PERMISSION_KEYS,
+    labels: PERMISSION_LABELS,
+  });
 });
 
 export const resetUserUsage = asyncHandler(async (req, res) => {
@@ -602,6 +621,8 @@ export const getSettings = asyncHandler(async (req, res) => {
       unreadableCount > 0
         ? `${unreadableCount} saved key(s) cannot be decrypted. Restore ENCRYPTION_SECRET or remove and re-add those keys.`
         : "",
+    aiEnabled: settings.aiEnabled !== false,
+    storefront: settings.storefront ? settings.storefront.toObject?.() ?? settings.storefront : {},
     aiRateLimitMax: settings.aiRateLimitMax ?? env.aiRateLimitMax,
     aiRateLimitWindowMinutes: settings.aiRateLimitWindowMinutes ?? env.aiRateLimitWindowMinutes,
     aiRateLimitAdminSet: settings.aiRateLimitMax != null,
@@ -613,7 +634,7 @@ export const getSettings = asyncHandler(async (req, res) => {
 });
 
 export const updateSettings = asyncHandler(async (req, res) => {
-  const { geminiApiKey, geminiModel, apiKeys, aiRateLimitMax, aiRateLimitWindowMinutes } = req.body;
+  const { geminiApiKey, geminiModel, apiKeys, aiRateLimitMax, aiRateLimitWindowMinutes, aiEnabled, storefront } = req.body;
   const settings = await getAppSettings();
   await migrateLegacyKey(settings);
 
@@ -660,9 +681,23 @@ export const updateSettings = asyncHandler(async (req, res) => {
     }
     settings.aiRateLimitWindowMinutes = Math.round(mins);
   }
+  if (aiEnabled !== undefined) {
+    settings.aiEnabled = Boolean(aiEnabled);
+  }
+  if (storefront && typeof storefront === "object") {
+    const allowed = [
+      "utilityBarText", "whatsappNumber", "supportEmail", "heroTitle", "heroSubtitle",
+      "heroBannerUrl", "instagram", "facebook", "youtube", "telegram",
+    ];
+    settings.storefront = settings.storefront || {};
+    for (const key of allowed) {
+      if (storefront[key] !== undefined) settings.storefront[key] = String(storefront[key]).slice(0, 500);
+    }
+  }
 
   await settings.save();
   invalidateAiRateLimitCache();
+  invalidateAiEnabledCache();
   await logAdminAction(req, "settings.update", "settings", "", { geminiModel: settings.geminiModel });
   const { pool } = await getKeyPool();
 
@@ -673,6 +708,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
     geminiModel: settings.geminiModel,
     apiKeys: serializeApiKeys(settings),
     poolSize: pool.length,
+    aiEnabled: settings.aiEnabled !== false,
     aiRateLimitMax: settings.aiRateLimitMax ?? env.aiRateLimitMax,
     aiRateLimitWindowMinutes: settings.aiRateLimitWindowMinutes ?? env.aiRateLimitWindowMinutes,
   });

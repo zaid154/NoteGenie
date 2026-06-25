@@ -30,7 +30,7 @@ export default function Privacy() {
         <h2>Your rights</h2>
         <p>You can delete your account from Profile settings. Contact support to request a data export.</p>
         <p className="not-prose mt-8">
-          <Link to="/terms" className="text-indigo-600 underline dark:text-indigo-400">
+          <Link to="/terms" className="text-accent-600 underline dark:text-accent-400">
             Terms of Service
           </Link>
         </p>

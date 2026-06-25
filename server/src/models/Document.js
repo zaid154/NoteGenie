@@ -24,7 +24,11 @@ const documentSchema = new mongoose.Schema(
       index: true,
     },
     title: { type: String, required: true },
-    sourceType: { type: String, enum: ["pdf", "link"], required: true },
+    sourceType: {
+      type: String,
+      enum: ["pdf", "link", "text", "image", "audio", "video"],
+      required: true,
+    },
     sourceName: { type: String },
     folder: { type: String, default: "", trim: true, index: true },
     tags: { type: [String], default: [] },
@@ -46,8 +50,21 @@ const documentSchema = new mongoose.Schema(
     outputLanguage: { type: String, default: "English" },
     detailLevel: { type: String, enum: ["standard", "detailed"], default: "detailed" },
     generationMode: { type: String, enum: ["single", "chunked"], default: "single" },
+    // What this material is: study notes (default), a solved assignment, or a guess paper.
+    contentType: { type: String, enum: ["notes", "assignment", "guess"], default: "notes", index: true },
+    // Optional IGNOU / distance-learning metadata for organizing by course.
+    courseCode: { type: String, default: "", trim: true, index: true },
+    program: { type: String, default: "", trim: true },
+    session: { type: String, default: "", trim: true },
     shareToken: { type: String, default: "" },
     shareEnabled: { type: Boolean, default: false },
+    // Optional: when set, members of this workspace can view/study the document.
+    workspaceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );

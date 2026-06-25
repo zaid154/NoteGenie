@@ -5,12 +5,16 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { requireQuota } from "../middleware/quota.js";
 import { aiRateLimitMiddleware } from "../middleware/aiRateLimit.js";
-import { uploadPdf } from "../middleware/upload.js";
+import { requireAiEnabled } from "../middleware/aiEnabled.js";
+import { uploadFile } from "../middleware/upload.js";
 import {
   uploadDocument,
   uploadDocumentStream,
   createFromLink,
   createFromLinkStream,
+  createFromText,
+  createFromTextStream,
+  createSampleDocument,
   listDocuments,
   listFolders,
   getDueCards,
@@ -19,6 +23,7 @@ import {
   regenerateDocument,
   generateFlashcardsBatch,
   updateDocumentMeta,
+  setDocumentWorkspace,
   rateFlashcard,
   updateFlashcard,
   deleteFlashcard,
@@ -31,20 +36,24 @@ router.use(requireAuth);
 
 router.get("/review/due", getDueCards);
 router.get("/folders/list", listFolders);
-router.post("/upload/stream", aiRateLimitMiddleware, requireQuota("documents"), uploadPdf, uploadDocumentStream);
-router.post("/upload", aiRateLimitMiddleware, requireQuota("documents"), uploadPdf, uploadDocument);
-router.post("/link/stream", aiRateLimitMiddleware, requireQuota("documents"), createFromLinkStream);
-router.post("/link", aiRateLimitMiddleware, requireQuota("documents"), createFromLink);
+router.post("/upload/stream", requireAiEnabled, aiRateLimitMiddleware, requireQuota("documents"), uploadFile, uploadDocumentStream);
+router.post("/upload", requireAiEnabled, aiRateLimitMiddleware, requireQuota("documents"), uploadFile, uploadDocument);
+router.post("/link/stream", requireAiEnabled, aiRateLimitMiddleware, requireQuota("documents"), createFromLinkStream);
+router.post("/link", requireAiEnabled, aiRateLimitMiddleware, requireQuota("documents"), createFromLink);
+router.post("/text/stream", requireAiEnabled, aiRateLimitMiddleware, requireQuota("documents"), createFromTextStream);
+router.post("/text", requireAiEnabled, aiRateLimitMiddleware, requireQuota("documents"), createFromText);
+router.post("/sample", createSampleDocument);
 router.get("/", listDocuments);
 router.get("/:id", getDocument);
 router.patch("/:id/meta", updateDocumentMeta);
+router.patch("/:id/workspace", setDocumentWorkspace);
 router.post("/:id/share", toggleShare);
-router.post("/:id/flashcards/generate", aiRateLimitMiddleware, generateFlashcardsBatch);
+router.post("/:id/flashcards/generate", requireAiEnabled, aiRateLimitMiddleware, generateFlashcardsBatch);
 router.delete("/:id/flashcards", clearAllFlashcards);
 router.patch("/:id/flashcards/:cardId", updateFlashcard);
 router.delete("/:id/flashcards/:cardId", deleteFlashcard);
 router.post("/:id/flashcards/:cardId/rate", rateFlashcard);
-router.post("/:id/regenerate", aiRateLimitMiddleware, regenerateDocument);
+router.post("/:id/regenerate", requireAiEnabled, aiRateLimitMiddleware, regenerateDocument);
 router.delete("/:id", deleteDocument);
 
 export default router;

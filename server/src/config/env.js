@@ -60,6 +60,10 @@ export const env = {
   sentryDsn: process.env.SENTRY_DSN,
   aiRateLimitMax: Number(process.env.AI_RATE_LIMIT_MAX) || 120,
   aiRateLimitWindowMinutes: Number(process.env.AI_RATE_LIMIT_WINDOW_MIN) || 15,
+  // Vector RAG: embeds document chunks for semantic Ask/tutor retrieval. Falls back
+  // to lexical search automatically if disabled or the Atlas vector index is missing.
+  ragEnabled: process.env.RAG_ENABLED !== "false",
+  ragVectorIndex: process.env.RAG_VECTOR_INDEX || "vector_index",
 };
 
 // Pehla origin default/primary client URL ke roop me (CORS, links, etc.).

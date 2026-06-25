@@ -12,10 +12,12 @@ import {
   pickKeyForSlot,
 } from "../services/gemini.js";
 import {
-  buildNotesFromPdf,
   buildNotesFromLink,
-  buildMaterialFromPdf,
+  buildNotesFromText,
+  buildNotesFromFile,
   buildMaterialFromLink,
+  buildMaterialFromText,
+  buildMaterialFromFile,
   writeSse,
   initSse,
 } from "../services/documentGeneration.js";
@@ -27,18 +29,23 @@ import { normalizeOutputLanguage } from "../config/languages.js";
 import { normalizeDetailLevel, clampFlashcardCount } from "../config/detailLevel.js";
 import { getSectionNotes } from "../utils/parseNoteSections.js";
 import { assertValidObjectId } from "../utils/objectId.js";
+import { SAMPLE_DOCUMENT } from "../config/sampleDocument.js";
+import { indexDocumentSafe, removeDocumentIndex } from "../services/rag.js";
+import { findReadableDocument } from "../services/workspaceAccess.js";
+import { Workspace } from "../models/Workspace.js";
 import crypto from "crypto";
 
-// PDF se notes banakar ek naya Document save karta hai.
+// Uploaded file (PDF / image / audio / video / docx / pptx / txt) se notes banata hai.
 // POST /api/documents/upload
 export const uploadDocument = asyncHandler(async (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ message: "Koi PDF file nahi mili" });
+    return res.status(400).json({ message: "Koi file nahi mili" });
   }
 
-  const doc = await buildNotesFromPdf({
+  const doc = await buildNotesFromFile({
     buffer: req.file.buffer,
     originalname: req.file.originalname,
+    mimetype: req.file.mimetype,
     userId: req.user._id,
     body: req.body,
   });
@@ -50,16 +57,17 @@ export const uploadDocument = asyncHandler(async (req, res) => {
 // SSE stream: POST /api/documents/upload/stream
 export const uploadDocumentStream = asyncHandler(async (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ message: "Koi PDF file nahi mili" });
+    return res.status(400).json({ message: "Koi file nahi mili" });
   }
 
   initSse(res);
   writeSse(res, "phase", { phase: "uploading" });
 
   try {
-    const { doc, flashcardsAdded, generationMode } = await buildMaterialFromPdf({
+    const { doc, flashcardsAdded, generationMode } = await buildMaterialFromFile({
       buffer: req.file.buffer,
       originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
       userId: req.user._id,
       body: req.body,
       onProgress: (data) => writeSse(res, "phase", data),
@@ -123,6 +131,90 @@ export const createFromLinkStream = asyncHandler(async (req, res) => {
   }
 });
 
+// Pasted text se notes banata hai.
+// POST /api/documents/text   body: { text, title }
+export const createFromText = asyncHandler(async (req, res) => {
+  const { text } = req.body;
+  if (!text || !text.trim()) return res.status(400).json({ message: "Text daalo" });
+
+  const doc = await buildNotesFromText({
+    text,
+    title: req.body.title,
+    userId: req.user._id,
+    body: req.body,
+  });
+
+  await incrementUsage(req.user, "documents");
+  res.status(201).json({ document: doc });
+});
+
+// SSE stream: POST /api/documents/text/stream
+export const createFromTextStream = asyncHandler(async (req, res) => {
+  const { text } = req.body;
+  if (!text || !text.trim()) return res.status(400).json({ message: "Text daalo" });
+
+  initSse(res);
+  writeSse(res, "phase", { phase: "notes" });
+
+  try {
+    const { doc, flashcardsAdded, generationMode } = await buildMaterialFromText({
+      text,
+      title: req.body.title,
+      userId: req.user._id,
+      body: req.body,
+      onProgress: (data) => writeSse(res, "phase", data),
+    });
+
+    await incrementUsage(req.user, "documents");
+    writeSse(res, "done", {
+      documentId: doc._id.toString(),
+      generationMode,
+      flashcardsAdded,
+    });
+    res.end();
+  } catch (err) {
+    writeSse(res, "error", { message: err.message || "Text import failed" });
+    res.end();
+  }
+});
+
+// Instant onboarding: insert a pre-written sample document (NO Gemini call, no quota).
+// Only available while the user has no materials yet.
+// POST /api/documents/sample
+export const createSampleDocument = asyncHandler(async (req, res) => {
+  const existing = await Document.countDocuments({ userId: req.user._id });
+  if (existing > 0) {
+    return res
+      .status(409)
+      .json({ message: "The sample is just for getting started — you already have materials." });
+  }
+
+  const flashcards = sanitizeFlashcards(SAMPLE_DOCUMENT.flashcards).map((c) =>
+    initFlashcard({ ...c, section: c.section || "" })
+  );
+
+  const doc = await Document.create({
+    userId: req.user._id,
+    title: SAMPLE_DOCUMENT.title,
+    sourceType: "text",
+    sourceName: "Sample material",
+    folder: "",
+    tags: ["sample"],
+    notes: SAMPLE_DOCUMENT.notes,
+    summary: SAMPLE_DOCUMENT.summary,
+    keyTakeaways: SAMPLE_DOCUMENT.keyTakeaways,
+    glossary: SAMPLE_DOCUMENT.glossary,
+    flashcards,
+    sourceText: SAMPLE_DOCUMENT.notes.slice(0, 15000),
+    outputLanguage: "English",
+    detailLevel: "detailed",
+    generationMode: "single",
+  });
+
+  indexDocumentSafe(doc);
+  res.status(201).json({ document: doc });
+});
+
 // GET /api/documents?q=&folder=
 export const listDocuments = asyncHandler(async (req, res) => {
   const filter = { userId: req.user._id };
@@ -149,6 +241,8 @@ export const listDocuments = asyncHandler(async (req, res) => {
         tags: 1,
         createdAt: 1,
         flashcardCount: 1,
+        contentType: 1,
+        courseCode: 1,
         ...(req.query.q?.trim() ? { score: 1 } : {}),
       },
     },
@@ -286,15 +380,32 @@ export const toggleShare = asyncHandler(async (req, res) => {
   });
 });
 
-// Ek document ka pura data.
+// Ek document ka pura data. Owner ya workspace member access kar sakte hain.
 // GET /api/documents/:id
 export const getDocument = asyncHandler(async (req, res) => {
-  const doc = await Document.findOne({
-    _id: req.params.id,
-    userId: req.user._id,
-  }).lean();
+  const doc = await findReadableDocument(req.params.id, req.user);
   if (!doc) return res.status(404).json({ message: "Document nahi mila" });
-  res.json({ document: doc });
+  const out = doc.toObject();
+  out.isOwner = String(doc.userId) === String(req.user._id);
+  res.json({ document: out });
+});
+
+// Document ko workspace me share/unshare karta hai (sirf owner).
+// PATCH /api/documents/:id/workspace   body: { workspaceId: string | null }
+export const setDocumentWorkspace = asyncHandler(async (req, res) => {
+  const doc = await Document.findOne({ _id: req.params.id, userId: req.user._id });
+  if (!doc) return res.status(404).json({ message: "Document not found" });
+
+  const { workspaceId } = req.body;
+  if (workspaceId) {
+    const ws = await Workspace.findOne({ _id: workspaceId, "members.userId": req.user._id }).select("_id");
+    if (!ws) return res.status(403).json({ message: "You're not a member of that workspace." });
+    doc.workspaceId = ws._id;
+  } else {
+    doc.workspaceId = null;
+  }
+  await doc.save();
+  res.json({ workspaceId: doc.workspaceId });
 });
 
 // Document + uske quizzes/attempts delete.
@@ -309,6 +420,7 @@ export const deleteDocument = asyncHandler(async (req, res) => {
   await Quiz.deleteMany({ documentId: doc._id });
   await QuizAttempt.deleteMany({ documentId: doc._id });
   await ChatMessage.deleteMany({ documentId: doc._id });
+  await removeDocumentIndex(doc._id);
   res.json({ message: "Deleted" });
 });
 
@@ -353,6 +465,7 @@ export const regenerateDocument = asyncHandler(async (req, res) => {
   doc.generationMode = "single";
   await doc.save();
 
+  indexDocumentSafe(doc);
   res.json({ document: doc });
 });
 
