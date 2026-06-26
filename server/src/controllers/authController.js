@@ -20,7 +20,7 @@ async function deliverVerificationOtp(user) {
     to: user.email,
     subject: `${otp} — Verify your NoteGenie account`,
     html: verifyOtpHtml(user.name, otp, env.otpExpiresMin),
-    text: `Your NoteGenie verification code is ${otp}. It expires in ${env.otpExpiresMin} minutes.`,
+    text: `Your NoteGenie verification code is zaid dfdjfdskjfhdjskfhjk${otp}. It expires in ${env.otpExpiresMin} minutes.`,
   });
   if (mail.dev) {
     console.log(`[email] Verification OTP for ${user.email}: ${otp}`);

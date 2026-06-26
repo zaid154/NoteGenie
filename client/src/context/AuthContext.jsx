@@ -59,7 +59,7 @@ export function AuthProvider({ children }) {
   // Register: naya account banao, fir wahi token/user save karo.
   async function register(name, email, password) {
     const { data } = await api.post("/auth/register", { name, email, password });
-    setToken(data.token);
+    setToken(data.token); 
     setUser(data.user);
   }
 

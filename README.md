@@ -308,6 +308,303 @@ Server dev dependencies:
 - Large documents chunking pipeline use kar sakte hain.
 - Gemini output JSON/markdown clean karke app me save hota hai.
 
+## Complete Current Folder Structure - Har File Ka Use
+
+Yeh section current repo scan ke hisaab se hai. Isme root, docs, client, aur server ki har important file ka kaam simple words me diya hai.
+
+### Root And Docs
+
+| File/Folder | Use |
+| --- | --- |
+| `README.md` | Project guide, commands, structure, file working. |
+| `package.json` | Root scripts: install all, run client/server, seed, lint. |
+| `package-lock.json` | Root npm dependency lock file. |
+| `.env.example` | Backend/root environment variables ka sample. |
+| `dev.mjs` | Client aur server ko ek command se start karta hai; ports handle karta hai. |
+| `start-dev.bat` | Windows shortcut for dev start. |
+| `render.yaml` | Render deployment blueprint for backend. |
+| `proble.md` | Project notes/problem scratch file. |
+| `docs/VECTOR_SEARCH_SETUP.md` | MongoDB Atlas Vector Search setup, embedding backfill, RAG explanation. |
+| `client/` | React frontend app. |
+| `server/` | Express backend API. |
+
+### Client Root Files
+
+| File | Use |
+| --- | --- |
+| `client/package.json` | Frontend scripts and dependencies. |
+| `client/package-lock.json` | Frontend dependency lock file. |
+| `client/index.html` | Vite HTML entry jahan React app mount hota hai. |
+| `client/vite.config.js` | Vite config, dev server, API proxy. |
+| `client/tailwind.config.js` | Tailwind theme/content config. |
+| `client/postcss.config.js` | Tailwind/autoprefixer CSS pipeline config. |
+| `client/eslint.config.js` | Frontend lint rules. |
+| `client/firebase.json` | Firebase hosting deploy config. |
+| `client/.env.example` | Frontend `VITE_API_URL` sample. |
+| `client/public/favicon.svg` | Browser tab icon. |
+| `client/public/manifest.webmanifest` | PWA/install metadata. |
+| `client/public/sw.js` | Service worker/offline install support. |
+
+### Client Entry, API, Config
+
+| File | Use |
+| --- | --- |
+| `client/src/main.jsx` | React root render karta hai; providers app ke around lagte hain. |
+| `client/src/App.jsx` | Saare frontend routes, protected routes, admin route gates. |
+| `client/src/index.css` | Global CSS, Tailwind layers, theme variables, reusable styles. |
+| `client/src/api/client.js` | Axios instance; API base URL set karta hai; auth token headers attach karta hai. |
+| `client/src/config/developer.js` | Developer/admin-facing constants and feature config. |
+| `client/src/config/detailLevel.js` | Notes detail level options. |
+| `client/src/config/languages.js` | Output language options. |
+| `client/src/config/uploadTypes.js` | Allowed upload/resource type config shared with UI. |
+
+### Client Context, Hooks, Lib, Utils
+
+| File | Use |
+| --- | --- |
+| `client/src/context/AuthContext.jsx` | Login user state, token, permissions, auth API helpers. |
+| `client/src/context/CartContext.jsx` | Store cart state and cart actions. |
+| `client/src/context/ConfirmContext.jsx` | Confirm dialog state/actions. |
+| `client/src/context/ThemeContext.jsx` | Theme/color mode state. |
+| `client/src/context/ToastContext.jsx` | Toast notification state. |
+| `client/src/hooks/useSpeech.js` | Browser text-to-speech hook for listen/audio features. |
+| `client/src/lib/razorpay.js` | Loads/opens Razorpay checkout script on frontend. |
+| `client/src/lib/storeCategories.js` | Store category metadata/helpers. |
+| `client/src/lib/storeConfig.js` | Store display/config constants. |
+| `client/src/lib/useStorefront.js` | Storefront data fetching/filtering helpers. |
+| `client/src/utils/objectId.js` | Mongo ObjectId validation/normalization helpers. |
+| `client/src/utils/parseNoteSections.js` | Markdown notes ko sections/headings me split karta hai. |
+| `client/src/utils/printExport.jsx` | Print/export helpers for notes/resources. |
+| `client/src/utils/quota.js` | Plan quota/usage display helpers. |
+| `client/src/utils/sourceMeta.jsx` | Source badges/icons/labels for uploaded/link resources. |
+| `client/src/utils/textClean.js` | Text cleanup and formatting helpers. |
+
+### Client Components
+
+| File | Use |
+| --- | --- |
+| `client/src/components/AdminLayout.jsx` | Admin sidebar/layout wrapper. |
+| `client/src/components/AdminStatCard.jsx` | Admin dashboard stat card. |
+| `client/src/components/AdminTableToolbar.jsx` | Admin table filters/search/actions toolbar. |
+| `client/src/components/AudioPlayer.jsx` | Audio/listen controls. |
+| `client/src/components/AuthShell.jsx` | Login/register/reset layout shell. |
+| `client/src/components/CommandPalette.jsx` | Keyboard command/search palette. |
+| `client/src/components/Credit.jsx` | Credit/usage badge display. |
+| `client/src/components/EmailVerificationBanner.jsx` | Email verification reminder UI. |
+| `client/src/components/FlashcardUI.jsx` | Single flashcard display/interactions. |
+| `client/src/components/Flashcards.jsx` | Flashcards list/review/generation UI. |
+| `client/src/components/FormField.jsx` | Reusable input/label/error field. |
+| `client/src/components/GenerationOverlay.jsx` | AI generation loading/progress overlay. |
+| `client/src/components/InstallButton.jsx` | PWA install button. |
+| `client/src/components/Layout.jsx` | Protected app layout/navigation. |
+| `client/src/components/Logo.jsx` | App logo component. |
+| `client/src/components/MarkdownContent.jsx` | Markdown renderer for notes/content. |
+| `client/src/components/MarketingShell.jsx` | Public marketing/legal page shell. |
+| `client/src/components/MindMap.jsx` | Notes sections ka mind map view. |
+| `client/src/components/NotesReveal.jsx` | Notes reveal/progressive display UI. |
+| `client/src/components/NotesTOC.jsx` | Notes table of contents. |
+| `client/src/components/OnboardingWizard.jsx` | First-login onboarding flow. |
+| `client/src/components/OtpInput.jsx` | OTP code input boxes. |
+| `client/src/components/StoreLayout.jsx` | Public store layout and outlet. |
+| `client/src/components/TagInput.jsx` | Tags add/remove input. |
+| `client/src/components/ThemePicker.jsx` | Theme selector UI. |
+| `client/src/components/TutorChat.jsx` | AI tutor chat UI. |
+| `client/src/components/icons.jsx` | Shared SVG/icon components. |
+| `client/src/components/motion.jsx` | Shared animation helpers. |
+| `client/src/components/ui.jsx` | Shared buttons, cards, loaders, empty states, skeletons. |
+| `client/src/components/admin/CustomPlanForm.jsx` | Admin custom billing plan form. |
+| `client/src/components/store/ResourceCard.jsx` | Store resource/course card. |
+| `client/src/components/store/ResultsGrid.jsx` | Store search/category grid layout. |
+
+### Client Pages - App/Auth
+
+| File | Use |
+| --- | --- |
+| `client/src/pages/Landing.jsx` | Public landing/home page. |
+| `client/src/pages/Login.jsx` | Login form. |
+| `client/src/pages/Register.jsx` | Register form. |
+| `client/src/pages/VerifyEmail.jsx` | Email/OTP verification page. |
+| `client/src/pages/ForgotPassword.jsx` | Forgot password request page. |
+| `client/src/pages/ResetPassword.jsx` | Reset password page. |
+| `client/src/pages/Dashboard.jsx` | Main user dashboard. |
+| `client/src/pages/Upload.jsx` | File/link upload and AI generation page. |
+| `client/src/pages/DocumentView.jsx` | Single document notes, flashcards, quiz, tutor, mind map. |
+| `client/src/pages/Review.jsx` | Due flashcards review page. |
+| `client/src/pages/Ask.jsx` | Global Ask across user notes/resources. |
+| `client/src/pages/QuizView.jsx` | Quiz attempt/results page. |
+| `client/src/pages/Analytics.jsx` | Study analytics and streaks. |
+| `client/src/pages/Profile.jsx` | User profile/account settings. |
+| `client/src/pages/Workspaces.jsx` | Workspace list/management. |
+| `client/src/pages/WorkspaceDetail.jsx` | One workspace with documents/resources. |
+| `client/src/pages/Pricing.jsx` | Public pricing/plans page. |
+| `client/src/pages/Checkout.jsx` | Payment checkout page. |
+| `client/src/pages/Billing.jsx` | User billing/subscription page. |
+| `client/src/pages/ShareView.jsx` | Public shared note view by token. |
+| `client/src/pages/ResourceDetail.jsx` | Store resource detail/download page. |
+| `client/src/pages/MyDownloads.jsx` | Purchased/downloadable resources page. |
+| `client/src/pages/Terms.jsx` | Terms page. |
+| `client/src/pages/Privacy.jsx` | Privacy page. |
+| `client/src/pages/Catalog.jsx` | Older catalog page/redirect support. |
+| `client/src/pages/CourseResources.jsx` | Older course resources view/support. |
+
+### Client Pages - Store
+
+| File | Use |
+| --- | --- |
+| `client/src/pages/store/About.jsx` | Store/about page. |
+| `client/src/pages/store/Cart.jsx` | Shopping cart page. |
+| `client/src/pages/store/ComboDetail.jsx` | Combo detail page. |
+| `client/src/pages/store/CombosList.jsx` | Combos listing page. |
+| `client/src/pages/store/Contact.jsx` | Contact page. |
+| `client/src/pages/store/FAQ.jsx` | FAQ page. |
+| `client/src/pages/store/HowToBuy.jsx` | Buying instructions page. |
+| `client/src/pages/store/StoreCategory.jsx` | Store category listing. |
+| `client/src/pages/store/StoreCourse.jsx` | Course detail page. |
+| `client/src/pages/store/StoreHome.jsx` | Store homepage. |
+| `client/src/pages/store/StoreSearch.jsx` | Store search results page. |
+| `client/src/pages/store/Support.jsx` | Support page. |
+
+### Client Pages - Admin
+
+| File | Use |
+| --- | --- |
+| `client/src/pages/admin/AdminOverview.jsx` | Admin dashboard overview. |
+| `client/src/pages/admin/AdminUsers.jsx` | Users list/admin user actions. |
+| `client/src/pages/admin/AdminUserDetail.jsx` | Single user detail/admin actions. |
+| `client/src/pages/admin/AdminUsage.jsx` | AI usage/cost/rate analytics. |
+| `client/src/pages/admin/AdminSettings.jsx` | AI keys, model, limits, app settings. |
+| `client/src/pages/admin/AdminContent.jsx` | Documents/quizzes/chat/share content management. |
+| `client/src/pages/admin/AdminBilling.jsx` | Plans, pricing, payments billing admin. |
+| `client/src/pages/admin/AdminCatalog.jsx` | Universities/programs/courses catalog admin. |
+| `client/src/pages/admin/AdminResources.jsx` | Store resources admin. |
+| `client/src/pages/admin/AdminCombos.jsx` | Store combo bundles admin. |
+| `client/src/pages/admin/AdminOrders.jsx` | Orders/purchases admin. |
+
+### Server Root And Config
+
+| File | Use |
+| --- | --- |
+| `server/package.json` | Backend scripts and dependencies. |
+| `server/package-lock.json` | Backend dependency lock file. |
+| `server/eslint.config.js` | Backend lint rules. |
+| `server/tests/api.test.js` | Backend unit/API helper tests. |
+| `server/src/index.js` | Express app start, middleware, routes, DB connect, health endpoint. |
+| `server/src/config/db.js` | MongoDB connection helper. |
+| `server/src/config/detailLevel.js` | Notes detail levels and flashcard count rules. |
+| `server/src/config/env.js` | Env loading, defaults, validation, CORS URLs. |
+| `server/src/config/languages.js` | Supported output languages. |
+| `server/src/config/observability.js` | Request logging and optional monitoring setup. |
+| `server/src/config/permissions.js` | Staff/admin granular permission definitions. |
+| `server/src/config/plans.js` | Plan limits, usage limits, plan summaries. |
+| `server/src/config/sampleDocument.js` | Sample/demo document content. |
+| `server/src/config/uploadTypes.js` | Allowed upload/resource MIME/type config. |
+
+### Server Routes
+
+| File | Use |
+| --- | --- |
+| `server/src/routes/admin.js` | Admin API routes for users, settings, content, billing, catalog, audit. |
+| `server/src/routes/auth.js` | Register, login, email verify, password reset, profile routes. |
+| `server/src/routes/billing.js` | Billing status, order creation, payment verify, webhook routes. |
+| `server/src/routes/catalog.js` | Public/admin catalog, courses, resources, combos, storefront routes. |
+| `server/src/routes/documents.js` | Upload/link/document/flashcard/share/regenerate routes. |
+| `server/src/routes/quiz.js` | Quiz create/get/submit/analytics routes. |
+| `server/src/routes/share.js` | Public share-token route. |
+| `server/src/routes/tutor.js` | Document tutor and global tutor routes. |
+| `server/src/routes/workspaces.js` | Workspace CRUD and workspace document/resource routes. |
+
+### Server Controllers
+
+| File | Use |
+| --- | --- |
+| `server/src/controllers/adminController.js` | Admin dashboard, users, AI keys, settings, content, usage, audit actions. |
+| `server/src/controllers/authController.js` | Register/login/email/profile/password/account logic. |
+| `server/src/controllers/billingController.js` | Billing config, usage, order, payment verification, portal/webhook logic. |
+| `server/src/controllers/catalogController.js` | Catalog/storefront public data and admin catalog actions. |
+| `server/src/controllers/comboController.js` | Combo bundle create/update/delete/list logic. |
+| `server/src/controllers/documentController.js` | Upload/link/list/read/update/share/regenerate/delete document logic. |
+| `server/src/controllers/marketplaceController.js` | Store marketplace resource/course browsing helpers. |
+| `server/src/controllers/quizController.js` | Quiz generation, retrieval, submit, analytics logic. |
+| `server/src/controllers/resourceController.js` | Resource upload/download/admin/public resource logic. |
+| `server/src/controllers/shareController.js` | Public shared document response logic. |
+| `server/src/controllers/tutorController.js` | Tutor/global tutor chat and history logic. |
+| `server/src/controllers/workspaceController.js` | Workspace list/create/update/delete and item organization logic. |
+
+### Server Models
+
+| File | Use |
+| --- | --- |
+| `server/src/models/AdminAuditLog.js` | Admin action log records. |
+| `server/src/models/ApiUsage.js` | AI usage, tokens, model, cost-like tracking. |
+| `server/src/models/ChatMessage.js` | Tutor/global chat history messages. |
+| `server/src/models/Combo.js` | Store combo/bundle model. |
+| `server/src/models/Course.js` | Course model for catalog/store. |
+| `server/src/models/Document.js` | Generated notes, flashcards, metadata, share data. |
+| `server/src/models/DocumentChunk.js` | RAG/vector chunks and embeddings. |
+| `server/src/models/PaymentEvent.js` | Razorpay/Stripe payment event records. |
+| `server/src/models/Program.js` | University program model. |
+| `server/src/models/Purchase.js` | User purchases/download access. |
+| `server/src/models/Quiz.js` | Quiz questions/answers/explanations. |
+| `server/src/models/QuizAttempt.js` | Quiz attempt score and selected answers. |
+| `server/src/models/Resource.js` | Store/admin resource file metadata. |
+| `server/src/models/Settings.js` | Admin settings, encrypted AI keys, limits, app config. |
+| `server/src/models/StudyActivity.js` | Daily activity/streak records. |
+| `server/src/models/University.js` | University/category root model. |
+| `server/src/models/User.js` | User account, auth, role, plan, usage, permissions. |
+| `server/src/models/Workspace.js` | Workspace/folder organization model. |
+
+### Server Middleware
+
+| File | Use |
+| --- | --- |
+| `server/src/middleware/aiEnabled.js` | Checks AI availability/settings before AI routes. |
+| `server/src/middleware/aiRateLimit.js` | Admin-configurable AI rate limiting. |
+| `server/src/middleware/auth.js` | JWT auth, admin/staff/permission guards. |
+| `server/src/middleware/authRateLimit.js` | Login/register/password reset rate limits. |
+| `server/src/middleware/errorHandler.js` | 404 and central error response handler. |
+| `server/src/middleware/quota.js` | Plan quota checks before expensive actions. |
+| `server/src/middleware/upload.js` | User study document upload handling/validation. |
+| `server/src/middleware/uploadResource.js` | Store/admin resource upload handling/validation. |
+
+### Server Services
+
+| File | Use |
+| --- | --- |
+| `server/src/services/adminAudit.js` | Writes admin audit log entries. |
+| `server/src/services/billingPricing.js` | Pricing/plan amount helpers from settings/env. |
+| `server/src/services/documentGeneration.js` | Upload/link generation support and streaming helpers. |
+| `server/src/services/email.js` | Verification and password reset email sending. |
+| `server/src/services/fileExtractor.js` | Extracts text from uploaded files. |
+| `server/src/services/fileStorage.js` | Resource/file storage paths and file lifecycle helpers. |
+| `server/src/services/gemini.js` | Gemini prompts/calls for notes, flashcards, quiz, tutor, embeddings. |
+| `server/src/services/geminiHelpers.js` | Gemini JSON parse, retry, fallback, error classification helpers. |
+| `server/src/services/generationOrchestrator.js` | Coordinates multi-step AI generation and retries. |
+| `server/src/services/keyBalancer.js` | Chooses best Gemini key and tracks key load/failures. |
+| `server/src/services/keyCrypto.js` | Encrypts/decrypts admin-saved API keys. |
+| `server/src/services/linkExtractor.js` | Extracts website text and YouTube transcripts. |
+| `server/src/services/planCatalog.js` | Plan catalog and admin plan helpers. |
+| `server/src/services/planExpiry.js` | Plan expiry/downgrade helper logic. |
+| `server/src/services/rag.js` | RAG chunk embedding, vector/lexical retrieval, source context. |
+| `server/src/services/razorpay.js` | Razorpay order/payment helper functions. |
+| `server/src/services/retrieval.js` | Cross-document retrieval for Ask/tutor context. |
+| `server/src/services/spacedRepetition.js` | Flashcard review scheduling. |
+| `server/src/services/stripe.js` | Legacy optional Stripe helpers. |
+| `server/src/services/studyStreak.js` | Daily study activity and streak calculations. |
+| `server/src/services/workspaceAccess.js` | Workspace permission/access helper logic. |
+
+### Server Utils And Scripts
+
+| File | Use |
+| --- | --- |
+| `server/src/utils/dateKey.js` | Local date keys for streak/activity grouping. |
+| `server/src/utils/documentTags.js` | Document tag cleanup/normalization. |
+| `server/src/utils/notesChunk.js` | Large notes chunking/merging helpers. |
+| `server/src/utils/objectId.js` | Mongo ObjectId validation helpers. |
+| `server/src/utils/parseNoteSections.js` | Markdown notes section parser. |
+| `server/src/utils/textClean.js` | Text cleanup/normalization helpers. |
+| `server/src/scripts/seedData.js` | Seed admin/demo user and initial catalog/demo data. |
+| `server/src/scripts/embedBackfill.js` | Creates embeddings for existing documents/resources for vector RAG. |
+
 ## Frontend Routes
 
 | Route | Page/Work |
@@ -330,12 +627,33 @@ Server dev dependencies:
 | `/document/:id` | Document details. |
 | `/quiz/:id` | Quiz page. |
 | `/analytics` | Analytics. |
+| `/workspaces` | Workspaces list. |
+| `/workspaces/:id` | Workspace detail. |
 | `/profile` | Profile. |
 | `/billing` | User billing. |
+| `/catalog` | Old catalog route, now redirects to store. |
+| `/my-downloads` | Purchased/downloaded resources. |
+| `/store` | Store home. |
+| `/store/search` | Store search. |
+| `/store/cart` | Cart. |
+| `/store/combos` | Combos list. |
+| `/store/combos/:id` | Combo detail. |
+| `/store/course/:id` | Course detail. |
+| `/store/how-to-buy` | Buying guide. |
+| `/store/:category` | Store category page. |
+| `/resources/:id` | Resource detail. |
+| `/about` | Store/about page. |
+| `/faq` | FAQ page. |
+| `/contact` | Contact page. |
+| `/support` | Support page. |
 | `/admin` | Admin dashboard. |
 | `/admin/usage` | Admin usage. |
 | `/admin/users` | Admin users. |
 | `/admin/users/:id` | Admin user detail. |
+| `/admin/catalog/:section` | Catalog admin. |
+| `/admin/resources` | Resource admin. |
+| `/admin/combos` | Combo admin. |
+| `/admin/orders` | Orders admin. |
 | `/admin/content/:section` | Admin content. |
 | `/admin/billing/:section` | Admin billing. |
 | `/admin/settings/:section` | Admin settings. |
@@ -391,6 +709,14 @@ Tutor:
 - `GET /api/tutor/:documentId/history`
 - `DELETE /api/tutor/:documentId/history`
 - `POST /api/tutor/:documentId`
+
+Workspaces:
+
+- `/api/workspaces/*` workspace create/list/update/delete aur workspace ke documents/resources manage karta hai.
+
+Catalog/store:
+
+- `/api/catalog/*` public storefront, courses, resources, combos, purchases/downloads, aur admin catalog data handle karta hai.
 
 Billing:
 
