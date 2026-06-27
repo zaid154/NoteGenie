@@ -15,7 +15,7 @@ import {
 import {
   listCombosAdmin, createCombo, updateCombo, deleteCombo,
 } from "../controllers/comboController.js";
-import { listOrdersAdmin } from "../controllers/marketplaceController.js";
+import { listOrdersAdmin, getOrderAdmin, updateOrderAdmin } from "../controllers/marketplaceController.js";
 import {
   getStats,
   getUsage,
@@ -157,5 +157,7 @@ router.delete("/combos/:id", requirePermission("manage_combos"), deleteCombo);
 
 // --- Orders (manage_orders) ---
 router.get("/orders", requirePermission("manage_orders"), listOrdersAdmin);
+router.get("/orders/:id", requirePermission("manage_orders"), getOrderAdmin);
+router.patch("/orders/:id", requirePermission("manage_orders"), updateOrderAdmin);
 
 export default router;

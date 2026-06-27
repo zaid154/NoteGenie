@@ -41,10 +41,30 @@ function testResultRowClass(ok) {
 
 const SECTIONS = {
   keys: { title: "AI keys", subtitle: "Gemini API key pool, model selection, and failover." },
+  features: { title: "Features", subtitle: "Turn features on or off across the whole site." },
+  theme: { title: "Theme", subtitle: "Site-wide default colour & light/dark mode." },
   audit: { title: "Audit log", subtitle: "Admin actions across the platform." },
   "rate-limit": { title: "Rate limits", subtitle: "AI generation limits per user." },
   storefront: { title: "Storefront", subtitle: "Public store: utility bar, WhatsApp, hero & socials." },
 };
+
+// Accent presets must match the [data-accent] blocks in index.css and the server THEME_ACCENTS.
+const THEME_ACCENTS = [
+  ["indigo", "Indigo", "#4f46e5"],
+  ["violet", "Violet", "#7c3aed"],
+  ["blue", "Blue", "#2563eb"],
+  ["emerald", "Emerald", "#059669"],
+];
+
+// Feature toggles surfaced in the Features section. Keys must match the server FEATURE_KEYS.
+const FEATURE_TOGGLES = [
+  ["upload", "Upload", "Upload documents and links for AI processing."],
+  ["askAi", "Ask AI", "AI tutor chat (page + in-document). Also blocked server-side."],
+  ["analytics", "Analytics", "The student analytics dashboard."],
+  ["billing", "Billing", "Billing & plans page for users."],
+  ["store", "Store", "The dashboard link to the study-material store."],
+  ["workspaces", "Workspaces", "Shared study workspaces. Also blocked server-side."],
+];
 
 const STOREFRONT_FIELDS = [
   ["utilityBarText", "Utility bar text", "India's #1 study material store"],
@@ -83,6 +103,10 @@ export default function AdminSettings() {
   const [aiRateLimitWindowMinutes, setAiRateLimitWindowMinutes] = useState("15");
   const [savingRateLimit, setSavingRateLimit] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
+  const [features, setFeatures] = useState({});
+  const [savingFeatures, setSavingFeatures] = useState(false);
+  const [theme, setTheme] = useState({ accent: "indigo", mode: "light" });
+  const [savingTheme, setSavingTheme] = useState(false);
   const [togglingAi, setTogglingAi] = useState(false);
   const [storefront, setStorefront] = useState({});
   const [savingStore, setSavingStore] = useState(false);
@@ -105,6 +129,8 @@ export default function AdminSettings() {
       setAiRateLimitMax(String(data.aiRateLimitMax ?? 120));
       setAiRateLimitWindowMinutes(String(data.aiRateLimitWindowMinutes ?? 15));
       setAiEnabled(data.aiEnabled !== false);
+      setFeatures(data.features || {});
+      if (data.theme) setTheme(data.theme);
       setStorefront(data.storefront || {});
       if (data.hasApiKey) {
         try {
@@ -204,6 +230,42 @@ export default function AdminSettings() {
       setError(apiError(err));
     } finally {
       setSavingStore(false);
+    }
+  }
+
+  async function handleSaveFeatures(e) {
+    e.preventDefault();
+    setSavingFeatures(true);
+    setError("");
+    setSuccess("");
+    try {
+      const { data } = await api.put("/admin/settings", { features });
+      if (data.features) setFeatures(data.features);
+      setSuccess("Feature settings saved. Changes apply across the site.");
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setSavingFeatures(false);
+    }
+  }
+
+  function toggleFeature(key) {
+    setFeatures((f) => ({ ...f, [key]: f[key] === false ? true : false }));
+  }
+
+  async function handleSaveTheme(e) {
+    e.preventDefault();
+    setSavingTheme(true);
+    setError("");
+    setSuccess("");
+    try {
+      const { data } = await api.put("/admin/settings", { theme });
+      if (data.theme) setTheme(data.theme);
+      setSuccess("Theme saved. New visitors see it; users keep any look they picked themselves.");
+    } catch (err) {
+      setError(apiError(err));
+    } finally {
+      setSavingTheme(false);
     }
   }
 
@@ -427,6 +489,99 @@ export default function AdminSettings() {
             </div>
             <button type="submit" className="btn-primary" disabled={savingStore}>
               {savingStore ? <Spinner /> : "Save storefront"}
+            </button>
+          </form>
+        </>
+      ) : section === "features" ? (
+        <>
+          {error && <Alert>{error}</Alert>}
+          {success && <Alert type="success">{success}</Alert>}
+          <form onSubmit={handleSaveFeatures} className="card space-y-4 p-6">
+            <SectionTitle>Site features</SectionTitle>
+            <p className="text-sm text-muted">
+              Turn a feature off to hide it from the navigation, block its page (a friendly
+              "unavailable" message is shown), and — where wired — block its API.
+            </p>
+            <div className="divide-y divide-line">
+              {FEATURE_TOGGLES.map(([key, label, desc]) => {
+                const on = features[key] !== false;
+                return (
+                  <div key={key} className="flex items-center justify-between gap-4 py-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-ink">{label}</p>
+                        <Badge color={on ? "green" : "amber"}>{on ? "ON" : "OFF"}</Badge>
+                      </div>
+                      <p className="text-sm text-muted">{desc}</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={on}
+                      aria-label={`Toggle ${label}`}
+                      onClick={() => toggleFeature(key)}
+                      className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${on ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
+                    >
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${on ? "translate-x-6" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <button type="submit" className="btn-primary" disabled={savingFeatures}>
+              {savingFeatures ? <Spinner /> : "Save features"}
+            </button>
+          </form>
+        </>
+      ) : section === "theme" ? (
+        <>
+          {error && <Alert>{error}</Alert>}
+          {success && <Alert type="success">{success}</Alert>}
+          <form onSubmit={handleSaveTheme} className="card space-y-6 p-6">
+            <div>
+              <SectionTitle>Accent colour</SectionTitle>
+              <p className="mt-1 text-sm text-muted">The site-wide default accent. Applies everywhere.</p>
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {THEME_ACCENTS.map(([id, label, swatch]) => {
+                  const active = theme.accent === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setTheme((t) => ({ ...t, accent: id }))}
+                      aria-pressed={active}
+                      className={`flex items-center gap-2 rounded-xl border p-3 text-left transition ${active ? "border-accent-500 ring-2 ring-accent-200 dark:ring-accent-900" : "border-line hover:border-accent-300"}`}
+                    >
+                      <span className="h-6 w-6 shrink-0 rounded-full" style={{ background: swatch }} />
+                      <span className="text-sm font-semibold text-ink">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <SectionTitle>Default mode</SectionTitle>
+              <p className="mt-1 text-sm text-muted">Light or dark for users who haven't picked their own.</p>
+              <div className="mt-3 flex gap-2">
+                {["light", "dark"].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setTheme((t) => ({ ...t, mode: m }))}
+                    aria-pressed={theme.mode === m}
+                    className={theme.mode === m
+                      ? "rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold capitalize text-white"
+                      : "rounded-lg border border-line px-4 py-2 text-sm font-medium capitalize text-muted hover:border-accent-300"}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button type="submit" className="btn-primary" disabled={savingTheme}>
+              {savingTheme ? <Spinner /> : "Save theme"}
             </button>
           </form>
         </>

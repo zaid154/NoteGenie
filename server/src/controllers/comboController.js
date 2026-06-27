@@ -97,18 +97,27 @@ export const deleteCombo = asyncHandler(async (req, res) => {
 // Public
 // ---------------------------------------------------------------------------
 export const listCombosPublic = asyncHandler(async (_req, res) => {
-  const combos = await Combo.find({ isActive: true }).sort({ order: 1, createdAt: -1 }).lean();
+  const combos = await Combo.find({ isActive: true })
+    .sort({ order: 1, createdAt: -1 })
+    .populate({ path: "resourceIds", match: { isActive: true }, select: "price isPaid" })
+    .lean();
   res.json({
-    combos: combos.map((c) => ({
-      id: c._id,
-      title: c.title,
-      slug: c.slug,
-      description: c.description,
-      price: c.price,
-      currency: c.currency,
-      coverUrl: c.coverUrl,
-      resourceCount: (c.resourceIds || []).length,
-    })),
+    combos: combos.map((c) => {
+      const resources = (c.resourceIds || []).filter(Boolean);
+      const originalTotal = resources.reduce((s, r) => s + (r.isPaid ? r.price : 0), 0);
+      return {
+        id: c._id,
+        title: c.title,
+        slug: c.slug,
+        description: c.description,
+        price: c.price,
+        currency: c.currency,
+        coverUrl: c.coverUrl,
+        resourceCount: resources.length,
+        originalTotal,
+        savings: Math.max(0, originalTotal - c.price),
+      };
+    }),
   });
 });
 

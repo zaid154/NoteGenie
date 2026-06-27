@@ -10,6 +10,7 @@
     "seed": "node src/scripts/seedData.js",
     "seed:data": "node src/scripts/seedData.js",
     "embed:backfill": "node src/scripts/embedBackfill.js",
+    "handbook": "node src/scripts/generateHandbook.js",
     "test": "node --test tests/api.test.js",
     "lint": "eslint . --max-warnings=99999",
     "format": "prettier --write \"src/**/*.js\""
@@ -28,6 +29,7 @@
     "multer": "^2.0.1",
     "nodemailer": "^9.0.1",
     "officeparser": "^5.1.1",
+    "pdfkit": "^0.19.1",
     "razorpay": "^2.9.6",
     "stripe": "^22.2.2",
     "youtube-transcript": "^1.2.1"

@@ -223,7 +223,7 @@ export default function Profile() {
   async function resendVerification() {
     setResendingVerify(true);
     try {
-      const { data } = await api.post("/auth/resend-verification");
+      const { data } = await api.post("/auth/resend-verification", { email: user.email });
       toast(data.message || "Verification OTP sent", "success");
     } catch (err) {
       toast(apiError(err), "error");

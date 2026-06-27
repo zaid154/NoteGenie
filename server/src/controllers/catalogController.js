@@ -6,7 +6,8 @@ import { University } from "../models/University.js";
 import { Program } from "../models/Program.js";
 import { Course } from "../models/Course.js";
 import { Resource } from "../models/Resource.js";
-import { getAppSettings } from "../models/Settings.js";
+import { getAppSettings, resolveFeatures, resolveTheme } from "../models/Settings.js";
+import { env } from "../config/env.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { assertValidObjectId } from "../utils/objectId.js";
 import { logAdminAction } from "../services/adminAudit.js";
@@ -250,19 +251,23 @@ export const browseCourses = asyncHandler(async (req, res) => {
 export const getStorefront = asyncHandler(async (_req, res) => {
   const settings = await getAppSettings();
   const s = settings.storefront || {};
+  // DB value wins; env provides the fallback default. Empty everywhere → "" (UI hides the link).
   res.json({
+    features: resolveFeatures(settings),
+    theme: resolveTheme(settings),
+    aiEnabled: settings.aiEnabled !== false,
     storefront: {
       utilityBarText: s.utilityBarText || "",
-      whatsappNumber: s.whatsappNumber || "",
-      supportEmail: s.supportEmail || "",
+      whatsappNumber: s.whatsappNumber || env.whatsappNumber || "",
+      supportEmail: s.supportEmail || env.supportEmail || "",
       heroTitle: s.heroTitle || "",
       heroSubtitle: s.heroSubtitle || "",
       heroBannerUrl: s.heroBannerUrl || "",
       socials: {
-        instagram: s.instagram || "",
-        facebook: s.facebook || "",
-        youtube: s.youtube || "",
-        telegram: s.telegram || "",
+        instagram: s.instagram || env.social.instagram || "",
+        facebook: s.facebook || env.social.facebook || "",
+        youtube: s.youtube || env.social.youtube || "",
+        telegram: s.telegram || env.social.telegram || "",
       },
     },
   });

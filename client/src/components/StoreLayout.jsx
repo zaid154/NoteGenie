@@ -88,9 +88,11 @@ export default function StoreLayout() {
         <div className="store-primary">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-1.5 text-xs">
             <span className="truncate">{store.utilityBarText}</span>
-            <a href={whatsappLink("Hi, I need help with study material", store.whatsappNumber)} target="_blank" rel="noreferrer" className="hidden items-center gap-1.5 font-semibold hover:underline sm:inline-flex">
-              <IconChat width={14} height={14} /> WhatsApp support
-            </a>
+            {store.whatsappNumber && (
+              <a href={whatsappLink("Hi, I need help with study material", store.whatsappNumber)} target="_blank" rel="noreferrer" className="hidden items-center gap-1.5 font-semibold hover:underline sm:inline-flex">
+                <IconChat width={14} height={14} /> WhatsApp support
+              </a>
+            )}
           </div>
         </div>
       )}
@@ -204,12 +206,23 @@ export default function StoreLayout() {
             </div>
           ))}
         </div>
+        {/* Legal links */}
+        <div className="border-t border-line">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-4 text-xs text-muted">
+            <Link to="/terms" className="hover:text-store-700 dark:hover:text-store-300">Terms &amp; Conditions</Link>
+            <Link to="/privacy" className="hover:text-store-700 dark:hover:text-store-300">Privacy Policy</Link>
+            <Link to="/refund" className="hover:text-store-700 dark:hover:text-store-300">Refund &amp; Billing Policy</Link>
+            <Link to="/contact" className="hover:text-store-700 dark:hover:text-store-300">Contact</Link>
+          </div>
+        </div>
         <div className="border-t border-line">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 text-sm text-muted">
             <span>© {new Date().getFullYear()} {STORE_CONFIG.brandName}</span>
-            <a href={whatsappLink("Hi, I need help", store.whatsappNumber)} target="_blank" rel="noreferrer" className="store-btn-accent">
-              <IconChat width={16} height={16} /> Join our WhatsApp
-            </a>
+            {store.whatsappNumber && (
+              <a href={whatsappLink("Hi, I need help", store.whatsappNumber)} target="_blank" rel="noreferrer" className="store-btn-accent">
+                <IconChat width={16} height={16} /> Join our WhatsApp
+              </a>
+            )}
           </div>
         </div>
       </footer>

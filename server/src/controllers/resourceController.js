@@ -11,6 +11,8 @@ import { uploadBuffer, deleteFile } from "../services/fileStorage.js";
 
 // Public-safe shape: never leaks storageKey/fileUrl (those gate the paid download).
 function publicResource(r) {
+  const productType = r.productType || "digital";
+  const isDigital = productType === "digital";
   return {
     id: r._id,
     title: r.title,
@@ -32,6 +34,20 @@ function publicResource(r) {
     universityId: r.universityId,
     programId: r.programId,
     createdAt: r.createdAt,
+    // Product type + safe digital/physical info (NEVER licenseKey / downloadUrl / storageKey).
+    productType,
+    isDigital,
+    version: r.version || "",
+    downloadLimit: r.downloadLimit ?? null,
+    downloadExpiryDays: r.downloadExpiryDays ?? null,
+    instantDownload: r.instantDownload !== false,
+    shippingRequired: isDigital ? false : r.shippingRequired !== false,
+    deliveryCharges: isDigital ? 0 : r.deliveryCharges || 0,
+    codAvailable: isDigital ? false : !!r.codAvailable,
+    weightGrams: isDigital ? null : r.weightGrams ?? null,
+    dimensions: isDigital ? "" : r.dimensions || "",
+    inStock: isDigital ? true : r.manageInventory ? (r.stock || 0) > 0 : true,
+    stock: isDigital ? null : r.stock ?? 0,
   };
 }
 
@@ -45,6 +61,40 @@ function normalizePrice(isPaid, priceRaw) {
   if (!isPaid) return 0;
   const n = Math.round(Number(priceRaw) || 0);
   return n > 0 ? n : 0;
+}
+
+// Multipart sends everything as strings — parse the digital/physical product fields.
+function asBool(v) {
+  return v === true || v === "true";
+}
+function numOrNull(v) {
+  return v === undefined || v === "" || v === null ? null : Number(v);
+}
+
+// Apply the product-type + digital/physical fields from a request body onto a Resource document.
+function applyProductFields(resource, body) {
+  if (["digital", "physical"].includes(body.productType)) resource.productType = body.productType;
+
+  // Digital
+  if (body.downloadUrl !== undefined) resource.downloadUrl = String(body.downloadUrl || "").trim();
+  if (body.downloadLimit !== undefined) resource.downloadLimit = numOrNull(body.downloadLimit);
+  if (body.downloadExpiryDays !== undefined) resource.downloadExpiryDays = numOrNull(body.downloadExpiryDays);
+  if (body.version !== undefined) resource.version = String(body.version || "").trim();
+  if (body.licenseKey !== undefined) resource.licenseKey = String(body.licenseKey || "");
+  if (body.instantDownload !== undefined) resource.instantDownload = asBool(body.instantDownload);
+  if (body.allowMultipleFiles !== undefined) resource.allowMultipleFiles = asBool(body.allowMultipleFiles);
+  if (body.documentationUrl !== undefined) resource.documentationUrl = String(body.documentationUrl || "").trim();
+
+  // Physical
+  if (body.sku !== undefined) resource.sku = String(body.sku || "").trim();
+  if (body.stock !== undefined) resource.stock = Number(body.stock) || 0;
+  if (body.weightGrams !== undefined) resource.weightGrams = numOrNull(body.weightGrams);
+  if (body.dimensions !== undefined) resource.dimensions = String(body.dimensions || "").trim();
+  if (body.shippingRequired !== undefined) resource.shippingRequired = asBool(body.shippingRequired);
+  if (body.lowStockAlert !== undefined) resource.lowStockAlert = numOrNull(body.lowStockAlert);
+  if (body.deliveryCharges !== undefined) resource.deliveryCharges = Number(body.deliveryCharges) || 0;
+  if (body.codAvailable !== undefined) resource.codAvailable = asBool(body.codAvailable);
+  if (body.manageInventory !== undefined) resource.manageInventory = asBool(body.manageInventory);
 }
 
 // ---------------------------------------------------------------------------
@@ -92,22 +142,30 @@ export const createResource = asyncHandler(async (req, res) => {
   }
   const title = String(req.body.title || "").trim();
   if (!title) return res.status(400).json({ message: "Title is required" });
-  if (!req.file) return res.status(400).json({ message: "A file is required" });
 
-  const isPaid = req.body.isPaid === "true" || req.body.isPaid === true;
-  const price = normalizePrice(isPaid, req.body.price);
-
-  let stored;
-  try {
-    stored = await uploadBuffer(req.file.buffer, {
-      filename: req.file.originalname,
-      mime: req.file.mimetype,
-    });
-  } catch (err) {
-    return res.status(503).json({ message: `File storage unavailable: ${err.message}` });
+  const productType = ["digital", "physical"].includes(req.body.productType) ? req.body.productType : "digital";
+  const downloadUrl = String(req.body.downloadUrl || "").trim();
+  // Digital products need a stored file OR an external URL; physical products need neither.
+  if (productType === "digital" && !req.file && !downloadUrl) {
+    return res.status(400).json({ message: "Upload a file or provide a download URL for a digital product." });
   }
 
-  const resource = await Resource.create({
+  const isPaid = asBool(req.body.isPaid);
+  const price = normalizePrice(isPaid, req.body.price);
+
+  let stored = null;
+  if (req.file) {
+    try {
+      stored = await uploadBuffer(req.file.buffer, {
+        filename: req.file.originalname,
+        mime: req.file.mimetype,
+      });
+    } catch (err) {
+      return res.status(503).json({ message: `File storage unavailable: ${err.message}` });
+    }
+  }
+
+  const resource = new Resource({
     courseId,
     programId: course.programId,
     universityId: course.universityId,
@@ -120,18 +178,18 @@ export const createResource = asyncHandler(async (req, res) => {
     isPaid,
     price,
     currency: "INR",
-    storageProvider: stored.provider,
-    storageKey: stored.key,
-    fileName: stored.fileName,
-    mime: stored.mime,
-    size: stored.size,
     pages: req.body.pages ? Number(req.body.pages) : null,
     previewUrl: String(req.body.previewUrl || ""),
     isActive: req.body.isActive !== "false",
     uploadedBy: req.user._id,
+    ...(stored
+      ? { storageProvider: stored.provider, storageKey: stored.key, fileName: stored.fileName, mime: stored.mime, size: stored.size }
+      : {}),
   });
+  applyProductFields(resource, req.body);
+  await resource.save();
 
-  await logAdminAction(req, "resource.create", "resource", resource._id, { title, isPaid, price });
+  await logAdminAction(req, "resource.create", "resource", resource._id, { title, isPaid, price, productType });
   res.status(201).json({ resource: publicResource(resource) });
 });
 
@@ -151,6 +209,7 @@ export const updateResource = asyncHandler(async (req, res) => {
   if (pages !== undefined) resource.pages = pages ? Number(pages) : null;
   if (previewUrl !== undefined) resource.previewUrl = String(previewUrl);
   if (isActive !== undefined) resource.isActive = isActive === "true" || isActive === true;
+  applyProductFields(resource, req.body);
 
   // Optional file replacement.
   if (req.file) {
@@ -207,8 +266,20 @@ export const searchResources = asyncHandler(async (req, res) => {
     else if (types.length > 1) filter.resourceType = { $in: types };
   }
   if (req.query.q?.trim()) filter.$text = { $search: req.query.q.trim() };
+  // Free/paid filter — used by the storefront "Free only" toggle and the free-first browse.
+  if (req.query.price === "free") filter.isPaid = false;
+  else if (req.query.price === "paid") filter.isPaid = true;
 
-  const sort = req.query.sort === "popular" ? { downloadCount: -1, createdAt: -1 } : { createdAt: -1 };
+  // Sort options surfaced in the storefront toolbar. Default keeps newest-first.
+  const SORTS = {
+    popular: { downloadCount: -1, createdAt: -1 },
+    latest: { createdAt: -1 },
+    price_low: { price: 1, createdAt: -1 },
+    price_high: { price: -1, createdAt: -1 },
+    // Free items first (isPaid false sorts before true), then most popular.
+    free_first: { isPaid: 1, downloadCount: -1, createdAt: -1 },
+  };
+  const sort = SORTS[req.query.sort] || { createdAt: -1 };
 
   const [resources, total] = await Promise.all([
     Resource.find(filter).sort(sort).skip(skip).limit(limit).lean(),

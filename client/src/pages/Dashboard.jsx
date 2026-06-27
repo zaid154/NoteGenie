@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api, apiError } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useAiEnabled } from "../lib/useStorefront.js";
 import { useConfirm } from "../context/ConfirmContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 import OnboardingWizard from "../components/OnboardingWizard.jsx";
@@ -107,6 +108,7 @@ function MaterialCard({ doc, onDelete, deleting }) {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const aiEnabled = useAiEnabled();
   const confirm = useConfirm();
   const { toast } = useToast();
   const [docs, setDocs] = useState([]);
@@ -285,11 +287,13 @@ export default function Dashboard() {
               )}
             </div>
           </StaggerItem>
-          <StaggerItem>
-            <Link to="/upload" className="btn-primary">
-              <IconPlus width={16} height={16} /> Add material
-            </Link>
-          </StaggerItem>
+          {aiEnabled && (
+            <StaggerItem>
+              <Link to="/upload" className="btn-primary">
+                <IconPlus width={16} height={16} /> Add material
+              </Link>
+            </StaggerItem>
+          )}
         </div>
 
         {loadingStats ? (
@@ -394,8 +398,10 @@ export default function Dashboard() {
                   <EmptyState
                     icon={IconDoc}
                     title="Nothing here yet"
-                    subtitle="Upload a file or paste a link — notes, flashcards, and quizzes are generated automatically. New here? Load a sample to look around first."
-                    action={
+                    subtitle={aiEnabled
+                      ? "Upload a file or paste a link — notes, flashcards, and quizzes are generated automatically. New here? Load a sample to look around first."
+                      : "AI study tools are currently turned off. Browse the store for ready-made study material."}
+                    action={aiEnabled ? (
                       <div className="flex flex-wrap items-center justify-center gap-2">
                         <Link to="/upload" className="btn-primary">
                           <IconPlus width={16} height={16} /> Upload your first source
@@ -405,7 +411,9 @@ export default function Dashboard() {
                           {loadingSample ? "Adding sample…" : "Try a sample"}
                         </button>
                       </div>
-                    }
+                    ) : (
+                      <Link to="/store" className="btn-primary">Browse the store</Link>
+                    )}
                   />
                 ) : (
                   <EmptyState
@@ -592,8 +600,13 @@ export default function Dashboard() {
             <div className="rail-card">
               <p className="mb-3 font-semibold text-ink">Quick actions</p>
               <div className="grid gap-2">
-                <Link to="/upload" className="btn-outline w-full justify-start text-sm">
-                  <IconUpload width={16} height={16} /> Upload material
+                {aiEnabled && (
+                  <Link to="/upload" className="btn-outline w-full justify-start text-sm">
+                    <IconUpload width={16} height={16} /> Upload material
+                  </Link>
+                )}
+                <Link to="/store" className="btn-outline w-full justify-start text-sm">
+                  <IconLayers width={16} height={16} /> Browse store
                 </Link>
                 <Link to="/analytics" className="btn-outline w-full justify-start text-sm">
                   <IconChart width={16} height={16} /> View analytics

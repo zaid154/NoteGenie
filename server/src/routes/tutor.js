@@ -6,6 +6,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireQuota } from "../middleware/quota.js";
 import { aiRateLimitMiddleware } from "../middleware/aiRateLimit.js";
 import { requireAiEnabled } from "../middleware/aiEnabled.js";
+import { requireFeature } from "../middleware/requireFeature.js";
 import {
   chat,
   getHistory,
@@ -16,6 +17,9 @@ import {
 } from "../controllers/tutorController.js";
 
 const router = Router();
+
+// Admin can disable the "Ask AI" feature entirely (Admin → Settings → Features).
+router.use(requireFeature("askAi"));
 
 // Cross-document ("global") routes must be registered before the /:documentId param
 // routes, otherwise "global" would be matched as a documentId.

@@ -57,6 +57,15 @@ export const env = {
   otpExpiresMin: Number(process.env.OTP_EXPIRES_MIN) || 10,
   otpLength: Number(process.env.OTP_LENGTH) || 6,
   supportEmail: process.env.SUPPORT_EMAIL || "",
+  // Storefront contact/social defaults. These are FALLBACKS — if an admin saves values in
+  // Admin → Settings → Storefront (DB), those take priority. Used by GET /catalog/storefront.
+  whatsappNumber: (process.env.WHATSAPP_NUMBER || "").replace(/[^\d]/g, ""), // E.164 digits, no '+'
+  social: {
+    instagram: process.env.SOCIAL_INSTAGRAM || "",
+    facebook: process.env.SOCIAL_FACEBOOK || "",
+    youtube: process.env.SOCIAL_YOUTUBE || "",
+    telegram: process.env.SOCIAL_TELEGRAM || "",
+  },
   sentryDsn: process.env.SENTRY_DSN,
   aiRateLimitMax: Number(process.env.AI_RATE_LIMIT_MAX) || 120,
   aiRateLimitWindowMinutes: Number(process.env.AI_RATE_LIMIT_WINDOW_MIN) || 15,

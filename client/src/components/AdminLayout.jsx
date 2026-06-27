@@ -106,6 +106,8 @@ const sectionGroups = [
     adminOnly: true,
     items: [
       { to: "/admin/settings/keys", label: "AI keys" },
+      { to: "/admin/settings/features", label: "Features" },
+      { to: "/admin/settings/theme", label: "Theme" },
       { to: "/admin/settings/storefront", label: "Storefront" },
       { to: "/admin/settings/audit", label: "Audit log" },
       { to: "/admin/settings/rate-limit", label: "Rate limits" },

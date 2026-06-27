@@ -67,7 +67,7 @@ export default function Register() {
     setLoading(true);
     try {
       await register(form.name.trim(), form.email, form.password);
-      toast("Account created — enter the OTP sent to your email.", "success");
+      toast("We sent a 6-digit code to your email. Enter it to finish signing up.", "success");
       navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, { replace: true });
     } catch (err) {
       setError(apiError(err));

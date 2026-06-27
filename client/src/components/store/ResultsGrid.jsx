@@ -1,14 +1,17 @@
 // FLOW: Storefront results grid. Fetches /catalog/resources with the given params and renders
-// a paginated grid of ResourceCards. Shared by category, search, and course pages.
+// a paginated grid of ResourceCards with a result count. Shared by category, search, and course pages.
 
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
-import { Spinner, EmptyState } from "../ui.jsx";
+import { EmptyState, MaterialCardSkeleton } from "../ui.jsx";
+import { IconSearch } from "../icons.jsx";
 import ResourceCard from "./ResourceCard.jsx";
 
 export default function ResultsGrid({ params, emptyTitle = "No resources found" }) {
   const [resources, setResources] = useState([]);
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
@@ -21,9 +24,10 @@ export default function ResultsGrid({ params, emptyTitle = "No resources found" 
     api.get("/catalog/resources", { params: { ...params, page: 1, limit: 12 } })
       .then(({ data }) => {
         setResources(data.resources || []);
+        setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
       })
-      .catch(() => setResources([]))
+      .catch(() => { setResources([]); setTotal(0); })
       .finally(() => setLoading(false));
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -35,11 +39,31 @@ export default function ResultsGrid({ params, emptyTitle = "No resources found" 
     });
   }
 
-  if (loading) return <div className="grid place-items-center py-16"><Spinner size={24} /></div>;
-  if (resources.length === 0) return <EmptyState title={emptyTitle} subtitle="Check back soon or try another filter." />;
+  // Skeleton grid (same columns) instead of a centered spinner, so the page doesn't blank/jump.
+  if (loading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, i) => <MaterialCardSkeleton key={i} />)}
+      </div>
+    );
+  }
+
+  if (resources.length === 0) {
+    return (
+      <EmptyState
+        icon={IconSearch}
+        title={emptyTitle}
+        subtitle="Try another filter, or browse everything in the store."
+        action={<Link to="/store" className="btn-outline">Browse all material</Link>}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {total > 0 && (
+        <p className="text-sm text-muted">{total.toLocaleString("en-IN")} {total === 1 ? "result" : "results"}</p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {resources.map((r) => <ResourceCard key={r.id} r={r} />)}
       </div>

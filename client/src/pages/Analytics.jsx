@@ -31,6 +31,7 @@ import {
   IconFlame,
 } from "../components/icons.jsx";
 import { isValidObjectId } from "../utils/objectId.js";
+import { useAiEnabled } from "../lib/useStorefront.js";
 
 function localDateKey(date) {
   const d = new Date(date);
@@ -68,6 +69,7 @@ function buildScoreTrend(recent, scoreTrend) {
 }
 
 export default function Analytics() {
+  const aiEnabled = useAiEnabled();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -115,9 +117,11 @@ export default function Analytics() {
         title="Your analytics"
         subtitle="Study activity, quiz scores, and recent attempts."
         action={
-          <Link to="/upload" className="btn-outline text-sm">
-            <IconPlus width={16} height={16} /> Add material
-          </Link>
+          aiEnabled ? (
+            <Link to="/upload" className="btn-outline text-sm">
+              <IconPlus width={16} height={16} /> Add material
+            </Link>
+          ) : null
         }
       />
 
@@ -277,9 +281,13 @@ export default function Analytics() {
                     <Link to="/app" className="btn-primary">
                       Open library
                     </Link>
-                  ) : (
+                  ) : aiEnabled ? (
                     <Link to="/upload" className="btn-primary">
                       <IconPlus /> Add material
+                    </Link>
+                  ) : (
+                    <Link to="/store" className="btn-primary">
+                      Browse store
                     </Link>
                   )}
                   {study?.dueFlashcards > 0 && (

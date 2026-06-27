@@ -56,11 +56,22 @@ export function AuthProvider({ children }) {
     setUser(data.user);
   }
 
-  // Register: naya account banao, fir wahi token/user save karo.
+  // Register: signup details bhejo. Account abhi NAHI banta — OTP verify hone tak
+  // server PendingSignup me rakhता hai. Isliye yahan koi token/user save nahi hota.
   async function register(name, email, password) {
     const { data } = await api.post("/auth/register", { name, email, password });
-    setToken(data.token); 
-    setUser(data.user);
+    return data; // { needsVerification: true, email }
+  }
+
+  // verifyEmail: OTP verify karo. Sahi OTP par server account banata hai aur token deta hai —
+  // tabhi user actually login hota hai.
+  async function verifyEmail(email, otp) {
+    const { data } = await api.post("/auth/verify-email", { email, otp });
+    if (data.token) {
+      setToken(data.token);
+      setUser(data.user);
+    }
+    return data;
   }
 
   // Logout: token aur user dono hata do.
@@ -90,7 +101,7 @@ export function AuthProvider({ children }) {
 
   // value = jo bhi cheezein hum dusre components ko dena chahte hain.
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser, hasPermission }}>
+    <AuthContext.Provider value={{ user, loading, login, register, verifyEmail, logout, refreshUser, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );

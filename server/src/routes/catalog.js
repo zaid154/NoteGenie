@@ -25,6 +25,7 @@ import {
   createCartOrder,
   verifyCartPayment,
   downloadResource,
+  downloadByToken,
   listMyPurchases,
 } from "../controllers/marketplaceController.js";
 
@@ -48,6 +49,7 @@ router.post("/cart/order", requireAuth, createCartOrder);
 router.post("/cart/verify", requireAuth, verifyCartPayment);
 router.get("/me/purchases", requireAuth, listMyPurchases);
 router.get("/resources/:id/download", requireAuth, downloadResource);
+router.get("/download/:token", requireAuth, downloadByToken);
 
 router.get("/resources/:id", getResourcePublic);
 

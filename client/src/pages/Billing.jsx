@@ -14,9 +14,10 @@ import {
   StatSkeleton,
   StatCard,
   Badge,
+  EmptyState,
 } from "../components/ui.jsx";
 import { StaggerContainer, StaggerItem } from "../components/motion.jsx";
-import { IconDoc, IconChat, IconChart } from "../components/icons.jsx";
+import { IconDoc, IconChat, IconChart, IconCoins, IconDownload } from "../components/icons.jsx";
 
 function formatDate(iso) {
   if (!iso) return null;
@@ -36,6 +37,8 @@ export default function Billing() {
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState("");
   const [usageError, setUsageError] = useState("");
+  const [purchases, setPurchases] = useState([]);
+  const [loadingPurchases, setLoadingPurchases] = useState(true);
 
   useEffect(() => {
     async function load() {
@@ -55,6 +58,21 @@ export default function Billing() {
     }
     load();
   }, [params, refreshUser]);
+
+  // Paid purchase / receipt history. Free downloads live in "Saved & downloads", so the
+  // billing record only lists purchases that were actually charged.
+  useEffect(() => {
+    let ignore = false;
+    api
+      .get("/catalog/me/purchases")
+      .then((r) => {
+        if (ignore) return;
+        setPurchases((r.data.purchases || []).filter((p) => (p.amount || 0) > 0));
+      })
+      .catch(() => !ignore && setPurchases([]))
+      .finally(() => !ignore && setLoadingPurchases(false));
+    return () => { ignore = true; };
+  }, []);
 
   async function openPortal() {
     setPortalLoading(true);
@@ -209,6 +227,61 @@ export default function Billing() {
             <Alert>{usageError}</Alert>
           </StaggerItem>
         )}
+
+        {/* Purchase / payment history */}
+        <StaggerItem>
+          <div className="panel p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
+              <h2 className="font-bold text-ink">Purchase history</h2>
+              <Link to="/my-downloads" className="text-xs font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400">
+                Saved &amp; downloads →
+              </Link>
+            </div>
+
+            {loadingPurchases ? (
+              <div className="space-y-2 pt-4">
+                <div className="skeleton h-12 w-full" />
+                <div className="skeleton h-12 w-full" />
+              </div>
+            ) : purchases.length === 0 ? (
+              <div className="pt-2">
+                <EmptyState
+                  icon={IconCoins}
+                  title="No billing history yet"
+                  subtitle="Your paid purchases and receipts will show up here. Free study material stays in Saved & downloads."
+                  action={
+                    <Link to="/store" className="btn-outline">Browse the store</Link>
+                  }
+                />
+              </div>
+            ) : (
+              <ul className="divide-y divide-line pt-2">
+                {purchases.map((p) => (
+                  <li key={p.purchaseId} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <Link to={`/resources/${p.resource.id}`} className="font-medium text-ink hover:text-accent-600 dark:hover:text-accent-400">
+                        {p.resource.title}
+                      </Link>
+                      <p className="text-xs text-muted">
+                        {p.resource.courseCode ? `${p.resource.courseCode} · ` : ""}
+                        {formatDate(p.purchasedAt)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold tabular-nums text-ink">₹{((p.amount || 0) / 100).toFixed(0)}</span>
+                      <Link
+                        to={`/resources/${p.resource.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400"
+                      >
+                        <IconDownload width={14} height={14} /> Download
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </StaggerItem>
       </StaggerContainer>
     </div>
   );

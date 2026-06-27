@@ -37,8 +37,17 @@ export default function CombosList() {
               )}
               <p className="flex-1 font-semibold text-ink group-hover:text-store-700 dark:group-hover:text-store-300">{c.title}</p>
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-lg font-bold text-ink">{rupees(c.price)}</span>
-                <Badge color="gray">{c.resourceCount} items</Badge>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-lg font-bold text-ink">{c.price > 0 ? rupees(c.price) : "Free"}</span>
+                  {c.savings > 0 && c.originalTotal > c.price && (
+                    <span className="text-sm text-muted line-through">{rupees(c.originalTotal)}</span>
+                  )}
+                </div>
+                {c.savings > 0 ? (
+                  <span className="store-pill bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Save {rupees(c.savings)}</span>
+                ) : (
+                  <Badge color="gray">{c.resourceCount} items</Badge>
+                )}
               </div>
             </Link>
           ))}

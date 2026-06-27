@@ -43,9 +43,64 @@ const customPlanSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// Feature flags — admin can disable a feature so it disappears from the nav, its route shows
+// an "unavailable" message, and (where wired) its API is blocked. Default true = enabled.
+const featureFlagsSchema = new mongoose.Schema(
+  {
+    upload: { type: Boolean, default: true },
+    askAi: { type: Boolean, default: true },
+    analytics: { type: Boolean, default: true },
+    billing: { type: Boolean, default: true },
+    store: { type: Boolean, default: true },
+    workspaces: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
+
+// Canonical list + labels, reused by the admin UI and the public config endpoint.
+export const FEATURE_KEYS = ["upload", "askAi", "analytics", "billing", "store", "workspaces"];
+export const FEATURE_LABELS = {
+  upload: "Upload",
+  askAi: "Ask AI",
+  analytics: "Analytics",
+  billing: "Billing",
+  store: "Store",
+  workspaces: "Workspaces",
+};
+
+export function resolveFeatures(settings) {
+  const f = settings?.features || {};
+  const out = {};
+  for (const key of FEATURE_KEYS) out[key] = f[key] !== false; // default enabled
+  return out;
+}
+
+// Theme: admin-chosen site default. Accent presets match the [data-accent] blocks in the
+// client index.css; mode is the default light/dark for users who haven't picked their own.
+const themeSchema = new mongoose.Schema(
+  {
+    accent: { type: String, default: "indigo" },
+    mode: { type: String, default: "light" },
+  },
+  { _id: false }
+);
+
+export const THEME_ACCENTS = ["indigo", "violet", "blue", "emerald"];
+export const THEME_MODES = ["light", "dark"];
+
+export function resolveTheme(settings) {
+  const t = settings?.theme || {};
+  return {
+    accent: THEME_ACCENTS.includes(t.accent) ? t.accent : "indigo",
+    mode: THEME_MODES.includes(t.mode) ? t.mode : "light",
+  };
+}
+
 const settingsSchema = new mongoose.Schema(
   {
     key: { type: String, default: "app", unique: true },
+    features: { type: featureFlagsSchema, default: () => ({}) },
+    theme: { type: themeSchema, default: () => ({}) },
     geminiApiKey: { type: String, default: "" },
     geminiModel: { type: String, default: "gemini-2.5-flash" },
     apiKeys: { type: [apiKeyEntrySchema], default: [] },

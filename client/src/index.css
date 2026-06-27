@@ -613,6 +613,11 @@
     @apply border-store-400 ring-2 ring-store-100 dark:ring-store-900/40;
   }
 
+  /* Product cards glow teal in the store (not the indigo AI-app accent), matching the title hover. */
+  .store-theme .material-card {
+    @apply hover:ring-store-200 dark:hover:ring-store-500/40;
+  }
+
   /* Explicit storefront utilities */
   .store-btn-accent {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition-all duration-150 bg-storeaccent-500 hover:bg-storeaccent-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;

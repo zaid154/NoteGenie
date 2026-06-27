@@ -16,7 +16,7 @@ const OTP_LENGTH = 6;
 export default function VerifyEmail() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { user, refreshUser } = useAuth();
+  const { user, verifyEmail } = useAuth();
   const email = (params.get("email") || user?.email || "").trim().toLowerCase();
 
   const [otp, setOtp] = useState("");
@@ -45,9 +45,14 @@ export default function VerifyEmail() {
     setError("");
     setMsg("");
     try {
-      const { data } = await api.post("/auth/verify-email", { email, otp: otp.trim() });
+      const data = await verifyEmail(email, otp.trim());
+      // Already-verified accounts get no token — send them to login.
+      if (data.alreadyVerified) {
+        setMsg(data.message || "Email already verified. Please log in.");
+        setTimeout(() => navigate("/login", { replace: true }), 800);
+        return;
+      }
       setMsg(data.message || "Email verified!");
-      await refreshUser();
       setTimeout(() => navigate("/app", { replace: true }), 800);
     } catch (err) {
       setError(apiError(err));
@@ -57,16 +62,16 @@ export default function VerifyEmail() {
   }
 
   async function resend() {
-    if (!user) {
-      setError("Log in first to resend the OTP.");
+    if (!email) {
+      setError("Email is missing. Register again.");
       return;
     }
     setResending(true);
     setError("");
     setMsg("");
     try {
-      const { data } = await api.post("/auth/resend-verification");
-      setMsg(data.message || "New OTP sent to your email.");
+      const { data } = await api.post("/auth/resend-verification", { email });
+      setMsg(data.message || "New code sent to your email.");
     } catch (err) {
       setError(apiError(err));
     } finally {
@@ -120,23 +125,14 @@ export default function VerifyEmail() {
 
       <div className="mt-6 space-y-2 text-center text-sm text-muted">
         <p>Didn&apos;t get the code?</p>
-        {user ? (
-          <button
-            type="button"
-            className="font-medium text-accent-600 underline underline-offset-2 dark:text-accent-400"
-            onClick={resend}
-            disabled={resending}
-          >
-            {resending ? "Sending…" : "Resend OTP"}
-          </button>
-        ) : (
-          <Link
-            to="/login"
-            className="font-medium text-accent-600 underline underline-offset-2 dark:text-accent-400"
-          >
-            Log in to resend OTP
-          </Link>
-        )}
+        <button
+          type="button"
+          className="font-medium text-accent-600 underline underline-offset-2 disabled:opacity-50 dark:text-accent-400"
+          onClick={resend}
+          disabled={resending}
+        >
+          {resending ? "Sending…" : "Resend code"}
+        </button>
       </div>
     </AuthShell>
   );

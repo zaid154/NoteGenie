@@ -16,6 +16,10 @@ export const RESOURCE_TYPES = [
   "synopsis",
 ];
 
+// A resource is a product. Existing study materials are digital downloads; physical products
+// (printed books, kits, etc.) add stock/shipping. Default keeps every current resource digital.
+export const PRODUCT_TYPES = ["digital", "physical"];
+
 const resourceSchema = new mongoose.Schema(
   {
     courseId: { type: mongoose.Schema.Types.ObjectId, ref: "Course", required: true, index: true },
@@ -28,6 +32,9 @@ const resourceSchema = new mongoose.Schema(
     resourceType: { type: String, enum: RESOURCE_TYPES, required: true, index: true },
     year: { type: String, default: "", trim: true },     // e.g. "2024"
     session: { type: String, default: "", trim: true },  // e.g. "June 2024"
+
+    // Product type — drives which fields/flow apply. Existing resources are digital.
+    productType: { type: String, enum: PRODUCT_TYPES, default: "digital", index: true },
 
     // Marketplace. Prices are stored in paise to match the Razorpay/env convention.
     isPaid: { type: Boolean, default: false, index: true },
@@ -43,6 +50,27 @@ const resourceSchema = new mongoose.Schema(
     size: { type: Number, default: 0 },
     pages: { type: Number, default: null },
     previewUrl: { type: String, default: "" }, // optional free preview/thumbnail
+
+    // ── Digital product extras (productType === "digital") ──────────────────
+    downloadUrl: { type: String, default: "" },        // external download URL (alt to a stored file)
+    downloadLimit: { type: Number, default: null },    // null = unlimited downloads per purchase
+    downloadExpiryDays: { type: Number, default: null },// null = never expires after purchase
+    version: { type: String, default: "", trim: true },
+    licenseKey: { type: String, default: "" },         // default/template; per-order key issued on purchase
+    instantDownload: { type: Boolean, default: true },
+    allowMultipleFiles: { type: Boolean, default: false },
+    documentationUrl: { type: String, default: "" },
+
+    // ── Physical product fields (productType === "physical") ────────────────
+    sku: { type: String, default: "", trim: true },
+    stock: { type: Number, default: 0 },
+    weightGrams: { type: Number, default: null },
+    dimensions: { type: String, default: "" },         // e.g. "20 x 15 x 3 cm"
+    shippingRequired: { type: Boolean, default: true },
+    lowStockAlert: { type: Number, default: null },
+    deliveryCharges: { type: Number, default: 0 },     // paise
+    codAvailable: { type: Boolean, default: false },
+    manageInventory: { type: Boolean, default: false },
 
     downloadCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true, index: true },

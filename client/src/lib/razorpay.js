@@ -15,7 +15,16 @@ export function loadRazorpayScript() {
 // Trigger an authenticated file download (the endpoint requires a Bearer token, so we
 // fetch the blob through axios and save it client-side rather than a bare <a href>).
 export async function downloadResourceFile(api, resourceId, fileName) {
-  const res = await api.get(`/catalog/resources/${resourceId}/download`, { responseType: "blob" });
+  return saveBlob(await api.get(`/catalog/resources/${resourceId}/download`, { responseType: "blob" }), fileName);
+}
+
+// Secure tokenised download — the token is bound to a verified purchase (limit/expiry enforced
+// server-side). External-URL products redirect, which axios follows transparently.
+export async function downloadByToken(api, token, fileName) {
+  return saveBlob(await api.get(`/catalog/download/${token}`, { responseType: "blob" }), fileName);
+}
+
+function saveBlob(res, fileName) {
   const url = URL.createObjectURL(res.data);
   const a = document.createElement("a");
   a.href = url;

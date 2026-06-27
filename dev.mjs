@@ -74,6 +74,17 @@ async function isBusy(port) {
   return v4 || v6;
 }
 
+// Poll until the backend is accepting connections, so the client's first /api requests don't
+// hit ECONNREFUSED while the server is still connecting to MongoDB.
+async function waitForServer(port, timeoutMs = 30000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await isBusy(port)) return true;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return false; // timed out — start the client anyway
+}
+
 /** Best-effort: which process is listening on this port (for error messages). */
 async function getPortOwner(port) {
   try {
@@ -319,7 +330,14 @@ async function main() {
     nodeScript("server", "nodemon/bin/nodemon.js", ["src/index.js"]),
     serverEnv
   );
-  spawnChild("client", nodeScript("client", "vite/bin/vite.js"), clientEnv);
+
+  // Start the client only once the backend is listening (avoids the startup proxy ECONNREFUSED).
+  console.log("  Waiting for backend to be ready...");
+  await waitForServer(serverPort);
+  if (!shuttingDown) {
+    console.log("  Backend ready — starting frontend.\n");
+    spawnChild("client", nodeScript("client", "vite/bin/vite.js"), clientEnv);
+  }
 
   process.on("SIGINT", () => shutdown(0));
   process.on("SIGTERM", () => shutdown(0));

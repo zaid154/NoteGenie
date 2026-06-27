@@ -2,6 +2,7 @@
 // controller. /join is declared before /:id so it isn't captured as an id.
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
+import { requireFeature } from "../middleware/requireFeature.js";
 import {
   createWorkspace,
   listWorkspaces,
@@ -17,6 +18,8 @@ import {
 
 const router = Router();
 router.use(requireAuth);
+// Admin can disable Workspaces (Admin → Settings → Features).
+router.use(requireFeature("workspaces"));
 
 router.post("/", createWorkspace);
 router.get("/", listWorkspaces);

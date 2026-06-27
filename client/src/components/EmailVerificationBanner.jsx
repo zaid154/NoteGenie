@@ -21,7 +21,7 @@ export default function EmailVerificationBanner() {
     setError("");
     setMsg("");
     try {
-      const { data } = await api.post("/auth/resend-verification");
+      const { data } = await api.post("/auth/resend-verification", { email: user.email });
       setMsg(data.message || "Verification email sent.");
       await refreshUser();
     } catch (err) {

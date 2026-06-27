@@ -18,10 +18,16 @@ import {
   tryDecryptApiKeyEntry,
   UNREADABLE_KEY_MSG,
   migrateLegacyKey,
+  resolveFeatures,
+  FEATURE_KEYS,
+  resolveTheme,
+  THEME_ACCENTS,
+  THEME_MODES,
 } from "../models/Settings.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { invalidateAiRateLimitCache } from "../middleware/aiRateLimit.js";
 import { invalidateAiEnabledCache } from "../middleware/aiEnabled.js";
+import { invalidateFeatureCache } from "../middleware/requireFeature.js";
 import { PERMISSION_KEYS, PERMISSION_LABELS, sanitizePermissions } from "../config/permissions.js";
 import { env } from "../config/env.js";
 import {
@@ -622,6 +628,8 @@ export const getSettings = asyncHandler(async (req, res) => {
         ? `${unreadableCount} saved key(s) cannot be decrypted. Restore ENCRYPTION_SECRET or remove and re-add those keys.`
         : "",
     aiEnabled: settings.aiEnabled !== false,
+    features: resolveFeatures(settings),
+    theme: resolveTheme(settings),
     storefront: settings.storefront ? settings.storefront.toObject?.() ?? settings.storefront : {},
     aiRateLimitMax: settings.aiRateLimitMax ?? env.aiRateLimitMax,
     aiRateLimitWindowMinutes: settings.aiRateLimitWindowMinutes ?? env.aiRateLimitWindowMinutes,
@@ -634,7 +642,7 @@ export const getSettings = asyncHandler(async (req, res) => {
 });
 
 export const updateSettings = asyncHandler(async (req, res) => {
-  const { geminiApiKey, geminiModel, apiKeys, aiRateLimitMax, aiRateLimitWindowMinutes, aiEnabled, storefront } = req.body;
+  const { geminiApiKey, geminiModel, apiKeys, aiRateLimitMax, aiRateLimitWindowMinutes, aiEnabled, storefront, features, theme } = req.body;
   const settings = await getAppSettings();
   await migrateLegacyKey(settings);
 
@@ -684,6 +692,27 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (aiEnabled !== undefined) {
     settings.aiEnabled = Boolean(aiEnabled);
   }
+  if (features && typeof features === "object") {
+    settings.features = settings.features || {};
+    for (const key of FEATURE_KEYS) {
+      if (features[key] !== undefined) settings.features[key] = Boolean(features[key]);
+    }
+  }
+  if (theme && typeof theme === "object") {
+    settings.theme = settings.theme || {};
+    if (theme.accent !== undefined) {
+      if (!THEME_ACCENTS.includes(theme.accent)) {
+        return res.status(400).json({ message: "Invalid theme accent" });
+      }
+      settings.theme.accent = theme.accent;
+    }
+    if (theme.mode !== undefined) {
+      if (!THEME_MODES.includes(theme.mode)) {
+        return res.status(400).json({ message: "Invalid theme mode" });
+      }
+      settings.theme.mode = theme.mode;
+    }
+  }
   if (storefront && typeof storefront === "object") {
     const allowed = [
       "utilityBarText", "whatsappNumber", "supportEmail", "heroTitle", "heroSubtitle",
@@ -698,6 +727,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
   await settings.save();
   invalidateAiRateLimitCache();
   invalidateAiEnabledCache();
+  invalidateFeatureCache();
   await logAdminAction(req, "settings.update", "settings", "", { geminiModel: settings.geminiModel });
   const { pool } = await getKeyPool();
 
@@ -709,6 +739,8 @@ export const updateSettings = asyncHandler(async (req, res) => {
     apiKeys: serializeApiKeys(settings),
     poolSize: pool.length,
     aiEnabled: settings.aiEnabled !== false,
+    features: resolveFeatures(settings),
+    theme: resolveTheme(settings),
     aiRateLimitMax: settings.aiRateLimitMax ?? env.aiRateLimitMax,
     aiRateLimitWindowMinutes: settings.aiRateLimitWindowMinutes ?? env.aiRateLimitWindowMinutes,
   });

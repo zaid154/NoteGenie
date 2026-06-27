@@ -3,6 +3,7 @@
 // Auth: register, login, profile, email verification, password reset.
 import crypto from "crypto";
 import { User } from "../models/User.js";
+import { PendingSignup } from "../models/PendingSignup.js";
 import { signToken } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { env } from "../config/env.js";
@@ -12,26 +13,44 @@ import { applyPlanExpiry } from "../services/planExpiry.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
+// Brute-force guard: a pending signup is discarded after this many wrong OTP tries.
+const MAX_OTP_ATTEMPTS = 5;
+// Resend cooldown so the same email can't be spammed with OTP messages.
+const RESEND_COOLDOWN_MS = 45 * 1000;
+// Abandoned pending signups self-destruct after this long (TTL on the model).
+const PENDING_TTL_MS = 24 * 60 * 60 * 1000;
 
-async function deliverVerificationOtp(user) {
-  const otp = user.createEmailVerifyOtp(env.otpLength, env.otpExpiresMin);
-  await user.save();
+function hashOtp(otp) {
+  return crypto.createHash("sha256").update(String(otp).trim()).digest("hex");
+}
+
+// Cryptographically-random numeric OTP of the configured length.
+function generateOtp(length = env.otpLength) {
+  const min = 10 ** (length - 1);
+  const max = 10 ** length;
+  return String(crypto.randomInt(min, max));
+}
+
+// Sends an OTP email. Returns the code only so dev logging can show it when SMTP is off.
+async function sendVerificationOtp({ name, email, otp }) {
   const mail = await sendEmail({
-    to: user.email,
+    to: email,
     subject: `${otp} — Verify your NoteGenie account`,
-    html: verifyOtpHtml(user.name, otp, env.otpExpiresMin),
-    text: `Your NoteGenie verification code is zaid dfdjfdskjfhdjskfhjk${otp}. It expires in ${env.otpExpiresMin} minutes.`,
+    html: verifyOtpHtml(name, otp, env.otpExpiresMin),
+    text: `Your NoteGenie verification code is ${otp}. It expires in ${env.otpExpiresMin} minutes. If you didn't request this, you can ignore this email.`,
   });
   if (mail.dev) {
-    console.log(`[email] Verification OTP for ${user.email}: ${otp}`);
+    console.log(`[email] Verification OTP for ${email}: ${otp}`);
   }
-  return otp;
 }
 
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ message: "Name, email, and password are required" });
+  }
+  if (name.trim().length < 2) {
+    return res.status(400).json({ message: "Please enter your name" });
   }
   if (name.trim().length > 80) {
     return res.status(400).json({ message: "Name is too long" });
@@ -43,23 +62,39 @@ export const register = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD} characters` });
   }
 
-  const existing = await User.findOne({ email: email.toLowerCase() });
+  const normalizedEmail = email.toLowerCase();
+
+  // A real (verified) account already exists — don't leak much, just block.
+  const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
     return res.status(409).json({ message: "An account with this email already exists" });
   }
 
+  // No User is created yet — the signup waits in PendingSignup until the OTP is verified,
+  // so the database never accumulates unverified junk accounts.
   const passwordHash = await User.hashPassword(password);
-  const user = await User.create({
-    name: name.trim(),
-    email,
-    passwordHash,
-    usageResetAt: startOfNextMonth(),
-  });
+  const otp = generateOtp();
+  const now = Date.now();
 
-  await deliverVerificationOtp(user);
+  await PendingSignup.findOneAndUpdate(
+    { email: normalizedEmail },
+    {
+      email: normalizedEmail,
+      name: name.trim(),
+      passwordHash,
+      otpHash: hashOtp(otp),
+      otpExpires: new Date(now + env.otpExpiresMin * 60 * 1000),
+      attempts: 0,
+      lastSentAt: new Date(now),
+      expiresAt: new Date(now + PENDING_TTL_MS),
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
 
-  const token = signToken(user._id);
-  res.status(201).json({ user: user.toSafeObject(), token, needsVerification: true });
+  await sendVerificationOtp({ name: name.trim(), email: normalizedEmail, otp });
+
+  // No token, no user yet — the client must verify the OTP to create the account.
+  res.status(201).json({ needsVerification: true, email: normalizedEmail });
 });
 
 export const login = asyncHandler(async (req, res) => {
@@ -85,35 +120,132 @@ export const verifyEmail = asyncHandler(async (req, res) => {
   if (!email || !otp) {
     return res.status(400).json({ message: "Email and OTP are required" });
   }
+  const normalizedEmail = email.toLowerCase();
 
-  const user = await User.findOne({ email: email.toLowerCase() });
-  if (!user) return res.status(400).json({ message: "Invalid or expired OTP" });
-  if (user.emailVerified) {
-    return res.json({ message: "Email already verified", user: user.toSafeObject() });
+  // Already a verified account? Tell them to log in instead of erroring.
+  const existingUser = await User.findOne({ email: normalizedEmail });
+  if (existingUser && existingUser.emailVerified) {
+    return res.json({ message: "Email already verified. Please log in.", alreadyVerified: true });
   }
 
-  const hash = crypto.createHash("sha256").update(String(otp).trim()).digest("hex");
-  if (
-    user.emailVerifyToken !== hash ||
-    !user.emailVerifyOtpExpires ||
-    user.emailVerifyOtpExpires <= new Date()
-  ) {
-    return res.status(400).json({ message: "Invalid or expired OTP" });
+  const pending = await PendingSignup.findOne({ email: normalizedEmail });
+
+  // Legacy path: an unverified User from the old flow (no PendingSignup record).
+  if (!pending && existingUser) {
+    const hash = hashOtp(otp);
+    if (
+      existingUser.emailVerifyToken !== hash ||
+      !existingUser.emailVerifyOtpExpires ||
+      existingUser.emailVerifyOtpExpires <= new Date()
+    ) {
+      return res.status(400).json({ message: "Invalid or expired code" });
+    }
+    existingUser.emailVerified = true;
+    existingUser.emailVerifyToken = "";
+    existingUser.emailVerifyOtpExpires = null;
+    await existingUser.save();
+    const token = signToken(existingUser._id);
+    return res.json({ message: "Email verified", user: existingUser.toSafeObject(), token });
   }
 
-  user.emailVerified = true;
-  user.emailVerifyToken = "";
-  user.emailVerifyOtpExpires = null;
-  await user.save();
-  res.json({ message: "Email verified", user: user.toSafeObject() });
+  if (!pending) {
+    return res.status(400).json({ message: "No pending signup found. Please register again." });
+  }
+
+  if (!pending.otpExpires || pending.otpExpires <= new Date()) {
+    return res.status(400).json({ message: "Code expired. Please request a new one." });
+  }
+
+  // Brute-force guard: too many wrong tries discards the signup.
+  if (pending.attempts >= MAX_OTP_ATTEMPTS) {
+    await PendingSignup.deleteOne({ _id: pending._id });
+    return res
+      .status(429)
+      .json({ message: "Too many incorrect attempts. Please register again." });
+  }
+
+  if (pending.otpHash !== hashOtp(otp)) {
+    pending.attempts += 1;
+    await pending.save();
+    const left = Math.max(0, MAX_OTP_ATTEMPTS - pending.attempts);
+    return res.status(400).json({
+      message: left
+        ? `Invalid code. ${left} attempt${left === 1 ? "" : "s"} left.`
+        : "Invalid code.",
+    });
+  }
+
+  // OTP correct — now (and only now) create the real account.
+  // Re-check for a race where the email got registered between the two queries.
+  const clash = await User.findOne({ email: normalizedEmail });
+  if (clash) {
+    await PendingSignup.deleteOne({ _id: pending._id });
+    return res.status(409).json({ message: "An account with this email already exists" });
+  }
+
+  const user = await User.create({
+    name: pending.name,
+    email: normalizedEmail,
+    passwordHash: pending.passwordHash,
+    emailVerified: true,
+    usageResetAt: startOfNextMonth(),
+  });
+  await PendingSignup.deleteOne({ _id: pending._id });
+
+  const token = signToken(user._id);
+  res.status(201).json({ message: "Email verified", user: user.toSafeObject(), token });
 });
 
 export const resendVerification = asyncHandler(async (req, res) => {
-  if (req.user.emailVerified) {
-    return res.json({ message: "Email is already verified" });
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: "Email is required" });
+  const normalizedEmail = email.toLowerCase();
+
+  const existingUser = await User.findOne({ email: normalizedEmail });
+  if (existingUser && existingUser.emailVerified) {
+    return res.json({ message: "Email is already verified. Please log in." });
   }
-  await deliverVerificationOtp(req.user);
-  res.json({ message: "Verification OTP sent" });
+
+  const pending = await PendingSignup.findOne({ email: normalizedEmail });
+
+  // Legacy unverified User (old flow) — refresh its OTP.
+  if (!pending && existingUser) {
+    if (
+      existingUser.emailVerifyOtpExpires &&
+      Date.now() - (existingUser.emailVerifyOtpExpires.getTime() - env.otpExpiresMin * 60 * 1000) <
+        RESEND_COOLDOWN_MS
+    ) {
+      return res.status(429).json({ message: "Please wait a moment before requesting another code." });
+    }
+    const otp = generateOtp();
+    existingUser.emailVerifyToken = hashOtp(otp);
+    existingUser.emailVerifyOtpExpires = new Date(Date.now() + env.otpExpiresMin * 60 * 1000);
+    await existingUser.save();
+    await sendVerificationOtp({ name: existingUser.name, email: normalizedEmail, otp });
+    return res.json({ message: "Verification code sent" });
+  }
+
+  if (!pending) {
+    // Don't reveal whether the email is known — generic response.
+    return res.json({ message: "If that signup exists, a new code was sent." });
+  }
+
+  // Cooldown so resend can't be spammed.
+  if (pending.lastSentAt && Date.now() - pending.lastSentAt.getTime() < RESEND_COOLDOWN_MS) {
+    return res.status(429).json({ message: "Please wait a moment before requesting another code." });
+  }
+
+  const otp = generateOtp();
+  const now = Date.now();
+  pending.otpHash = hashOtp(otp);
+  pending.otpExpires = new Date(now + env.otpExpiresMin * 60 * 1000);
+  pending.attempts = 0;
+  pending.lastSentAt = new Date(now);
+  pending.expiresAt = new Date(now + PENDING_TTL_MS);
+  await pending.save();
+  await sendVerificationOtp({ name: pending.name, email: normalizedEmail, otp });
+
+  res.json({ message: "Verification code sent" });
 });
 
 export const forgotPassword = asyncHandler(async (req, res) => {

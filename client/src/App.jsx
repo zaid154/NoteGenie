@@ -8,6 +8,7 @@
 import { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
+import { useFeatures } from "./lib/useStorefront.js";
 import { PageLoader, PageShellSkeleton } from "./components/ui.jsx";
 import Layout from "./components/Layout.jsx";
 import AdminLayout from "./components/AdminLayout.jsx";
@@ -31,6 +32,7 @@ const Pricing = lazy(() => import("./pages/Pricing.jsx"));
 const Billing = lazy(() => import("./pages/Billing.jsx"));
 const Terms = lazy(() => import("./pages/Terms.jsx"));
 const Privacy = lazy(() => import("./pages/Privacy.jsx"));
+const Refund = lazy(() => import("./pages/Refund.jsx"));
 const ShareView = lazy(() => import("./pages/ShareView.jsx"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail.jsx"));
 const Checkout = lazy(() => import("./pages/Checkout.jsx"));
@@ -56,6 +58,7 @@ const AdminOverview = lazy(() => import("./pages/admin/AdminOverview.jsx"));
 const AdminCatalog = lazy(() => import("./pages/admin/AdminCatalog.jsx"));
 const AdminResources = lazy(() => import("./pages/admin/AdminResources.jsx"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders.jsx"));
+const AdminOrderDetail = lazy(() => import("./pages/admin/AdminOrderDetail.jsx"));
 const AdminCombos = lazy(() => import("./pages/admin/AdminCombos.jsx"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers.jsx"));
 const AdminUserDetail = lazy(() => import("./pages/admin/AdminUserDetail.jsx"));
@@ -63,6 +66,29 @@ const AdminSettings = lazy(() => import("./pages/admin/AdminSettings.jsx"));
 const AdminContent = lazy(() => import("./pages/admin/AdminContent.jsx"));
 const AdminUsage = lazy(() => import("./pages/admin/AdminUsage.jsx"));
 const AdminBilling = lazy(() => import("./pages/admin/AdminBilling.jsx"));
+
+// Shown when an admin has disabled a feature (also enforced server-side for some routes).
+function FeatureUnavailable() {
+  return (
+    <div className="grid min-h-[60vh] place-items-center px-6 text-center">
+      <div>
+        <h1 className="font-display text-2xl text-ink">This feature is currently unavailable.</h1>
+        <p className="mt-2 text-muted">It has been turned off by the site administrator. Please check back later.</p>
+        <Link to="/app" className="btn-primary mt-6 inline-flex">Back to dashboard</Link>
+      </div>
+    </div>
+  );
+}
+
+// Like Protected, but first checks a feature flag. Disabled → friendly message (inside the
+// app chrome, still auth-gated) instead of the page.
+function FeatureProtected({ feature, children }) {
+  const features = useFeatures();
+  if (features[feature] === false) {
+    return <Protected><FeatureUnavailable /></Protected>;
+  }
+  return <Protected>{children}</Protected>;
+}
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -177,6 +203,7 @@ export default function App() {
       <Route path="/checkout" element={<ProtectedCheckout><Checkout /></ProtectedCheckout>} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
+      <Route path="/refund" element={<Refund />} />
       <Route path="/share/:token" element={<ShareView />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
@@ -185,16 +212,16 @@ export default function App() {
       <Route path="/reset-password" element={<PublicOnly><ResetPassword /></PublicOnly>} />
 
       <Route path="/app" element={<Protected><Dashboard /></Protected>} />
-      <Route path="/upload" element={<Protected><Upload /></Protected>} />
+      <Route path="/upload" element={<FeatureProtected feature="upload"><Upload /></FeatureProtected>} />
       <Route path="/review" element={<Protected><Review /></Protected>} />
-      <Route path="/ask" element={<Protected><Ask /></Protected>} />
+      <Route path="/ask" element={<FeatureProtected feature="askAi"><Ask /></FeatureProtected>} />
       <Route path="/document/:id" element={<Protected><DocumentView /></Protected>} />
       <Route path="/quiz/:id" element={<Protected><QuizView /></Protected>} />
-      <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
-      <Route path="/workspaces" element={<Protected><Workspaces /></Protected>} />
-      <Route path="/workspaces/:id" element={<Protected><WorkspaceDetail /></Protected>} />
+      <Route path="/analytics" element={<FeatureProtected feature="analytics"><Analytics /></FeatureProtected>} />
+      <Route path="/workspaces" element={<FeatureProtected feature="workspaces"><Workspaces /></FeatureProtected>} />
+      <Route path="/workspaces/:id" element={<FeatureProtected feature="workspaces"><WorkspaceDetail /></FeatureProtected>} />
       <Route path="/profile" element={<Protected><Profile /></Protected>} />
-      <Route path="/billing" element={<Protected><Billing /></Protected>} />
+      <Route path="/billing" element={<FeatureProtected feature="billing"><Billing /></FeatureProtected>} />
 
       {/* Old catalog routes now live in the public storefront */}
       <Route path="/catalog" element={<Navigate to="/store" replace />} />
@@ -228,6 +255,7 @@ export default function App() {
         <Route path="resources" element={<RequirePermission permission="manage_resources"><AdminResources /></RequirePermission>} />
         <Route path="combos" element={<RequirePermission permission="manage_combos"><AdminCombos /></RequirePermission>} />
         <Route path="orders" element={<RequirePermission permission="manage_orders"><AdminOrders /></RequirePermission>} />
+        <Route path="orders/:id" element={<RequirePermission permission="manage_orders"><AdminOrderDetail /></RequirePermission>} />
         <Route path="content" element={<Navigate to="materials" replace />} />
         <Route path="content/:section" element={<AdminContent />} />
         <Route path="billing" element={<Navigate to="pricing" replace />} />

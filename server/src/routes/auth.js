@@ -22,11 +22,11 @@ const router = Router();
 router.post("/register", loginRegisterLimiter, register);
 router.post("/login", loginRegisterLimiter, login);
 router.post("/verify-email", loginRegisterLimiter, verifyEmail);
+router.post("/resend-verification", passwordResetLimiter, resendVerification);
 router.post("/forgot-password", passwordResetLimiter, forgotPassword);
 router.post("/reset-password", passwordResetLimiter, resetPassword);
 
 router.get("/me", requireAuth, me);
-router.post("/resend-verification", requireAuth, resendVerification);
 router.post("/onboarding/complete", requireAuth, completeOnboarding);
 router.put("/profile", requireAuth, updateProfile);
 router.put("/password", requireAuth, changePassword);
