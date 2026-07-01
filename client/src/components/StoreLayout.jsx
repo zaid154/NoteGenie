@@ -16,7 +16,7 @@ import {
 } from "./icons.jsx";
 
 const NAV = [
-  { to: "/store", label: "Home", end: true },
+  { to: "/", label: "Home", end: true },
   ...STORE_CATEGORIES.map((c) => ({ to: `/store/${c.slug}`, label: c.label })),
   { to: "/store/combos", label: "Combos" },
 ];
@@ -103,7 +103,7 @@ export default function StoreLayout() {
           <button type="button" className="btn-ghost rounded-lg p-2 lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Menu">
             <IconMenu />
           </button>
-          <Link to="/store" className="shrink-0"><Logo /></Link>
+          <Link to="/" className="shrink-0"><Logo /></Link>
 
           {/* Search (desktop) */}
           <form onSubmit={submitSearch} className="relative ml-2 hidden flex-1 md:block">

@@ -35,6 +35,17 @@ function modelOutputCeiling(modelName = "") {
   return 8192;
 }
 
+// gemini-2.5-flash / flash-lite "think" by default. Those thinking tokens are billed as
+// output AND counted against maxOutputTokens — so on a bounded JSON call they eat the
+// budget and the response gets truncated mid-JSON (finishReason MAX_TOKENS → parse fails).
+// For these deterministic, source-grounded tasks (notes/quiz/flashcards/tutor) we disable
+// thinking: no truncation, faster first token, cheaper. Returns undefined for models where
+// the field doesn't apply — 2.5-pro requires a thinking budget, 2.0/1.5 don't support it.
+function thinkingConfigFor(modelName = "") {
+  if (/2\.5-flash/i.test(modelName)) return { thinkingBudget: 0 };
+  return undefined;
+}
+
 export const PRICE_PER_MILLION = {
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
   "gemini-2.5-pro": { input: 1.25, output: 10.0 },
@@ -63,7 +74,9 @@ async function recordUsage(meta, modelName, usageMetadata) {
   if (!meta?.feature) return;
   try {
     const promptTokens = usageMetadata?.promptTokenCount || 0;
-    const completionTokens = usageMetadata?.candidatesTokenCount || 0;
+    // Thinking tokens are billed at the output rate, so count them as completion for cost.
+    const thoughtTokens = usageMetadata?.thoughtsTokenCount || 0;
+    const completionTokens = (usageMetadata?.candidatesTokenCount || 0) + thoughtTokens;
     const totalTokens =
       usageMetadata?.totalTokenCount || promptTokens + completionTokens;
     await ApiUsage.create({
@@ -308,11 +321,16 @@ function parseJsonResponse(response, { retries = 1 } = {}) {
 }
 
 async function generateJson(ai, { model, contents, config }, { parseRetries = 1, genRetries = 1 } = {}) {
+  const tunedConfig = { ...(config || {}) };
   // Clamp a requested output ceiling to what this model can actually emit.
-  const tunedConfig =
-    config?.maxOutputTokens
-      ? { ...config, maxOutputTokens: Math.min(config.maxOutputTokens, modelOutputCeiling(model)) }
-      : config;
+  if (tunedConfig.maxOutputTokens) {
+    tunedConfig.maxOutputTokens = Math.min(tunedConfig.maxOutputTokens, modelOutputCeiling(model));
+  }
+  // Disable thinking on flash models so it can't consume the JSON output budget (truncation).
+  const thinking = thinkingConfigFor(model);
+  if (thinking && tunedConfig.thinkingConfig === undefined) {
+    tunedConfig.thinkingConfig = thinking;
+  }
   let lastError;
   for (let gen = 0; gen <= genRetries; gen++) {
     const response = await callModel(ai, { model, contents, config: tunedConfig });
@@ -331,9 +349,11 @@ export async function testApiKey(apiKey, model = "gemini-2.5-flash", meta = {}) 
   if (!apiKey?.trim()) throw new Error("API key is required");
   const trimmedModel = model.trim();
   const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+  const thinking = thinkingConfigFor(trimmedModel);
   const response = await ai.models.generateContent({
     model: trimmedModel,
     contents: "Reply with exactly: OK",
+    ...(thinking ? { config: { thinkingConfig: thinking } } : {}),
   });
   const text = response.text;
   await recordUsage({ feature: "test", ...meta }, trimmedModel, response.usageMetadata);
@@ -835,11 +855,18 @@ Student: ${question}
 Tutor:`;
 
   const out = await withKeyFailover(
-    async ({ ai, modelName }) => ({
-      stream: await withRetry(() =>
-        ai.models.generateContentStream({ model: modelName, contents: prompt })
-      ),
-    }),
+    async ({ ai, modelName }) => {
+      const thinking = thinkingConfigFor(modelName);
+      return {
+        stream: await withRetry(() =>
+          ai.models.generateContentStream({
+            model: modelName,
+            contents: prompt,
+            ...(thinking ? { config: { thinkingConfig: thinking } } : {}),
+          })
+        ),
+      };
+    },
     { preferredKeyId: meta.preferredKeyId }
   );
 

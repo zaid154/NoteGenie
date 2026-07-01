@@ -3,8 +3,9 @@
 // FLOW: React Router map lives here. Auth state comes from AuthContext, routes decide public/protected/admin access, then render page components inside Layout/AdminLayout.
 
 // Routing — all app pages including billing, legal, share.
-// Common entry points (Landing/Login/Register/Dashboard) are eager; heavier and
-// less-frequent routes are code-split via React.lazy to shrink the initial bundle.
+// The site home ("/") IS the public storefront (store-first). Common entry points
+// (Login/Register/Dashboard) are eager; heavier and less-frequent routes are
+// code-split via React.lazy to shrink the initial bundle.
 import { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -14,7 +15,6 @@ import Layout from "./components/Layout.jsx";
 import AdminLayout from "./components/AdminLayout.jsx";
 import OnboardingWizard from "./components/OnboardingWizard.jsx";
 
-import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
@@ -187,18 +187,10 @@ function ProtectedCheckout({ children }) {
   return children;
 }
 
-function HomeRoute() {
-  const { user, loading } = useAuth();
-  if (loading) return <PageLoader />;
-  if (user) return <Navigate to="/app" replace />;
-  return <Landing />;
-}
-
 export default function App() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-      <Route path="/" element={<HomeRoute />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/checkout" element={<ProtectedCheckout><Checkout /></ProtectedCheckout>} />
       <Route path="/terms" element={<Terms />} />
@@ -228,8 +220,10 @@ export default function App() {
       <Route path="/catalog/courses/:id" element={<Navigate to="/store" replace />} />
       <Route path="/my-downloads" element={<Protected><MyDownloads /></Protected>} />
 
-      {/* Public storefront (StoreLayout chrome via Outlet) */}
+      {/* Public storefront (StoreLayout chrome via Outlet). The site home "/" is the
+          store itself; "/store" stays as a working alias for existing links. */}
       <Route element={<StoreLayout />}>
+        <Route path="/" element={<StoreHome />} />
         <Route path="/store" element={<StoreHome />} />
         <Route path="/store/search" element={<StoreSearch />} />
         <Route path="/store/cart" element={<Cart />} />

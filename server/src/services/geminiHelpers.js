@@ -84,6 +84,8 @@ export function geminiErrorDetail(err) {
 
     .replace(/AIza[A-Za-z0-9_-]{10,}/g, "AIza••••")
 
+    .replace(/\bAQ\.[A-Za-z0-9_.-]{10,}/g, "AQ.••••")
+
     .trim();
 
   return cleaned.slice(0, 200) || "";
