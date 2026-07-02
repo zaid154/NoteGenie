@@ -95,6 +95,20 @@
     background: linear-gradient(180deg, rgb(var(--canvas)) 0%, #0f172a 100%);
   }
 
+  /* A11y: a single, consistent keyboard-focus ring across the whole app.
+     :focus-visible only fires for keyboard/programmatic focus, so mouse clicks
+     stay clean while keyboard users always get a clear accent outline. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent-500));
+    outline-offset: 2px;
+  }
+
+  /* Elements with their own focus treatment (inputs use a ring) opt out of the
+     global outline to avoid a double indicator. */
+  .input:focus-visible {
+    outline: none;
+  }
+
   .prose-notes h1,
   .prose-notes h2,
   .prose-notes h3 {
@@ -262,7 +276,7 @@
   }
 
   .material-card {
-    @apply flex flex-col rounded-xl border border-slate-200/80 bg-surface p-5 shadow-soft ring-1 ring-slate-200/80 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-accent-200 dark:border-slate-700 dark:ring-slate-700 dark:hover:ring-accent-500/40;
+    @apply flex h-full flex-col rounded-xl border border-slate-200/80 bg-surface p-5 shadow-soft ring-1 ring-slate-200/80 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:ring-accent-200 dark:border-slate-700 dark:ring-slate-700 dark:hover:ring-accent-500/40;
   }
 
   .rail-card {
@@ -279,6 +293,12 @@
 
   .badge {
     @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium;
+  }
+
+  /* Shared "icon tile" (empty states, feature bullets). Accent by default; recoloured teal
+     inside .store-theme so storefront empty states don't flash the indigo app accent. */
+  .es-icon {
+    @apply bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400;
   }
 
   .nav-item {
@@ -574,6 +594,15 @@
   .cta-glow {
     animation: none;
   }
+
+  .store-theme .cta-sheen::after {
+    display: none;
+  }
+
+  .store-theme .store-underline,
+  .store-theme [data-scroll-materialize] {
+    transition: none;
+  }
 }
 
 @keyframes shimmer {
@@ -595,14 +624,16 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Storefront palette (teal + amber), scoped under .store-theme ONLY.
+ * Storefront palette ("Meridian": cobalt + saffron), scoped under .store-theme ONLY.
  * Reuses the same class names as the app (btn-primary, chip-active, input...)
- * but recolors them teal inside the store. The indigo app is untouched because
+ * but recolors them cobalt inside the store. The indigo app is untouched because
  * every rule here is nested under .store-theme (higher specificity).
+ * Cobalt = the single action colour. Saffron = a rare signal only.
  * ------------------------------------------------------------------------- */
 @layer components {
   .store-theme .btn-primary {
-    @apply bg-store-600 text-white shadow-soft hover:bg-store-700;
+    @apply bg-store-600 text-white hover:bg-store-700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 1px 3px rgba(15, 23, 42, 0.12);
   }
 
   .store-theme .chip-active {
@@ -613,14 +644,25 @@
     @apply border-store-400 ring-2 ring-store-100 dark:ring-store-900/40;
   }
 
-  /* Product cards glow teal in the store (not the indigo AI-app accent), matching the title hover. */
+  /* Product cards: one hairline + a real resting elevation (kills the old border+ring double
+     line). Calm lift on hover. Dark mode floats by luminance + a 1px inset top-highlight. */
   .store-theme .material-card {
-    @apply hover:ring-store-200 dark:hover:ring-store-500/40;
+    @apply rounded-2xl border-line shadow-store-e1 ring-0 hover:-translate-y-0.5 hover:border-store-300 hover:shadow-store-e2;
   }
 
-  /* Explicit storefront utilities */
+  .dark .store-theme .material-card {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 20px -8px rgba(0, 0, 0, 0.55);
+  }
+
+  .dark .store-theme .material-card:hover {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 16px 36px -12px rgba(0, 0, 0, 0.7);
+  }
+
+  /* WhatsApp / secondary CTAs — a tasteful cobalt-OUTLINE secondary, never a second fill.
+     This single rule demotes every .store-btn-accent across the store (fixes two competing
+     primaries). Cobalt stays the ONE solid action colour (.btn-primary). */
   .store-btn-accent {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition-all duration-150 bg-storeaccent-500 hover:bg-storeaccent-600 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-store-600 bg-transparent px-4 py-2.5 text-sm font-semibold text-store-700 transition-all duration-150 hover:bg-store-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:text-store-300 dark:hover:bg-store-950/40;
   }
 
   .store-primary {
@@ -635,15 +677,129 @@
     @apply rounded-lg px-3 py-2 text-sm font-medium text-muted transition hover:bg-store-50 hover:text-store-700 dark:hover:bg-store-950/40 dark:hover:text-store-300;
   }
 
+  /* Active nav = an editorial cobalt underline tab (reads more premium than a filled chip). */
   .store-nav-active {
-    @apply rounded-lg px-3 py-2 text-sm font-semibold text-store-700 bg-store-50 dark:bg-store-950/40 dark:text-store-300;
+    @apply relative rounded-lg px-3 py-2 text-sm font-semibold text-store-700 dark:text-store-300;
+  }
+
+  .store-nav-active::after {
+    content: "";
+    @apply absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-store-600 dark:bg-store-400;
   }
 
   .store-pill {
     @apply inline-flex items-center rounded-full bg-store-50 px-2.5 py-0.5 text-xs font-semibold text-store-700 dark:bg-store-950/50 dark:text-store-300;
   }
+
+  /* Storefront empty-state / icon tiles use the teal brand, not the indigo app accent. */
+  .store-theme .es-icon {
+    @apply bg-store-50 text-store-600 dark:bg-store-950/50 dark:text-store-300;
+  }
+
+  /* Storefront display face — Bricolage Grotesque, scoped. Auto-upgrades every existing
+     .store-theme .font-display usage (hero H1, section H2s, card course-codes) with no JSX
+     change. The indigo app's global .font-display stays Instrument Serif. */
+  .store-theme .font-display,
+  .store-theme .font-display-store {
+    font-family: "Bricolage Grotesque", "Plus Jakarta Sans", system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  /* Signature hero — a dark cobalt "vault" panel: cobalt radial field + a single saffron
+     bloom + a fade-masked hairline grid. Content sits over it in white. */
+  .store-theme .store-hero {
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(120% 120% at 100% 0%, #1c3470 0%, #1b3a8c 42%, #121f45 100%);
+  }
+
+  .store-theme .store-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(42% 55% at 82% 12%, rgba(245, 118, 11, 0.22), transparent 70%);
+  }
+
+  .store-theme .store-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    -webkit-mask-image: radial-gradient(100% 80% at 50% 0%, black, transparent 75%);
+    mask-image: radial-gradient(100% 80% at 50% 0%, black, transparent 75%);
+  }
+
+  /* Hero primary button — one finite diagonal sheen sweep on hover only. */
+  .store-theme .cta-sheen {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .store-theme .cta-sheen::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -60%;
+    width: 45%;
+    transform: skewX(-18deg);
+    background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    opacity: 0;
+  }
+
+  .store-theme .cta-sheen:hover::after {
+    animation: ctaSheen 0.6s ease-out;
+  }
+
+  /* Left-to-right 1px underline draw for text links. */
+  .store-theme .store-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 0% 1px;
+    transition: background-size 0.2s ease-out;
+  }
+
+  .store-theme .store-underline:hover {
+    background-size: 100% 1px;
+  }
 }
 
 .dark .store-theme .btn-primary {
   @apply bg-store-500 hover:bg-store-600;
+}
+
+@keyframes ctaSheen {
+  from {
+    left: -60%;
+    opacity: 1;
+  }
+
+  to {
+    left: 120%;
+    opacity: 1;
+  }
+}
+
+/* Storefront surface tokens — cobalt-anchored navy neutrals, scoped to the store subtree so the
+   indigo app keeps its slate values. Unlayered so they reliably win over the :root/.dark defaults. */
+.store-theme {
+  --canvas: 246 248 253;
+  --surface: 255 255 255;
+  --line: 230 234 242;
+  --ink: 14 26 51;
+  --muted: 90 107 135;
+}
+
+.dark .store-theme {
+  --canvas: 7 12 24;
+  --surface: 15 22 38;
+  --line: 35 48 74;
+  --ink: 242 246 255;
+  --muted: 147 162 190;
 }

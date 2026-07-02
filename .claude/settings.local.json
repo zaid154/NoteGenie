@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\user\\\\Desktop\\\\Projects\\\\zaid\\\\NoteGenie\\\\client\"; npx eslint src/pages/store/StoreHome.jsx src/components/ErrorBoundary.jsx src/components/Layout.jsx src/components/StoreLayout.jsx src/main.jsx 2>&1 | Select-Object -Last 40; \"EXIT: $LASTEXITCODE\")",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\user\\\\Desktop\\\\Projects\\\\zaid\\\\NoteGenie\\\\client\"; npx eslint src/components/ErrorBoundary.jsx src/pages/store/StoreHome.jsx 2>&1; \"EXIT: $LASTEXITCODE\")",
+      "Bash(git --no-pager diff -- client/src/main.jsx client/src/pages/store/StoreHome.jsx client/src/components/Layout.jsx client/src/components/StoreLayout.jsx client/index.html client/src/index.css)",
+      "Bash(npx vite *)",
+      "Bash(npx eslint *)",
+      "Bash(npm run *)"
     ]
   }
 }

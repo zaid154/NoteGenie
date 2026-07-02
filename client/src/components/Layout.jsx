@@ -178,6 +178,13 @@ export default function Layout({ children }) {
 
   return (
     <div className="relative min-h-screen lg:flex">
+      {/* A11y: keyboard users can jump past the nav straight to page content. */}
+      <a
+        href="#main-content"
+        className="sr-only rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60]"
+      >
+        Skip to content
+      </a>
       <CommandPalette />
       <div className="mesh-bg" aria-hidden="true" />
 
@@ -234,7 +241,7 @@ export default function Layout({ children }) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 pb-24 lg:px-6 lg:pb-8">
+        <main id="main-content" className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 pb-24 lg:px-6 lg:pb-8">
           <EmailVerificationBanner />
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>{children}</PageTransition>

@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
-import { DrawerPanel } from "./motion.jsx";
+import { DrawerPanel, PageTransition, motion, AnimatePresence, useReducedMotion } from "./motion.jsx";
 import Logo from "./Logo.jsx";
 import { STORE_CATEGORIES } from "../lib/storeCategories.js";
 import { STORE_CONFIG, whatsappLink } from "../lib/storeConfig.js";
@@ -65,6 +65,7 @@ export default function StoreLayout() {
   const store = useStorefront();
   const navigate = useNavigate();
   const location = useLocation();
+  const reduced = useReducedMotion();
   const [q, setQ] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
@@ -83,6 +84,13 @@ export default function StoreLayout() {
 
   return (
     <div className="store-theme min-h-screen bg-canvas">
+      {/* A11y: skip past the header/nav straight to the page content. */}
+      <a
+        href="#main-content"
+        className="sr-only rounded-lg bg-store-600 px-4 py-2 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60]"
+      >
+        Skip to content
+      </a>
       {/* Utility bar */}
       {store.utilityBarText && (
         <div className="store-primary">
@@ -103,7 +111,7 @@ export default function StoreLayout() {
           <button type="button" className="btn-ghost rounded-lg p-2 lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Menu">
             <IconMenu />
           </button>
-          <Link to="/" className="shrink-0"><Logo /></Link>
+          <Link to="/" className="shrink-0"><Logo tone="store" /></Link>
 
           {/* Search (desktop) */}
           <form onSubmit={submitSearch} className="relative ml-2 hidden flex-1 md:block">
@@ -125,13 +133,23 @@ export default function StoreLayout() {
                     {user.name?.[0]?.toUpperCase() || "U"}
                   </span>
                 </button>
-                {acctOpen && (
-                  <div className="absolute right-0 mt-1 w-48 rounded-xl border border-line bg-surface p-1 shadow-card" onMouseLeave={() => setAcctOpen(false)}>
-                    <Link to="/app" className="store-nav-idle block" onClick={() => setAcctOpen(false)}><IconHome width={16} height={16} className="mr-2 inline" />Dashboard</Link>
-                    <Link to="/my-downloads" className="store-nav-idle block" onClick={() => setAcctOpen(false)}><IconDownload width={16} height={16} className="mr-2 inline" />My downloads</Link>
-                    <button type="button" onClick={signOut} className="store-nav-idle block w-full text-left text-red-600">Sign out</button>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {acctOpen && (
+                    <motion.div
+                      initial={reduced ? false : { opacity: 0, y: -6, scale: 0.97 }}
+                      animate={reduced ? {} : { opacity: 1, y: 0, scale: 1 }}
+                      exit={reduced ? {} : { opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
+                      style={{ transformOrigin: "top right" }}
+                      className="absolute right-0 mt-1 w-48 rounded-xl border border-line bg-surface p-1 shadow-card"
+                      onMouseLeave={() => setAcctOpen(false)}
+                    >
+                      <Link to="/app" className="store-nav-idle block" onClick={() => setAcctOpen(false)}><IconHome width={16} height={16} className="mr-2 inline" />Dashboard</Link>
+                      <Link to="/my-downloads" className="store-nav-idle block" onClick={() => setAcctOpen(false)}><IconDownload width={16} height={16} className="mr-2 inline" />My downloads</Link>
+                      <button type="button" onClick={signOut} className="store-nav-idle block w-full text-left text-red-600">Sign out</button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
               <>
@@ -143,9 +161,20 @@ export default function StoreLayout() {
             {/* Cart */}
             <Link to="/store/cart" className="relative rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Cart">
               <IconCart width={20} height={20} />
-              {count > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-storeaccent-500 px-1 text-[10px] font-bold text-white">{count}</span>
-              )}
+              <AnimatePresence>
+                {count > 0 && (
+                  <motion.span
+                    key={count}
+                    initial={reduced ? false : { scale: 0.4, opacity: 0 }}
+                    animate={reduced ? {} : { scale: 1, opacity: 1 }}
+                    exit={reduced ? {} : { scale: 0.4, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                    className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-storeaccent-500 px-1 text-[10px] font-bold text-white"
+                  >
+                    {count}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </Link>
           </div>
         </div>
@@ -187,9 +216,11 @@ export default function StoreLayout() {
         </div>
       </DrawerPanel>
 
-      {/* Page content (key on pathname for a subtle remount) */}
-      <main key={location.pathname} className="mx-auto max-w-7xl px-4 py-6 lg:py-8">
-        <Outlet />
+      {/* Page content — keyed on pathname so each route fades/slides up on navigation. */}
+      <main id="main-content" className="mx-auto max-w-7xl px-4 py-6 lg:py-8">
+        <PageTransition key={location.pathname}>
+          <Outlet />
+        </PageTransition>
       </main>
 
       {/* Footer */}

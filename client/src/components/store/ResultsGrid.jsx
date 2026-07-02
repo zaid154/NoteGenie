@@ -7,6 +7,7 @@ import { api } from "../../api/client.js";
 import { EmptyState, MaterialCardSkeleton } from "../ui.jsx";
 import { IconSearch } from "../icons.jsx";
 import ResourceCard from "./ResourceCard.jsx";
+import { StaggerReveal, StaggerItem } from "../motion.jsx";
 
 export default function ResultsGrid({ params, emptyTitle = "No resources found" }) {
   const [resources, setResources] = useState([]);
@@ -64,9 +65,13 @@ export default function ResultsGrid({ params, emptyTitle = "No resources found" 
       {total > 0 && (
         <p className="text-sm text-muted">{total.toLocaleString("en-IN")} {total === 1 ? "result" : "results"}</p>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {resources.map((r) => <ResourceCard key={r.id} r={r} />)}
-      </div>
+      <StaggerReveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {resources.map((r) => (
+          <StaggerItem key={r.id} className="h-full">
+            <ResourceCard r={r} />
+          </StaggerItem>
+        ))}
+      </StaggerReveal>
       {page < totalPages && (
         <div className="text-center">
           <button type="button" onClick={loadMore} className="btn-outline">Load more</button>

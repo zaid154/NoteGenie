@@ -214,7 +214,7 @@ export function EmptyState({ icon: Icon = IconSparkles, title, subtitle, action,
   if (compact) {
     return (
       <div className="rounded-lg border border-dashed border-line px-4 py-5 text-center">
-        <div className="mx-auto mb-2 grid h-8 w-8 place-items-center rounded-lg bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400">
+        <div className="es-icon mx-auto mb-2 grid h-8 w-8 place-items-center rounded-lg">
           <Icon width={16} height={16} />
         </div>
         <p className="text-sm font-medium text-ink">{title}</p>
@@ -225,7 +225,7 @@ export function EmptyState({ icon: Icon = IconSparkles, title, subtitle, action,
   }
   return (
     <div className="card-solid flex flex-col items-center px-6 py-16 text-center">
-      <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400">
+      <div className="es-icon mb-4 grid h-12 w-12 place-items-center rounded-xl">
         <Icon width={24} height={24} />
       </div>
       <h3 className="text-lg font-bold text-ink">{title}</h3>

@@ -37,7 +37,7 @@ export default function StoreSearch() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-ink">{label}</h1>
+      <h1 className="font-display text-3xl leading-tight text-ink">{label}</h1>
 
       {/* Sort + free-only toolbar */}
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-3">

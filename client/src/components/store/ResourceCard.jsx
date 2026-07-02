@@ -6,9 +6,10 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../../context/CartContext.jsx";
 import { Badge } from "../ui.jsx";
-import { IconCart, IconCheck, IconDownload, IconDoc, IconFlame, IconHeart } from "../icons.jsx";
+import { IconCart, IconCheck, IconDownload, IconFlame, IconHeart } from "../icons.jsx";
 import { typeLabel, rupees } from "../../lib/storeCategories.js";
 import { isSaved, toggleSaved } from "../../lib/savedResources.js";
+import { typeVisual, DOT_PATTERN } from "../../lib/resourceVisuals.js";
 
 // Downloads at/above this count earn a "Popular" chip — a zero-backend social-proof signal.
 const POPULAR_THRESHOLD = 200;
@@ -16,8 +17,12 @@ const POPULAR_THRESHOLD = 200;
 export default function ResourceCard({ r }) {
   const { add, has } = useCart();
   const inCart = has(r.id);
-  const sizeMb = r.size ? (r.size / 1024 / 1024).toFixed(1) : null;
+  // Only surface a size once it's meaningful — avoids the ugly "0.0 MB" on tiny/missing files.
+  const sizeMbNum = r.size ? r.size / 1024 / 1024 : 0;
+  const sizeMb = sizeMbNum >= 0.1 ? sizeMbNum.toFixed(1) : null;
   const [saved, setSaved] = useState(() => isSaved(r.id));
+  const visual = typeVisual(r.resourceType);
+  const WatermarkIcon = visual.Icon;
 
   function addToCart(e) {
     e.preventDefault();
@@ -48,23 +53,44 @@ export default function ResourceCard({ r }) {
         onClick={toggleSave}
         aria-pressed={saved}
         aria-label={saved ? "Remove from saved" : "Save for later"}
-        className="absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-white/90 shadow-sm backdrop-blur transition hover:scale-105 dark:bg-slate-900/80"
+        className="absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-surface/80 shadow-sm backdrop-blur transition-colors"
       >
         <IconHeart width={16} height={16} fill={saved ? "currentColor" : "none"} className={saved ? "text-red-500" : "text-muted"} />
       </button>
-      {/* Cover — real preview if present, else a typed placeholder so the grid isn't flat text */}
-      {r.previewUrl ? (
-        <img src={r.previewUrl} alt="" loading="lazy" className="mb-3 h-32 w-full rounded-lg object-cover" />
-      ) : (
-        <div className="mb-3 grid h-32 w-full place-items-center rounded-lg bg-store-50 text-store-600 dark:bg-store-950/40 dark:text-store-300">
-          <IconDoc width={30} height={30} />
-        </div>
-      )}
+      {/* Cover — real preview if present, else a designed gradient cover (colour-coded by type,
+          with a subtle dot texture + watermark + course code) so coverless cards still look
+          intentional and premium. Wrapper clips the hover zoom so nothing spills. */}
+      <div className="mb-3 h-40 w-full overflow-hidden rounded-xl">
+        {r.previewUrl ? (
+          <div className="relative h-full w-full">
+            <img src={r.previewUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/25 to-transparent" />
+          </div>
+        ) : (
+          <div style={{ background: visual.bg }} className="relative h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.02]">
+            <div className="absolute inset-0 opacity-20" style={DOT_PATTERN} />
+            <WatermarkIcon className="absolute -bottom-5 -right-4 text-white/15" width={104} height={104} />
+            {r.courseCode ? (
+              <div className="relative flex h-full flex-col justify-between p-3.5">
+                <span className="inline-flex w-fit items-center rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+                  {typeLabel(r.resourceType)}
+                </span>
+                <span className="font-display text-[1.7rem] leading-none tabular-nums text-white drop-shadow-sm">{r.courseCode}</span>
+              </div>
+            ) : (
+              <div className="relative flex h-full flex-col items-center justify-center gap-2 p-3.5 text-center">
+                <WatermarkIcon width={34} height={34} className="text-white/95" />
+                <span className="inline-flex items-center rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+                  {typeLabel(r.resourceType)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-      <div className="flex min-h-[28px] flex-wrap items-center gap-1.5">
-        <Badge color="gray">{typeLabel(r.resourceType)}</Badge>
+      <div className="flex min-h-[24px] flex-wrap items-center gap-1.5">
         {r.year && <Badge color="gray">{r.year}</Badge>}
-        {r.courseCode && <span className="store-pill max-w-[8rem] truncate">{r.courseCode}</span>}
         {r.downloadCount >= POPULAR_THRESHOLD && (
           <span className="inline-flex items-center gap-1 rounded-full bg-storeaccent-100 px-2 py-0.5 text-[11px] font-semibold text-storeaccent-600 dark:bg-store-950 dark:text-storeaccent-400">
             <IconFlame width={11} height={11} /> Popular
@@ -80,7 +106,7 @@ export default function ResourceCard({ r }) {
       {(r.downloadCount > 0 || r.pages || sizeMb) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
           {r.downloadCount > 0 && (
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1 tabular-nums">
               <IconDownload width={12} height={12} /> {r.downloadCount.toLocaleString("en-IN")} downloads
             </span>
           )}
@@ -90,7 +116,7 @@ export default function ResourceCard({ r }) {
       )}
 
       <div className="mt-auto flex items-center justify-between pt-3">
-        <span className="text-lg font-bold text-ink">
+        <span className="text-lg font-bold tabular-nums text-ink">
           {r.isPaid ? rupees(r.price) : <span className="text-store-700 dark:text-store-300">Free</span>}
         </span>
         {r.isPaid ? (
@@ -98,12 +124,12 @@ export default function ResourceCard({ r }) {
             type="button"
             onClick={addToCart}
             disabled={inCart}
-            className={inCart ? "store-pill" : "store-btn-accent px-3 py-1.5 text-xs"}
+            className={inCart ? "store-pill" : "btn-primary px-3 py-1.5 text-xs"}
           >
             {inCart ? <><IconCheck width={13} height={13} /> In cart</> : <><IconCart width={13} height={13} /> Add</>}
           </button>
         ) : (
-          <span className="store-pill bg-emerald-50 text-emerald-700 group-hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 dark:group-hover:bg-emerald-900/60">
+          <span className="store-pill">
             <IconDownload width={13} height={13} /> Free download
           </span>
         )}

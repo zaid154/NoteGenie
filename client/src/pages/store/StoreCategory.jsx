@@ -30,7 +30,7 @@ export default function StoreCategory() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-ink lg:text-3xl">{cat.label}</h1>
+        <h1 className="font-display text-3xl leading-tight text-ink lg:text-4xl">{cat.label}</h1>
         <p className="mt-1 text-sm text-muted">Filter by university and degree to find your material.</p>
       </div>
 

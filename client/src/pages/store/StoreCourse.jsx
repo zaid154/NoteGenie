@@ -22,7 +22,7 @@ export default function StoreCourse() {
       <Link to="/store" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-store-700">
         <IconArrowLeft width={16} height={16} /> Back to store
       </Link>
-      <h1 className="text-2xl font-bold text-ink">{courseCode ? `${courseCode} — material` : "Course material"}</h1>
+      <h1 className="font-display text-3xl leading-tight text-ink">{courseCode ? `${courseCode} — material` : "Course material"}</h1>
       <ResultsGrid params={{ courseId: id }} emptyTitle="No resources for this course yet" />
     </div>
   );

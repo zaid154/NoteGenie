@@ -2,14 +2,18 @@
 
 // FLOW: Parent page/layout renders this component (Logo). Data comes through props/context, UI events call callbacks or api/client.js helpers, and the result is displayed back in the parent flow.
 
-export default function Logo({ size = 32, showText = true, variant = "default" }) {
+export default function Logo({ size = 32, showText = true, variant = "default", tone = "app" }) {
   const light = variant === "light";
+  // The storefront is teal; the AI app is indigo. A gradient mark reads more premium than a flat fill.
+  const markTone = light
+    ? "bg-white text-indigo-600"
+    : tone === "store"
+      ? "bg-gradient-to-br from-store-500 to-store-700 text-white shadow-sm shadow-store-600/30"
+      : "bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-sm shadow-indigo-600/30";
   return (
     <div className="flex items-center gap-2.5">
       <span
-        className={`grid place-items-center rounded-lg ${
-          light ? "bg-white text-indigo-600" : "bg-indigo-600 text-white"
-        }`}
+        className={`grid place-items-center rounded-xl ${markTone}`}
         style={{ width: size, height: size }}
       >
         <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 24 24" fill="none">

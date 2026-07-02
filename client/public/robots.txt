@@ -1,0 +1,17 @@
+# NoteGenie — crawl rules
+# Public storefront + marketing pages are indexable. Private/authenticated
+# app areas are excluded (they're behind login and hold no SEO value).
+
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /admin
+Disallow: /billing
+Disallow: /checkout
+Disallow: /my-downloads
+Disallow: /profile
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /forgot-password
+
+Sitemap: https://notegenie-d5199.web.app/sitemap.xml

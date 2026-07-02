@@ -7,6 +7,8 @@ export default {
       fontFamily: {
         sans: ["\"Plus Jakarta Sans\"", "system-ui", "sans-serif"],
         display: ["\"Instrument Serif\"", "Georgia", "serif"],
+        // Store-only display face (Bricolage Grotesque). The indigo app keeps Instrument Serif.
+        "display-store": ["\"Bricolage Grotesque\"", "\"Plus Jakarta Sans\"", "system-ui", "sans-serif"],
       },
       colors: {
         brand: {
@@ -43,25 +45,33 @@ export default {
         muted: "rgb(var(--muted) / <alpha-value>)",
         // Storefront-only palette (teal primary + amber accent). Scoped under .store-theme
         // so the indigo app is untouched. See the .store-* layer in index.css.
+        // Storefront primary — COBALT (the single "action" colour: Search, Add, Buy, Register).
         store: {
-          50: "#f0fdfa",
-          100: "#ccfbf1",
-          200: "#99f6e4",
-          300: "#5eead4",
-          400: "#2dd4bf",
-          500: "#14b8a6",
-          600: "#0d9488",
-          700: "#0f766e",
-          800: "#115e59",
-          900: "#134e4a",
-          950: "#042f2e",
+          50: "#eef4ff",
+          100: "#d9e6ff",
+          200: "#bcd3ff",
+          300: "#8eb5ff",
+          400: "#598dfb",
+          500: "#2e6bf0",
+          600: "#1d52d9",
+          700: "#1a43b0",
+          800: "#1b3a8c",
+          900: "#1c3470",
+          950: "#121f45",
         },
+        // Storefront signal — SAFFRON (rare accent only: cart badge, savings, "Popular" seal).
         storeaccent: {
-          50: "#fffbeb",
-          100: "#fef3c7",
-          400: "#fbbf24",
-          500: "#f59e0b",
-          600: "#d97706",
+          50: "#fff7ed",
+          100: "#ffead1",
+          200: "#fed2a4",
+          300: "#fdb36b",
+          400: "#fb8f32",
+          500: "#f5760b",
+          600: "#d65e06",
+          700: "#b14807",
+          800: "#8f3a0e",
+          900: "#74310f",
+          950: "#3f1705",
         },
       },
       boxShadow: {
@@ -69,10 +79,17 @@ export default {
         card: "0 4px 20px -6px rgba(15, 23, 42, 0.1), 0 2px 6px -2px rgba(15, 23, 42, 0.05)",
         hover: "0 8px 28px -8px rgba(79, 70, 229, 0.12), 0 4px 10px -4px rgba(15, 23, 42, 0.06)",
         lift: "0 12px 40px -12px rgba(15, 23, 42, 0.15)",
+        // Storefront navy-tinted elevation ladder (additive — indigo app never uses these).
+        "store-e1": "0 1px 2px rgba(14,26,51,0.06), 0 6px 16px -6px rgba(14,26,51,0.12)",
+        "store-e2": "0 4px 10px -2px rgba(14,26,51,0.10), 0 18px 40px -12px rgba(14,26,51,0.20)",
+        "store-e3": "0 12px 24px -8px rgba(14,26,51,0.14), 0 40px 64px -20px rgba(14,26,51,0.28)",
+        "store-cta": "0 6px 18px -4px rgba(29,82,217,0.42)",
+        "store-header": "0 4px 20px -8px rgba(14,26,51,0.14)",
       },
       borderRadius: {
         xl: "0.75rem",
         "2xl": "1rem",
+        "3xl": "1.75rem",
       },
       animation: {
         "fade-in": "fadeIn 0.25s ease-out",

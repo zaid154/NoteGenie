@@ -16,6 +16,7 @@ import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { ToastProvider } from "./context/ToastContext.jsx";
 import { ConfirmProvider } from "./context/ConfirmContext.jsx";
 import { CartProvider } from "./context/CartContext.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 
 // Saare styles (Tailwind) yahan se load hote hain.
 import "./index.css";
@@ -39,21 +40,25 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 ReactDOM.createRoot(document.getElementById("root")).render(
   // StrictMode bugs dhoondhne me help karta hai (sirf development me).
   <React.StrictMode>
-    {/* Providers ek doosre ke andar lagte hain. Andar wala component
-        bahar wale providers ka data use kar sakta hai. */}
-    <ThemeProvider>
-      <BrowserRouter>
-        <AuthProvider>
-          <CartProvider>
-            <ToastProvider>
-              <ConfirmProvider>
-                <App />
-              </ConfirmProvider>
-            </ToastProvider>
-          </CartProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </ThemeProvider>
+    {/* ErrorBoundary is outermost so a crash anywhere (even inside a provider)
+        shows the recover screen instead of a blank white page. */}
+    <ErrorBoundary>
+      {/* Providers ek doosre ke andar lagte hain. Andar wala component
+          bahar wale providers ka data use kar sakta hai. */}
+      <ThemeProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <CartProvider>
+              <ToastProvider>
+                <ConfirmProvider>
+                  <App />
+                </ConfirmProvider>
+              </ToastProvider>
+            </CartProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
 

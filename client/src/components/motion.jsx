@@ -81,6 +81,25 @@ export function StaggerItem({ children, className = "" }) {
   );
 }
 
+// Like StaggerContainer, but its children animate when the container scrolls into
+// view (not on mount). Pair with <StaggerItem> — the item variants propagate from
+// here, so cards cascade in as the user scrolls down the page.
+export function StaggerReveal({ children, className = "" }) {
+  const reduced = useReducedMotion();
+  if (reduced) return <div className={className}>{children}</div>;
+  return (
+    <motion.div
+      className={className}
+      variants={staggerContainerVariants}
+      initial="initial"
+      whileInView="animate"
+      viewport={{ once: true, margin: "-60px" }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 export function MotionDiv({ children, className = "", whileHover, ...props }) {
   const reduced = useReducedMotion();
   if (reduced) return <div className={className}>{children}</div>;
