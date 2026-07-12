@@ -1,8 +1,11 @@
 // FLOW: Database config. MONGO_URI comes from config/env.js, mongoose connects to MongoDB, and all models/controllers use this single connection.
 
 // Yeh file MongoDB database se connect karti hai (mongoose ke through).
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
 import mongoose from "mongoose";
 import { env } from "./env.js";
+import dns from "node:dns";
+
 
 // Agar error IP-whitelist se related lage to user ko clear hint dete hain.
 function hint(message) {

@@ -21,6 +21,11 @@ import { Purchase } from "../models/Purchase.js";
 import { startOfNextMonth } from "../config/plans.js";
 import { buildSamplePdf } from "../services/handbookPdf.js";
 import { uploadBuffer } from "../services/fileStorage.js";
+import dns from "node:dns";
+
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
+
+console.log("DNS Servers:", dns.getServers());
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
