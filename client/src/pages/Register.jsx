@@ -1,8 +1,3 @@
-// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
-
-// FLOW: App.jsx route renders this page (Register). Values usually come from AuthContext, route params, local state, and api/client.js calls; processed state is shown through components and user actions are sent back to backend APIs.
-
-// Register page: naya user account banata hai.
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -11,13 +6,13 @@ import { useToast } from "../context/ToastContext.jsx";
 import AuthShell from "../components/AuthShell.jsx";
 import FormField, { passwordStrength } from "../components/FormField.jsx";
 import { Alert, Spinner } from "../components/ui.jsx";
-import { IconUser, IconMail, IconLock } from "../components/icons.jsx";
+import { IconUser, IconMail, IconLock, IconChevronRight } from "../components/icons.jsx";
 
 export default function Register() {
   const { register } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  // form = saari input values.
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -29,17 +24,14 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
-  // password kitna strong hai (bar dikhane ke liye).
   const strength = passwordStrength(form.password);
 
-  // update: koi field type kare to form update karo + us field ki galti hata do.
   function update(e) {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
     setFieldErrors((fe) => ({ ...fe, [name]: "" }));
   }
 
-  // validate: bhejne se pehle saari fields check karo.
   function validate() {
     const errs = {};
     if (form.name.trim().length < 2) errs.name = "Please enter your name.";
@@ -50,7 +42,7 @@ export default function Register() {
       errs.password = "Password must be at least 8 characters.";
     }
     if (form.confirm !== form.password) {
-      errs.confirm = "Passwords do not match."; // dono password same hone chahiye
+      errs.confirm = "Passwords do not match.";
     }
     if (!acceptedTerms) {
       errs.terms = "You must accept the Terms and Privacy Policy.";
@@ -59,7 +51,6 @@ export default function Register() {
     return Object.keys(errs).length === 0;
   }
 
-  // handleSubmit: account banao, fir app ke andar le jao.
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -77,26 +68,34 @@ export default function Register() {
   }
 
   return (
-    <AuthShell>
-      <h2 className="text-2xl font-semibold tracking-tight text-ink">Create your account</h2>
-      <p className="mt-1 text-sm text-muted">It's free and takes about 30 seconds.</p>
+    <AuthShell activeTab="register">
+      <div>
+        <h2 className="font-sans text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
+          Create Account
+        </h2>
+        <p className="mt-1 text-xs sm:text-sm text-slate-500">
+          It&apos;s free and takes less than 30 seconds.
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
+      <form onSubmit={handleSubmit} className="mt-3.5 sm:mt-4 space-y-2.5 sm:space-y-3" noValidate>
         {error && <Alert>{error}</Alert>}
 
         <FormField
-          label="Name"
+          compact={true}
+          label="Full Name"
           icon={IconUser}
           name="name"
           value={form.name}
           onChange={update}
-          placeholder="Your name"
+          placeholder="Your full name"
           error={fieldErrors.name}
           autoComplete="name"
         />
 
         <FormField
-          label="Email"
+          compact={true}
+          label="Email Id"
           icon={IconMail}
           type="email"
           name="email"
@@ -109,6 +108,7 @@ export default function Register() {
 
         <div>
           <FormField
+            compact={true}
             label="Password"
             icon={IconLock}
             type="password"
@@ -119,29 +119,27 @@ export default function Register() {
             error={fieldErrors.password}
             autoComplete="new-password"
           />
-          {form.password && !fieldErrors.password && (
-            <div className="mt-2">
-              <div className="flex gap-1">
-                {[1, 2, 3, 4].map((i) => (
-                  <span
-                    key={i}
-                    className={`h-1.5 flex-1 rounded-full transition-colors ${
-                      strength.score >= i ? strength.color : "bg-line"
-                    }`}
-                  />
-                ))}
+          {form.password && (
+            <div className="mt-1.5 space-y-0.5 text-[11px] text-slate-500">
+              <div className="flex items-center gap-1.5 font-medium">
+                <span className={strength.score >= 3 ? "text-emerald-600 font-bold" : "text-amber-500 font-bold"}>✓</span>
+                <span>Password Strength : <span className="font-bold text-slate-800">{strength.label || "Weak"}</span></span>
               </div>
-              {strength.label && (
-                <p className="mt-1 text-xs text-muted">
-                  Password strength: <span className="text-ink">{strength.label}</span>
-                </p>
-              )}
+              <div className="flex items-center gap-1.5">
+                <span className={form.password.length >= 8 ? "text-emerald-600 font-bold" : "text-slate-400"}>✓</span>
+                <span>At least 8 characters</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className={/\d|[^A-Za-z0-9]/.test(form.password) ? "text-emerald-600 font-bold" : "text-slate-400"}>✓</span>
+                <span>Contains a number or symbol</span>
+              </div>
             </div>
           )}
         </div>
 
         <FormField
-          label="Confirm password"
+          compact={true}
+          label="Confirm Password"
           icon={IconLock}
           type="password"
           name="confirm"
@@ -152,7 +150,7 @@ export default function Register() {
           autoComplete="new-password"
         />
 
-        <label className="flex cursor-pointer items-start gap-2 text-sm text-muted">
+        <label className="flex cursor-pointer items-start gap-2 text-xs text-slate-600 py-0.5">
           <input
             type="checkbox"
             checked={acceptedTerms}
@@ -160,29 +158,36 @@ export default function Register() {
               setAcceptedTerms(e.target.checked);
               setFieldErrors((fe) => ({ ...fe, terms: "" }));
             }}
-            className="mt-0.5 h-4 w-4 rounded border-line accent-accent-600"
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20 cursor-pointer"
           />
           <span>
             I agree to the{" "}
-            <Link to="/terms" className="text-accent-600 underline underline-offset-2 dark:text-accent-400">Terms</Link>
+            <Link to="/terms" className="font-semibold text-indigo-600 hover:text-indigo-700 underline underline-offset-2">
+              Terms
+            </Link>
             {" "}and{" "}
-            <Link to="/privacy" className="text-accent-600 underline underline-offset-2 dark:text-accent-400">Privacy Policy</Link>
+            <Link to="/privacy" className="font-semibold text-indigo-600 hover:text-indigo-700 underline underline-offset-2">
+              Privacy Policy
+            </Link>
           </span>
         </label>
-        {fieldErrors.terms && <p className="text-xs text-red-600">{fieldErrors.terms}</p>}
+        {fieldErrors.terms && <p className="text-xs text-red-600 font-medium">{fieldErrors.terms}</p>}
 
-        <button className="btn-primary w-full" disabled={loading}>
-          {loading ? <Spinner /> : "Create account"}
+        <button
+          type="submit"
+          className="mt-2 w-full h-10 sm:h-11 rounded-xl bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 px-4 font-bold text-xs sm:text-sm text-white shadow-md shadow-indigo-500/25 transition-all duration-200 hover:from-indigo-500 hover:to-blue-600 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 cursor-pointer flex items-center justify-center gap-2 group"
+          disabled={loading}
+        >
+          {loading ? (
+            <Spinner className="mx-auto" />
+          ) : (
+            <>
+              <span>Create Account</span>
+              <IconChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+            </>
+          )}
         </button>
       </form>
-
-      <p className="mt-6 text-center text-sm text-muted">
-        Already have an account?{" "}
-        <Link to="/login" className="font-medium text-accent-600 underline underline-offset-2 hover:text-accent-700 dark:text-accent-400">
-          Log in
-        </Link>
-      </p>
     </AuthShell>
   );
 }
-

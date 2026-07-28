@@ -46,41 +46,39 @@ export default function ResourceCard({ r }) {
   }
 
   return (
-    <Link to={`/resources/${r.id}`} className="material-card group relative">
+    <Link to={`/resources/${r.id}`} className="material-card group relative p-4 flex flex-col h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-card">
       {/* Wishlist toggle */}
       <button
         type="button"
         onClick={toggleSave}
         aria-pressed={saved}
         aria-label={saved ? "Remove from saved" : "Save for later"}
-        className="absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-surface/80 shadow-sm backdrop-blur transition-colors"
+        className="absolute right-3 top-3 z-10 grid h-7 w-7 place-items-center rounded-full bg-surface/90 shadow-sm backdrop-blur transition-colors hover:bg-surface"
       >
-        <IconHeart width={16} height={16} fill={saved ? "currentColor" : "none"} className={saved ? "text-red-500" : "text-muted"} />
+        <IconHeart width={14} height={14} fill={saved ? "currentColor" : "none"} className={saved ? "text-red-500" : "text-muted"} />
       </button>
-      {/* Cover — real preview if present, else a designed gradient cover (colour-coded by type,
-          with a subtle dot texture + watermark + course code) so coverless cards still look
-          intentional and premium. Wrapper clips the hover zoom so nothing spills. */}
-      <div className="mb-3 h-40 w-full overflow-hidden rounded-xl">
+      {/* Cover — 128px high cover so cards stay compact on all screens */}
+      <div className="mb-3 h-32 w-full overflow-hidden rounded-lg">
         {r.previewUrl ? (
           <div className="relative h-full w-full">
-            <img src={r.previewUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]" />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/25 to-transparent" />
+            <img src={r.previewUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/30 to-transparent" />
           </div>
         ) : (
-          <div style={{ background: visual.bg }} className="relative h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.02]">
+          <div style={{ background: visual.bg }} className="relative h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.03]">
             <div className="absolute inset-0 opacity-20" style={DOT_PATTERN} />
-            <WatermarkIcon className="absolute -bottom-5 -right-4 text-white/15" width={104} height={104} />
+            <WatermarkIcon className="absolute -bottom-4 -right-3 text-white/15" width={84} height={84} />
             {r.courseCode ? (
-              <div className="relative flex h-full flex-col justify-between p-3.5">
-                <span className="inline-flex w-fit items-center rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+              <div className="relative flex h-full flex-col justify-between p-3">
+                <span className="inline-flex w-fit items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
                   {typeLabel(r.resourceType)}
                 </span>
-                <span className="font-display text-[1.7rem] leading-none tabular-nums text-white drop-shadow-sm">{r.courseCode}</span>
+                <span className="font-display text-2xl font-bold leading-none tabular-nums text-white drop-shadow-sm">{r.courseCode}</span>
               </div>
             ) : (
-              <div className="relative flex h-full flex-col items-center justify-center gap-2 p-3.5 text-center">
-                <WatermarkIcon width={34} height={34} className="text-white/95" />
-                <span className="inline-flex items-center rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+              <div className="relative flex h-full flex-col items-center justify-center gap-1.5 p-3 text-center">
+                <WatermarkIcon width={28} height={28} className="text-white/95" />
+                <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
                   {typeLabel(r.resourceType)}
                 </span>
               </div>
@@ -89,48 +87,48 @@ export default function ResourceCard({ r }) {
         )}
       </div>
 
-      <div className="flex min-h-[24px] flex-wrap items-center gap-1.5">
+      <div className="flex min-h-[22px] flex-wrap items-center gap-1.5">
         {r.year && <Badge color="gray">{r.year}</Badge>}
         {r.downloadCount >= POPULAR_THRESHOLD && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-storeaccent-100 px-2 py-0.5 text-[11px] font-semibold text-storeaccent-600 dark:bg-store-950 dark:text-storeaccent-400">
-            <IconFlame width={11} height={11} /> Popular
+          <span className="inline-flex items-center gap-1 rounded-full bg-storeaccent-100 px-2 py-0.5 text-[10px] font-semibold text-storeaccent-700 dark:bg-store-950 dark:text-storeaccent-300">
+            <IconFlame width={10} height={10} /> Popular
           </span>
         )}
       </div>
 
-      <p className="mt-2 line-clamp-2 min-h-[2.75rem] font-semibold text-ink group-hover:text-store-700 dark:group-hover:text-store-300">
+      <p className="mt-2 line-clamp-2 font-semibold text-sm leading-snug text-ink group-hover:text-store-700 dark:group-hover:text-store-300">
         {r.title}
       </p>
 
-      {/* Trust row — uses data the API already returns; the missing piece that read as a template */}
+      {/* Trust row */}
       {(r.downloadCount > 0 || r.pages || sizeMb) && (
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
           {r.downloadCount > 0 && (
             <span className="inline-flex items-center gap-1 tabular-nums">
-              <IconDownload width={12} height={12} /> {r.downloadCount.toLocaleString("en-IN")} downloads
+              <IconDownload width={11} height={11} /> {r.downloadCount.toLocaleString("en-IN")}
             </span>
           )}
-          {r.pages ? <span>{r.pages} pages</span> : null}
-          {sizeMb ? <span>{sizeMb} MB</span> : null}
+          {r.pages ? <span>• {r.pages} pgs</span> : null}
+          {sizeMb ? <span>• {sizeMb} MB</span> : null}
         </div>
       )}
 
-      <div className="mt-auto flex items-center justify-between pt-3">
-        <span className="text-lg font-bold tabular-nums text-ink">
-          {r.isPaid ? rupees(r.price) : <span className="text-store-700 dark:text-store-300">Free</span>}
+      <div className="mt-3 flex items-center justify-between border-t border-line/60 pt-2.5">
+        <span className="text-base font-bold tabular-nums text-ink">
+          {r.isPaid ? rupees(r.price) : <span className="text-emerald-600 dark:text-emerald-400 font-bold">Free</span>}
         </span>
         {r.isPaid ? (
           <button
             type="button"
             onClick={addToCart}
             disabled={inCart}
-            className={inCart ? "store-pill" : "btn-primary px-3 py-1.5 text-xs"}
+            className={inCart ? "store-pill text-xs" : "btn-primary px-3 py-1 text-xs"}
           >
-            {inCart ? <><IconCheck width={13} height={13} /> In cart</> : <><IconCart width={13} height={13} /> Add</>}
+            {inCart ? <><IconCheck width={12} height={12} /> In cart</> : <><IconCart width={12} height={12} /> Add</>}
           </button>
         ) : (
-          <span className="store-pill">
-            <IconDownload width={13} height={13} /> Free download
+          <span className="store-pill text-xs">
+            <IconDownload width={12} height={12} /> Instant
           </span>
         )}
       </div>

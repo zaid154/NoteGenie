@@ -13,6 +13,7 @@ export default function FormField({
   type = "text",
   error,        // galti ka message (red color me dikhega)
   hint,         // chhoti help line (jab error na ho)
+  compact = false, // sleek auth forms ke liye
   ...inputProps // baaki saari props (value, onChange, placeholder...) input ko de do
 }) {
   // show = password dikhana hai ya chhupana hai.
@@ -24,15 +25,29 @@ export default function FormField({
   // Password field me agar show true hai to text dikhao, warna dots (password).
   const inputType = isPassword ? (show ? "text" : "password") : type;
 
+  const labelClasses = compact
+    ? "block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5"
+    : "label";
+
+  const inputClasses = compact
+    ? `w-full h-10 sm:h-[42px] rounded-xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-800/50 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none transition-all duration-200 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-indigo-500/10 shadow-2xs ${
+        Icon ? "!pl-11 sm:!pl-11" : "px-3.5 sm:px-4"
+      } ${isPassword ? "!pr-11 sm:!pr-11" : "pr-3.5 sm:pr-4"} ${
+        error ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : ""
+      }`
+    : `input ${Icon ? "!pl-11 sm:!pl-11" : ""} ${isPassword ? "!pr-11 sm:!pr-11" : ""} ${
+        error ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : ""
+      }`;
+
   return (
     <div>
-      <label className="label" htmlFor={fieldId}>
+      <label className={labelClasses} htmlFor={fieldId}>
         {label}
       </label>
       <div className="relative">
         {Icon && (
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
-            <Icon width={18} height={18} />
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
+            <Icon width={17} height={17} />
           </span>
         )}
         <input
@@ -40,9 +55,7 @@ export default function FormField({
           type={inputType}
           aria-invalid={error ? "true" : undefined}
           aria-describedby={error ? errorId : undefined}
-          className={`input ${Icon ? "pl-10" : ""} ${isPassword ? "pr-10" : ""} ${
-            error ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : ""
-          }`}
+          className={inputClasses}
           {...inputProps}
         />
         {isPassword && (

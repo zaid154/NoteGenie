@@ -46,6 +46,9 @@ function publicResource(r) {
     codAvailable: isDigital ? false : !!r.codAvailable,
     weightGrams: isDigital ? null : r.weightGrams ?? null,
     dimensions: isDigital ? "" : r.dimensions || "",
+    sku: r.sku || "",
+    language: r.language || "English Medium",
+    edition: r.edition || "2024-2025 Edition",
     inStock: isDigital ? true : r.manageInventory ? (r.stock || 0) > 0 : true,
     stock: isDigital ? null : r.stock ?? 0,
   };

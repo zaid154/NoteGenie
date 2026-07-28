@@ -12,7 +12,7 @@ const apiUsageSchema = new mongoose.Schema(
       enum: ["notes", "quiz", "flashcards", "tutor", "test"], // call kis kaam ke liye thi
       required: true,
     },
-    model: { type: String, default: "gemini-2.5-flash" },
+    model: { type: String, default: "gemini-3.5-flash" },
     keyId: { type: String, default: "" },
     promptTokens: { type: Number, default: 0 },     // input tokens
     completionTokens: { type: Number, default: 0 }, // output tokens

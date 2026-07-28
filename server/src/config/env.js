@@ -31,7 +31,7 @@ export const env = {
     .split(",")
     .map((k) => k.trim())
     .filter(Boolean),
-  geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+  geminiModel: process.env.GEMINI_MODEL || "gemini-3.5-flash",
   encryptionSecret: process.env.ENCRYPTION_SECRET,
   stripeSecretKey: process.env.STRIPE_SECRET_KEY,
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,

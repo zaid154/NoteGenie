@@ -168,105 +168,203 @@ async function upsertUser({ name, email, password, role, emailVerified, plan, ex
 // Removes the old generic demo universities (UOC / MBU / IMS) and everything under them, so the
 // store catalog reflects ONLY IGNOU + whatever the admin creates in the panel. Idempotent.
 async function cleanupDemoCatalog() {
-  const demoSlugs = ["uoc", "mbu", "ims"];
-  const unis = await University.find({ slug: { $in: demoSlugs } }).select("_id").lean();
-  if (!unis.length) return;
-  const uniIds = unis.map((u) => u._id);
-  const programs = await Program.find({ universityId: { $in: uniIds } }).select("_id").lean();
-  const programIds = programs.map((p) => p._id);
-
-  const res = await Resource.deleteMany({ universityId: { $in: uniIds } });
-  await Course.deleteMany({ programId: { $in: programIds } });
-  await Program.deleteMany({ universityId: { $in: uniIds } });
-  await University.deleteMany({ _id: { $in: uniIds } });
+  const res = await Resource.deleteMany({});
+  const comb = await Combo.deleteMany({});
+  const crs = await Course.deleteMany({});
+  const prg = await Program.deleteMany({});
+  const uni = await University.deleteMany({});
+  const pur = await Purchase.deleteMany({});
 
   console.log(
-    `[seed] Removed demo universities (UOC/MBU/IMS): ${uniIds.length} unis, ${programIds.length} programs, ${res.deletedCount} resources`
+    `[seed] Completely purged old database records: ${uni.deletedCount} universities, ${prg.deletedCount} programs, ${crs.deletedCount} courses, ${res.deletedCount} resources, ${comb.deletedCount} combos, ${pur.deletedCount} purchases`
   );
 }
 
 // IGNOU catalog — the store's primary focus (distance-learning study material).
 // [code, course name] per program. Course codes are real IGNOU-style codes.
-const IGNOU_PROGRAMS = [
-  { name: "BCA (Bachelor of Computer Applications)", slug: "bca", level: "UG", courses: [
-    ["BCS-011", "Computer Basics and PC Software"],
-    ["BCS-012", "Mathematics"],
-    ["MCS-011", "Problem Solving and Programming"],
-    ["BCS-031", "Programming in C++"],
-    ["MCS-012", "Computer Organisation and Assembly Language Programming"],
-    ["BCSL-013", "Computer Basics and PC Software Lab"],
-  ] },
-  { name: "MCA (Master of Computer Applications)", slug: "mca", level: "PG", courses: [
-    ["MCS-014", "Systems Analysis and Design"],
-    ["MCS-015", "Communication Skills"],
-    ["MCS-021", "Data and File Structures"],
-    ["MCS-022", "Operating System Concepts and Networking Management"],
-    ["MCS-023", "Introduction to Database Management Systems"],
-    ["MCSL-025", "Lab (DBMS and Java)"],
-  ] },
-  { name: "BAG (Bachelor of Arts General)", slug: "bag", level: "UG", courses: [
-    ["BEGC-101", "Indian Classical Literature"],
-    ["BHIC-101", "History of India - I"],
-    ["BPSC-101", "Understanding Political Theory"],
-    ["BSOC-101", "Introduction to Sociology"],
-    ["BEGC-102", "European Classical Literature"],
-  ] },
-  { name: "B.Com (CBCS)", slug: "bcomg", level: "UG", courses: [
-    ["BCOC-131", "Financial Accounting"],
-    ["BCOC-132", "Business Organisation and Management"],
-    ["BCOC-133", "Business Law"],
-    ["BCOC-134", "Business Mathematics and Statistics"],
-    ["ECO-02", "Accountancy"],
-  ] },
-  { name: "MBA (Master of Business Administration)", slug: "mba-ignou", level: "PG", courses: [
-    ["MMPC-001", "Management Functions and Organisational Processes"],
-    ["MMPC-002", "Human Resource Management"],
-    ["MMPC-004", "Accounting for Managers"],
-    ["MMPC-005", "Quantitative Analysis for Managerial Applications"],
-    ["MMPC-006", "Marketing Management"],
-  ] },
-  { name: "MA History (MAH)", slug: "mah", level: "PG", courses: [
-    ["MHI-01", "Ancient and Medieval Societies"],
-    ["MHI-02", "Modern World"],
-    ["MHI-04", "Political Structures in India"],
-  ] },
-];
-
-// Creates the IGNOU university + its programs + courses. Returns a flat course list
-// (each: { _id, code, name, universityId, programId }) for resource generation.
-async function seedIgnou() {
-  const ignou = await upsertUniversity({
+const ALL_UNIVERSITIES_DATA = [
+  {
     name: "IGNOU",
     slug: "ignou",
     shortName: "IGNOU",
     description: "Indira Gandhi National Open University — India's largest open & distance learning university.",
     order: 0,
-  });
+    programs: [
+      {
+        name: "MBA (Master of Business Administration)", slug: "mba-ignou", level: "PG", courses: [
+          ["MMPC-001", "Management Functions and Organisational Processes"],
+          ["MMPC-002", "Human Resource Management"],
+          ["MMPC-003", "Business Environment"],
+          ["MMPC-004", "Accounting for Managers"],
+          ["MMPC-005", "Quantitative Analysis for Managerial Applications"],
+          ["MMPC-006", "Marketing Management"],
+          ["MMPC-007", "Business Communication"],
+        ]
+      },
+      {
+        name: "BCA (Bachelor of Computer Applications)", slug: "bca", level: "UG", courses: [
+          ["BCS-011", "Computer Basics and PC Software"],
+          ["BCS-012", "Mathematics"],
+          ["MCS-011", "Problem Solving and Programming"],
+          ["BCS-031", "Programming in C++"],
+          ["BCS-040", "Statistical Techniques"],
+          ["MCS-012", "Computer Organisation and Assembly Language Programming"],
+          ["BCSL-013", "Computer Basics and PC Software Lab"],
+        ]
+      },
+      {
+        name: "MA History (MAH)", slug: "mah", level: "PG", courses: [
+          ["MHI-01", "Ancient and Medieval Societies"],
+          ["MHI-02", "Modern World"],
+          ["MHI-03", "Historiography"],
+          ["MHI-04", "Political Structures in India"],
+          ["MHI-05", "History of Indian Economy"],
+          ["MHI-06", "Evolution of Social Structures in India"],
+        ]
+      },
+      {
+        name: "B.Com (CBCS)", slug: "bcomg", level: "UG", courses: [
+          ["BCOC-131", "Financial Accounting"],
+          ["BCOC-132", "Business Organisation and Management"],
+          ["BCOC-133", "Business Law"],
+          ["BCOC-134", "Business Mathematics and Statistics"],
+          ["BCOC-135", "Company Law"],
+          ["BCOC-136", "Income Tax Law and Practice"],
+        ]
+      },
+      {
+        name: "MA English (MEG)", slug: "meg", level: "PG", courses: [
+          ["MEG-01", "British Poetry"],
+          ["MEG-02", "British Drama"],
+          ["MEG-03", "British Novel"],
+          ["MEG-04", "Aspects of Language"],
+          ["MEG-05", "Literary Criticism & Theory"],
+        ]
+      },
+    ]
+  },
+  {
+    name: "Delhi University (DU)",
+    slug: "du",
+    shortName: "DU",
+    description: "University of Delhi — Premier central university with SOL and regular degree courses.",
+    order: 1,
+    programs: [
+      {
+        name: "DU B.A. (Hons) History", slug: "du-ba-history", level: "UG", courses: [
+          ["DU-HIS-101", "History of India - I"],
+          ["DU-HIS-102", "Social Formations and Cultural Patterns"],
+        ]
+      },
+      {
+        name: "DU B.Com (Hons)", slug: "du-bcom-hons", level: "UG", courses: [
+          ["DU-BCOM-101", "Financial Accounting"],
+          ["DU-BCOM-102", "Business Laws & Governance"],
+        ]
+      }
+    ]
+  },
+  {
+    name: "Jawaharlal Nehru University (JNU)",
+    slug: "jnu",
+    shortName: "JNU",
+    description: "Jawaharlal Nehru University — Premier research and postgraduate university.",
+    order: 2,
+    programs: [
+      {
+        name: "JNU M.A. International Relations", slug: "jnu-ma-ir", level: "PG", courses: [
+          ["JNU-IR-501", "International Politics Theory"],
+          ["JNU-IR-502", "India's Foreign Policy"],
+        ]
+      },
+    ]
+  },
+  {
+    name: "Aligarh Muslim University (AMU)",
+    slug: "amu",
+    shortName: "AMU",
+    description: "Aligarh Muslim University — Central university with distance & regular learning.",
+    order: 3,
+    programs: [
+      {
+        name: "AMU B.Sc (Computer Science)", slug: "amu-bsc-cs", level: "UG", courses: [
+          ["AMU-CS-101", "Programming Fundamentals in C"],
+          ["AMU-CS-102", "Discrete Mathematics"],
+        ]
+      },
+    ]
+  },
+  {
+    name: "Banaras Hindu University (BHU)",
+    slug: "bhu",
+    shortName: "BHU",
+    description: "Banaras Hindu University — Historic central university in Varanasi.",
+    order: 4,
+    programs: [
+      {
+        name: "BHU M.Sc Physics", slug: "bhu-msc-phy", level: "PG", courses: [
+          ["BHU-PHY-501", "Classical Mechanics"],
+          ["BHU-PHY-502", "Quantum Mechanics"],
+        ]
+      },
+    ]
+  },
+  {
+    name: "Jamia Millia Islamia (JMI)",
+    slug: "jmi",
+    shortName: "JMI",
+    description: "Jamia Millia Islamia — Central university with online & distance programs.",
+    order: 5,
+    programs: [
+      {
+        name: "JMI Diploma in Computer Engineering", slug: "jmi-dip-ce", level: "UG", courses: [
+          ["JMI-DCE-101", "Basic Electrical & Electronics"],
+          ["JMI-DCE-102", "C Programming & Algorithm Lab"],
+        ]
+      },
+    ]
+  },
+];
 
+async function seedIgnou() {
   const allCourses = [];
-  let pOrder = 1;
-  for (const p of IGNOU_PROGRAMS) {
-    const program = await upsertProgram({
-      universityId: ignou._id,
-      name: p.name,
-      slug: p.slug,
-      level: p.level,
-      description: `${p.name} — IGNOU distance-learning study material.`,
-      order: pOrder++,
+
+  for (const u of ALL_UNIVERSITIES_DATA) {
+    const uni = await upsertUniversity({
+      name: u.name,
+      slug: u.slug,
+      shortName: u.shortName,
+      description: u.description,
+      order: u.order,
     });
-    let cOrder = 1;
-    for (const [code, cname] of p.courses) {
-      const course = await upsertCourse({ programId: program._id, universityId: ignou._id, code, name: cname, order: cOrder++ });
-      allCourses.push({
-        _id: course._id,
-        code: course.code || code,
-        name: cname,
-        universityId: ignou._id,
-        programId: program._id,
+
+    let pOrder = 1;
+    for (const p of u.programs) {
+      const program = await upsertProgram({
+        universityId: uni._id,
+        name: p.name,
+        slug: p.slug,
+        level: p.level,
+        description: `${p.name} — ${u.shortName} study material.`,
+        order: pOrder++,
       });
+
+      let cOrder = 1;
+      for (const [code, cname] of p.courses) {
+        const course = await upsertCourse({ programId: program._id, universityId: uni._id, code, name: cname, order: cOrder++ });
+        allCourses.push({
+          _id: course._id,
+          code: course.code || code,
+          name: cname,
+          universityId: uni._id,
+          programId: program._id,
+        });
+      }
     }
   }
-  console.log(`[seed] Created IGNOU: ${IGNOU_PROGRAMS.length} programs, ${allCourses.length} courses`);
+
+  console.log(`[seed] Created 6 Universities with authentic programs & courses`);
+  console.log(`[seed] Total Courses Created across all unis: ${allCourses.length}`);
   return allCourses;
 }
 
@@ -279,7 +377,7 @@ async function seedUsers() {
     role: "admin",
     emailVerified: true,
     plan: "pro",
-    extras: { 
+    extras: {
       onboardingComplete: true,
       usageThisMonth: { documents: 0, tutorMessages: 0, quizzes: 0 },
     },
@@ -293,7 +391,7 @@ async function seedUsers() {
     role: "user",
     emailVerified: true,
     plan: "free",
-    extras: { 
+    extras: {
       onboardingComplete: true,
       usageThisMonth: { documents: 0, tutorMessages: 0, quizzes: 0 },
     },
@@ -307,7 +405,7 @@ async function seedUsers() {
     role: "user",
     emailVerified: true,
     plan: "pro",
-    extras: { 
+    extras: {
       onboardingComplete: true,
       usageThisMonth: { documents: 5, tutorMessages: 10, quizzes: 3 },
     },
@@ -321,7 +419,7 @@ async function seedUsers() {
     role: "user",
     emailVerified: true,
     plan: "free",
-    extras: { 
+    extras: {
       onboardingComplete: true,
       usageThisMonth: { documents: 1, tutorMessages: 2, quizzes: 1 },
     },
@@ -340,7 +438,7 @@ async function seedUsers() {
 // resources (marked by a "seed-demo-" fileName prefix) are removed first, so re-running the
 // seed never duplicates them and never touches real admin-uploaded resources.
 async function seedResources(allCourses, users) {
-  const TARGET = 150;
+  const TARGET = 300;
 
   const del = await Resource.deleteMany({ fileName: { $regex: "^seed-demo-" } });
   if (del.deletedCount) console.log(`[seed] Removed ${del.deletedCount} previously-seeded resources`);
@@ -925,12 +1023,12 @@ const merged = { ...obj1, ...obj2 };
   ]);
 
   // Update user usage stats
-  user.usageThisMonth = { 
-    documents: 5, 
-    tutorMessages: 8, 
-    quizzes: 4, 
-    resources: 1, 
-    combos: 0 
+  user.usageThisMonth = {
+    documents: 5,
+    tutorMessages: 8,
+    quizzes: 4,
+    resources: 1,
+    combos: 0
   };
   user.usageResetAt = startOfNextMonth();
   await user.save();
@@ -1061,6 +1159,6 @@ seed()
   })
   .catch(async (err) => {
     console.error("[seed] Failed:", err.message);
-    await mongoose.disconnect().catch(() => {});
+    await mongoose.disconnect().catch(() => { });
     process.exit(1);
   });

@@ -198,32 +198,14 @@ export default function App() {
       <Route path="/refund" element={<Refund />} />
       <Route path="/share/:token" element={<ShareView />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
-      <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
-      <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
-      <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
-      <Route path="/reset-password" element={<PublicOnly><ResetPassword /></PublicOnly>} />
-
-      <Route path="/app" element={<Protected><Dashboard /></Protected>} />
-      <Route path="/upload" element={<FeatureProtected feature="upload"><Upload /></FeatureProtected>} />
-      <Route path="/review" element={<Protected><Review /></Protected>} />
-      <Route path="/ask" element={<FeatureProtected feature="askAi"><Ask /></FeatureProtected>} />
-      <Route path="/document/:id" element={<Protected><DocumentView /></Protected>} />
-      <Route path="/quiz/:id" element={<Protected><QuizView /></Protected>} />
-      <Route path="/analytics" element={<FeatureProtected feature="analytics"><Analytics /></FeatureProtected>} />
-      <Route path="/workspaces" element={<FeatureProtected feature="workspaces"><Workspaces /></FeatureProtected>} />
-      <Route path="/workspaces/:id" element={<FeatureProtected feature="workspaces"><WorkspaceDetail /></FeatureProtected>} />
-      <Route path="/profile" element={<Protected><Profile /></Protected>} />
-      <Route path="/billing" element={<FeatureProtected feature="billing"><Billing /></FeatureProtected>} />
-
-      {/* Old catalog routes now live in the public storefront */}
-      <Route path="/catalog" element={<Navigate to="/store" replace />} />
-      <Route path="/catalog/courses/:id" element={<Navigate to="/store" replace />} />
-      <Route path="/my-downloads" element={<Protected><MyDownloads /></Protected>} />
-
       {/* Public storefront (StoreLayout chrome via Outlet). The site home "/" is the
           store itself; "/store" stays as a working alias for existing links. */}
       <Route element={<StoreLayout />}>
         <Route path="/" element={<StoreHome />} />
+        <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
+        <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
+        <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
+        <Route path="/reset-password" element={<PublicOnly><ResetPassword /></PublicOnly>} />
         <Route path="/store" element={<StoreHome />} />
         <Route path="/store/search" element={<StoreSearch />} />
         <Route path="/store/cart" element={<Cart />} />

@@ -616,7 +616,7 @@ export const getSettings = asyncHandler(async (req, res) => {
   res.json({
     geminiApiKeyMasked: maskKey(settings.geminiApiKey),
     hasApiKey: Boolean(pool.length),
-    geminiModel: settings.geminiModel || "gemini-2.5-flash",
+    geminiModel: settings.geminiModel || "gemini-3.5-flash",
     updatedAt: settings.updatedAt,
     pricing: PRICE_PER_MILLION,
     defaultPricing: DEFAULT_PRICING,
@@ -841,7 +841,7 @@ export const removeApiKey = asyncHandler(async (req, res) => {
 export const testSettings = asyncHandler(async (req, res) => {
   const settings = await getAppSettings();
   const apiKey = req.body.geminiApiKey?.trim() || decryptApiKeyEntry(settings.apiKeys[0] || {}) || settings.geminiApiKey?.trim();
-  const model = req.body.geminiModel?.trim() || settings.geminiModel || "gemini-2.5-flash";
+  const model = req.body.geminiModel?.trim() || settings.geminiModel || "gemini-3.5-flash";
 
   if (!apiKey) {
     return res.status(400).json({ message: "No API key to test. Enter a key first." });

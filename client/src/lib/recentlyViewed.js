@@ -41,6 +41,16 @@ export function recordView(resource) {
   }
 }
 
+export function removeViewed(id) {
+  if (!id) return;
+  try {
+    const list = getRecentlyViewed().filter((r) => String(r.id) !== String(id));
+    localStorage.setItem(KEY, JSON.stringify(list));
+  } catch {
+    // ignored
+  }
+}
+
 // The resource types the user has shown interest in, most-recent first. Used to bias
 // "Recommended for you" toward categories they've actually browsed.
 export function viewedResourceTypes() {

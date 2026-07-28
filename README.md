@@ -127,6 +127,18 @@ Seed admin/demo accounts AUR catalog/demo store data (uses `ADMIN_*` / `USER_*` 
 npm run seed
 ```
 
+Generate Academic Resource Handbook PDF (`docs/academic-handbook.pdf`):
+
+```bash
+npm run handbook --prefix server
+```
+
+Backfill document & resource embeddings for Vector RAG search:
+
+```bash
+npm run embed:backfill --prefix server
+```
+
 Run full project in development:
 
 ```bash
@@ -225,7 +237,7 @@ Root `.env.example` ko `.env` me copy karke fill karein. Sirf `MONGO_URI` aur `J
 | --- | --- | --- | --- |
 | `GEMINI_API_KEY` | No | — | Main Gemini key. Warn-but-not-fatal (admin UI me bhi set ho sakti hai). |
 | `GEMINI_API_KEYS` | No | — | Extra Gemini keys comma-separated, rotation/load ke liye. |
-| `GEMINI_MODEL` | No | `gemini-2.5-flash` | Gemini model name. |
+| `GEMINI_MODEL` | No | `gemini-3.5-flash` | Gemini model name. |
 | `ENCRYPTION_SECRET` | No | — | Stored sensitive values (e.g. admin-set keys) encrypt karne ke liye. |
 | `AI_RATE_LIMIT_MAX` | No | `120` | Max AI generation requests per window (Admin → AI Settings se override). |
 | `AI_RATE_LIMIT_WINDOW_MIN` | No | `15` | AI rate-limit window in minutes. |
@@ -385,6 +397,7 @@ Server dependencies:
 | `multer` | PDF/DOCX/PPTX/TXT/resource upload handling. |
 | `mammoth` | DOCX text extraction. |
 | `officeparser` | PPTX/Office text extraction. |
+| `pdfkit` | Academic handbook & sample resource PDF generation. |
 | `@google/genai` | Gemini AI calls. |
 | `youtube-transcript` | YouTube transcript fetch. |
 | `nodemailer` | OTP verification/password reset email. |
@@ -490,6 +503,8 @@ Yeh section current repo scan ke hisaab se hai. Isme root, docs, client, aur ser
 | `client/src/context/ToastContext.jsx` | Toast notification state. |
 | `client/src/hooks/useSpeech.js` | Browser text-to-speech hook for listen/audio features. |
 | `client/src/lib/razorpay.js` | Loads/opens Razorpay checkout script on frontend. |
+| `client/src/lib/resourceVisuals.js` | Resource visual badge and status helpers. |
+| `client/src/lib/savedResources.js` | Saved items/wishlist localStorage state helpers (`ng_saved_resources`). |
 | `client/src/lib/storeCategories.js` | Store category metadata/helpers (`STORE_CATEGORIES`). |
 | `client/src/lib/storeConfig.js` | Store display/config constants. |
 | `client/src/lib/useStorefront.js` | Storefront data fetching/filtering helpers (features, WhatsApp/social, support email). |
@@ -513,6 +528,7 @@ Yeh section current repo scan ke hisaab se hai. Isme root, docs, client, aur ser
 | `client/src/components/CommandPalette.jsx` | Keyboard command/search palette. |
 | `client/src/components/Credit.jsx` | Credit/usage badge display. |
 | `client/src/components/EmailVerificationBanner.jsx` | Email verification reminder UI. |
+| `client/src/components/ErrorBoundary.jsx` | React component error boundary. |
 | `client/src/components/FlashcardUI.jsx` | Single flashcard display/interactions. |
 | `client/src/components/Flashcards.jsx` | Flashcards list/review/generation UI. |
 | `client/src/components/FormField.jsx` | Reusable input/label/error field. |
@@ -601,7 +617,8 @@ Yeh section current repo scan ke hisaab se hai. Isme root, docs, client, aur ser
 | `client/src/pages/admin/AdminCatalog.jsx` | Universities/programs/courses catalog admin. |
 | `client/src/pages/admin/AdminResources.jsx` | Store resources admin. |
 | `client/src/pages/admin/AdminCombos.jsx` | Store combo bundles admin. |
-| `client/src/pages/admin/AdminOrders.jsx` | Orders/purchases admin. |
+| `client/src/pages/admin/AdminOrders.jsx` | Orders/purchases admin listing. |
+| `client/src/pages/admin/AdminOrderDetail.jsx` | Order detail view & actions (download tokens, expiry, shipping, status). |
 
 ### Server Root And Config
 
@@ -612,6 +629,7 @@ Yeh section current repo scan ke hisaab se hai. Isme root, docs, client, aur ser
 | `server/eslint.config.js` | Backend lint rules. |
 | `server/tests/api.test.js` | Backend unit/API helper tests. |
 | `server/src/index.js` | Express app start, middleware, routes, DB connect, inline `/api/health` endpoint. |
+| `server/src/config/academicSample.js` | Sample academic programs, courses, assignments, and books dataset for handbook PDF generation. |
 | `server/src/config/db.js` | MongoDB connection helper. |
 | `server/src/config/detailLevel.js` | Notes detail levels and flashcard count rules. |
 | `server/src/config/env.js` | Env loading, defaults, validation, CORS URLs. |

@@ -1,36 +1,45 @@
-// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+// FLOW: Client source file. Renders NoteGenie tier-1 minimalist premium brand logo.
 
-// FLOW: Parent page/layout renders this component (Logo). Data comes through props/context, UI events call callbacks or api/client.js helpers, and the result is displayed back in the parent flow.
+import { useId } from "react";
 
 export default function Logo({ size = 32, showText = true, variant = "default", tone = "app" }) {
   const light = variant === "light";
-  // The storefront is teal; the AI app is indigo. A gradient mark reads more premium than a flat fill.
-  const markTone = light
-    ? "bg-white text-indigo-600"
-    : tone === "store"
-      ? "bg-gradient-to-br from-store-500 to-store-700 text-white shadow-sm shadow-store-600/30"
-      : "bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-sm shadow-indigo-600/30";
+  const idPrefix = useId().replace(/:/g, "");
+
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-2.5 group select-none cursor-pointer">
       <span
-        className={`grid place-items-center rounded-xl ${markTone}`}
+        className="relative grid place-items-center shrink-0 transition-transform duration-200 ease-out group-hover:scale-[1.03]"
         style={{ width: size, height: size }}
       >
-        <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 24 24" fill="none">
+        <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id={`${idPrefix}-brand`} x1="4" y1="4" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor={tone === "store" ? "#1d52d9" : "#4f46e5"} />
+              <stop offset="100%" stopColor={tone === "store" ? "#163a99" : "#3730a3"} />
+            </linearGradient>
+          </defs>
+
+          {/* Minimalist Squircle Badge */}
+          <rect x="3" y="3" width="30" height="30" rx="9" fill={`url(#${idPrefix}-brand)`} />
+          <rect x="3.5" y="3.5" width="29" height="29" rx="8.5" stroke="white" strokeOpacity="0.2" strokeWidth="1" fill="none" />
+
+          {/* Precise Geometric 'N' Book-Fold Vector Stroke */}
           <path
-            d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"
-            stroke="currentColor"
-            strokeWidth="1.5"
+            d="M11.5 11V25M11.5 11L24.5 25V11"
+            stroke="white"
+            strokeWidth="3.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
-          <path d="M8 8h8M8 12h6M8 16h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </span>
+
       {showText && (
-        <span className={`text-xl font-bold tracking-tight ${light ? "text-white" : "text-ink"}`}>
-          NoteGenie
+        <span className={`font-sans text-xl sm:text-2xl font-extrabold tracking-tight transition-colors ${light ? "text-white" : "text-slate-900 dark:text-white"}`}>
+          Note<span className={light ? "text-indigo-200 font-extrabold" : tone === "store" ? "text-blue-600 dark:text-blue-400 font-extrabold" : "text-indigo-600 dark:text-indigo-400 font-extrabold"}>Genie</span>
         </span>
       )}
     </div>
   );
 }
-

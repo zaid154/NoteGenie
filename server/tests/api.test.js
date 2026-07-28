@@ -52,7 +52,7 @@ test("key exhausted detection", () => {
 
 test("formatGeminiError maps Google fetch wrapper to API failure", () => {
   const err = new Error(
-    "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash"
+    "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash"
   );
   assert.equal(
     formatGeminiError(err),
@@ -77,7 +77,7 @@ test("geminiErrorDetail redacts API keys", () => {
 
 test("shouldFailoverToNextKey on Google fetch wrapper errors", () => {
   const err = new Error(
-    "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash"
+    "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash"
   );
   assert.equal(shouldFailoverToNextKey(err), true);
 });

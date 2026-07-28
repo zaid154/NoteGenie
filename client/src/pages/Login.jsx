@@ -23,7 +23,7 @@ import { useToast } from "../context/ToastContext.jsx";
 import AuthShell from "../components/AuthShell.jsx";
 import FormField from "../components/FormField.jsx";
 import { Alert, Spinner } from "../components/ui.jsx";
-import { IconMail, IconLock } from "../components/icons.jsx";
+import { IconMail, IconLock, IconChevronRight } from "../components/icons.jsx";
 
 // ============================================================================
 // LocalStorage Key
@@ -239,51 +239,31 @@ export default function Login() {
   // Login Form Screen
   // ==========================================================================
   return (
+    <AuthShell activeTab="login">
+      <div>
+        <h2 className="font-sans text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
+          Welcome back
+        </h2>
+        <p className="mt-0.5 text-[11px] sm:text-xs text-slate-500">
+          Log in to continue to NoteGenie.
+        </p>
+      </div>
 
-    <AuthShell>
-
-      {/* Heading */}
-      <h2 className="text-2xl font-semibold tracking-tight text-ink">
-        Welcome back
-      </h2>
-
-      <p className="mt-1 text-sm text-muted">
-        Log in to continue to NoteGenie.
-      </p>
-
-      {/* ==========================================================
-           Login Form
-      ========================================================== */}
-      <form
-        onSubmit={handleSubmit}
-        className="mt-6 space-y-4"
-        noValidate
-      >
-
-        {/* Backend Error */}
+      <form onSubmit={handleSubmit} className="mt-3 space-y-2.5" noValidate>
         {error && (
-          <Alert
-            type={
-              rateLimited
-                ? "warning"
-                : "error"
-            }
-          >
+          <Alert type={rateLimited ? "warning" : "error"}>
             {error}
           </Alert>
         )}
 
-        {/* Dev Mode Tip */}
-        {rateLimited &&
-          import.meta.env.DEV && (
-            <p className="text-xs text-muted">
-              Dev tip: restart API server.
-            </p>
-          )}
+        {rateLimited && import.meta.env.DEV && (
+          <p className="text-xs text-muted">Dev tip: restart API server.</p>
+        )}
 
         {/* Email Field */}
         <FormField
-          label="Email"
+          compact={true}
+          label="Email Id"
           icon={IconMail}
           type="email"
           name="email"
@@ -294,77 +274,63 @@ export default function Login() {
           autoComplete="email"
         />
 
-        {/* Password Field */}
-        <FormField
-          label="Password"
-          icon={IconLock}
-          type="password"
-          name="password"
-          value={form.password}
-          onChange={update}
-          placeholder="Enter your password"
-          error={fieldErrors.password}
-          autoComplete="current-password"
-        />
-
-        {/* Remember Email */}
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
-
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(e) =>
-              setRemember(
-                e.target.checked
-              )
-            }
+        {/* Password Field with inline Forgot password link */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-semibold text-slate-700">
+              Password
+            </label>
+            <Link
+              to="/forgot-password"
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline"
+            >
+              Forgot Password?
+            </Link>
+          </div>
+          <FormField
+            compact={true}
+            icon={IconLock}
+            type="password"
+            name="password"
+            value={form.password}
+            onChange={update}
+            placeholder="Enter your password"
+            error={fieldErrors.password}
+            autoComplete="current-password"
           />
+        </div>
 
-          Remember my email
+        {/* Remember Email Checkbox */}
+        <div className="flex items-center justify-between pt-1">
+          <label className="flex cursor-pointer items-center gap-2 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20"
+            />
+            Remember my email
+          </label>
+        </div>
 
-        </label>
-
-        {/* Forgot Password */}
-        <p className="text-right text-sm">
-
-          <Link
-            to="/forgot-password"
-          >
-            Forgot password?
-          </Link>
-
-        </p>
-
-        {/* Login Button */}
+        {/* Primary Log In Button */}
         <button
-          className="btn-primary w-full"
-          disabled={
-            loading ||
-            rateLimited
-          }
+          type="submit"
+          className="mt-2.5 w-full h-10 sm:h-11 rounded-xl bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 px-4 font-bold text-xs sm:text-sm text-white shadow-md shadow-indigo-500/25 transition-all duration-200 hover:from-indigo-500 hover:to-blue-600 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 cursor-pointer flex items-center justify-center gap-2 group"
+          disabled={loading || rateLimited}
         >
-
-          {loading
-            ? <Spinner />
-            : rateLimited
-              ? "Try again later"
-              : "Log in"}
-
+          {loading ? (
+            <Spinner className="mx-auto" />
+          ) : rateLimited ? (
+            "Try again later"
+          ) : (
+            <>
+              <span>Log In</span>
+              <IconChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+            </>
+          )}
         </button>
-
       </form>
-
-      {/* Register Link */}
-      <p className="mt-6 text-center text-sm text-muted">
-
-        New here?{" "}
-
-        <Link to="/register">
-          Create an account
-        </Link>
-
-      </p>
-
     </AuthShell>
   );
 }

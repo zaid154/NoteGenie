@@ -9,7 +9,7 @@ import { api } from "../api/client.js";
 import Logo from "../components/Logo.jsx";
 import { MarketingFooter } from "../components/MarketingShell.jsx";
 import ResourceCard from "../components/store/ResourceCard.jsx";
-import { STORE_CATEGORIES } from "../lib/storeCategories.js";
+import { STORE_CATEGORIES, ALL_STORE_CATEGORIES } from "../lib/storeCategories.js";
 import { ScrollReveal, StaggerContainer, StaggerItem } from "../components/motion.jsx";
 import {
   IconSearch,
@@ -41,17 +41,45 @@ const BENEFITS = [
   { icon: IconHeadphones, title: "Student support", desc: "Stuck finding the right material? Our team helps you pick." },
 ];
 
-// A small reusable category tile — each category gets its own icon + colour tint.
-function CategoryTile({ to, label, icon: Icon, tint }) {
+// A reusable category tile — each category gets its own icon gradient, tag, description & hover state.
+function CategoryTile({ category }) {
+  const c = category;
+  const Icon = c.icon;
+  const toPath = c.slug === "combos" ? "/store/combos" : `/store/${c.slug}`;
   return (
     <Link
-      to={to}
-      className="card-solid flex flex-col items-center gap-2 p-5 text-center transition hover:-translate-y-0.5 hover:border-store-300"
+      to={toPath}
+      className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-line bg-surface p-4 sm:p-4.5 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${c.hoverBorder || "hover:border-store-400"}`}
     >
-      <span className={`grid h-11 w-11 place-items-center rounded-xl ${tint || "bg-store-100 text-store-700 dark:bg-store-950 dark:text-store-300"}`}>
-        {Icon ? <Icon width={20} height={20} /> : null}
-      </span>
-      <span className="text-sm font-semibold text-ink">{label}</span>
+      <div className={`pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full ${c.glowBg || "bg-store-500/10"} opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100`} />
+      <div className="relative flex items-center justify-between">
+        <span className={`grid h-11 w-11 place-items-center rounded-xl text-white ${c.gradient || "bg-store-600"} ${c.shadow || "shadow-md"} transition-all duration-300 group-hover:scale-110 group-hover:-rotate-3`}>
+          <Icon width={20} height={20} className="stroke-[2]" />
+        </span>
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-slate-400 opacity-0 transition-all duration-200 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:bg-slate-900 group-hover:text-white dark:bg-slate-800 dark:text-slate-500 dark:group-hover:bg-white dark:group-hover:text-slate-900">
+          <IconChevronRight width={12} height={12} />
+        </span>
+      </div>
+      <div className="relative mt-3.5 flex flex-1 flex-col justify-between">
+        <div>
+          <span className="block font-display text-sm font-bold text-ink transition-colors group-hover:text-store-600 dark:group-hover:text-store-400">
+            {c.label}
+          </span>
+          {c.description && (
+            <span className="mt-0.5 block text-[11px] font-normal text-muted leading-snug line-clamp-1">
+              {c.description}
+            </span>
+          )}
+        </div>
+        {c.tag && (
+          <div className="mt-2.5">
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide border ${c.badgeStyle || "bg-slate-100 text-slate-700 border-slate-200"}`}>
+              {c.tag}
+            </span>
+          </div>
+        )}
+      </div>
+      <span className={`absolute bottom-0 left-0 right-0 h-0.5 ${c.accentLine || "bg-store-500"} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
     </Link>
   );
 }
@@ -151,28 +179,26 @@ export default function Landing() {
 
         {/* Categories preview */}
         <section className="store-theme mt-16">
-          <div className="flex items-end justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="font-display text-2xl text-ink sm:text-3xl">Browse by category</h2>
-              <p className="mt-1 text-sm text-muted">Find material by what you need.</p>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-store-200/80 bg-store-50/80 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-store-700 shadow-2xs backdrop-blur-xs dark:border-store-800/60 dark:bg-store-950/60 dark:text-store-300">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-store-400 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-store-500"></span>
+                </span>
+                Curated Collections
+              </div>
+              <h2 className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Browse by category</h2>
+              <p className="mt-1 text-xs text-muted sm:text-sm">Find verified assignments, exam guides, PYQs, and projects for your semester.</p>
             </div>
-            <Link to="/store" className="hidden items-center gap-1 text-sm font-medium text-store-700 hover:text-store-800 dark:text-store-300 sm:inline-flex">
-              View all <IconChevronRight width={15} height={15} />
+            <Link to="/store" className="hidden items-center gap-1 text-xs font-semibold text-store-700 hover:text-store-800 dark:text-store-300 sm:inline-flex bg-surface border border-line px-3.5 py-1.5 rounded-full shadow-2xs transition hover:border-store-300">
+              View catalog <IconChevronRight width={14} height={14} />
             </Link>
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {STORE_CATEGORIES.map((c) => (
-              <CategoryTile key={c.slug} to={`/store/${c.slug}`} label={c.label} icon={c.icon} tint={c.tint} />
+          <div className="mt-5 grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
+            {ALL_STORE_CATEGORIES.map((c) => (
+              <CategoryTile key={c.slug} category={c} />
             ))}
-            <Link
-              to="/store/combos"
-              className="card-solid flex flex-col items-center gap-2 p-5 text-center transition hover:-translate-y-0.5 hover:border-store-300"
-            >
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-storeaccent-100 text-storeaccent-600 dark:bg-store-950">
-                <IconCheck width={20} height={20} />
-              </span>
-              <span className="text-sm font-semibold text-ink">Combo packs</span>
-            </Link>
           </div>
         </section>
 

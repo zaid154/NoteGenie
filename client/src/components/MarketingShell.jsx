@@ -39,23 +39,22 @@ const FOOTER_COLUMNS = [
 
 export function MarketingFooter() {
   return (
-    <footer className="relative mt-16 border-t border-line bg-surface/50">
-      <div className="mx-auto max-w-6xl px-5 py-12">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="lg:col-span-2">
+    <footer className="relative mt-16 border-t border-line bg-surface/80 pt-12 pb-8">
+      <div className="mx-auto max-w-6xl px-5">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5 pb-10 border-b border-line">
+          <div className="lg:col-span-2 space-y-3">
             <Logo />
-            <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted">
-              A study material marketplace for students — notes, question papers, guides and more.
-              Mostly free, premium optional. Plus AI study tools inside your dashboard.
+            <p className="max-w-sm text-sm leading-relaxed text-muted">
+              India’s study material marketplace &amp; AI study assistant — notes, question papers, guides, solved assignments, and instant AI flashcard generator.
             </p>
           </div>
           {FOOTER_COLUMNS.map((col) => (
-            <div key={col.title}>
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted">{col.title}</p>
-              <ul className="mt-4 space-y-2.5">
+            <div key={col.title} className="space-y-3">
+              <p className="text-xs font-extrabold uppercase tracking-widest text-ink">{col.title}</p>
+              <ul className="space-y-2 text-sm text-muted">
                 {col.links.map((l) => (
                   <li key={l.to}>
-                    <Link to={l.to} className="text-sm text-ink/80 transition hover:text-accent-600 dark:hover:text-accent-400">
+                    <Link to={l.to} className="transition-colors hover:text-indigo-600 dark:hover:text-indigo-400">
                       {l.label}
                     </Link>
                   </li>
@@ -64,9 +63,11 @@ export function MarketingFooter() {
             </div>
           ))}
         </div>
-        <div className="mt-10 flex flex-col gap-2 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted">© {new Date().getFullYear()} NoteGenie. All rights reserved.</p>
-          <p className="text-xs text-muted">Made for students · Secure payments via Razorpay</p>
+        <div className="flex flex-col gap-3 pt-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between border-t border-line/60">
+          <p className="font-medium text-ink/80">
+            <strong className="text-ink font-semibold">Author:</strong> Mohd Zaid &middot; <strong className="text-ink font-semibold">Contact:</strong> <a href="mailto:zaidm1323@gmail.com" className="hover:text-indigo-600 underline">zaidm1323@gmail.com</a> &middot; <strong className="text-ink font-semibold">GitHub:</strong> <a href="https://github.com/zaid154" target="_blank" rel="noreferrer" className="hover:text-indigo-600 underline">github.com/zaid154</a>
+          </p>
+          <p>© {new Date().getFullYear()} NoteGenie. All rights reserved.</p>
         </div>
       </div>
     </footer>

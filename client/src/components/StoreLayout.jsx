@@ -217,43 +217,99 @@ export default function StoreLayout() {
       </DrawerPanel>
 
       {/* Page content — keyed on pathname so each route fades/slides up on navigation. */}
-      <main id="main-content" className="mx-auto max-w-7xl px-4 py-6 lg:py-8">
+      <main id="main-content" className="mx-auto max-w-7xl px-4 py-4 sm:py-6">
         <PageTransition key={location.pathname}>
           <Outlet />
         </PageTransition>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-line bg-surface">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
-          {FOOTER_COLS.map((col) => (
-            <div key={col.title}>
-              <p className="text-sm font-bold uppercase tracking-wide text-ink">{col.title}</p>
-              <ul className="mt-3 space-y-2">
-                {col.links.map((l) => (
-                  <li key={l.label}><Link to={l.to} className="text-sm text-muted hover:text-store-700 dark:hover:text-store-300">{l.label}</Link></li>
-                ))}
-              </ul>
+      {/* Ultra-Premium White / Light Footer */}
+      <footer className="relative border-t border-line bg-surface text-ink pt-14 pb-10">
+        {/* Subtle Top Accent Line */}
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-store-500/40 to-transparent" />
+
+        <div className="mx-auto max-w-7xl px-4 space-y-12">
+          {/* Main Grid */}
+          <div className="grid gap-10 lg:grid-cols-12">
+            {/* Brand & Creator Column (5/12 width) */}
+            <div className="lg:col-span-5 space-y-5">
+              <Logo tone="store" />
+              <p className="max-w-sm text-sm text-muted leading-relaxed">
+                India’s premier study material store &amp; AI study assistant. Download verified solved assignments, question papers, notes &amp; interactive AI tutor.
+              </p>
+
+              {/* Creator Badge Box */}
+              <div className="rounded-2xl border border-line bg-canvas/60 p-4 space-y-1.5 max-w-sm shadow-soft">
+                <div className="flex items-center justify-between text-xs font-semibold text-ink">
+                  <span>Author: <strong className="text-store-600 dark:text-store-400 font-bold">Mohd Zaid</strong></span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-store-100 px-2.5 py-0.5 text-[10px] font-bold text-store-700 dark:bg-store-950 dark:text-store-300">Creator</span>
+                </div>
+                <p className="text-xs text-muted">
+                  Contact: <a href="mailto:zaidm1323@gmail.com" className="text-ink font-medium hover:text-store-600 underline">zaidm1323@gmail.com</a>
+                </p>
+                <p className="text-xs text-muted">
+                  GitHub: <a href="https://github.com/zaid154" target="_blank" rel="noreferrer" className="text-ink font-medium hover:text-store-600 underline">github.com/zaid154</a>
+                </p>
+              </div>
+
+              {store.whatsappNumber && (
+                <div>
+                  <a
+                    href={whatsappLink("Hi, I need help with study material", store.whatsappNumber)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-transform hover:scale-[1.02] hover:bg-emerald-700"
+                  >
+                    <IconChat width={16} height={16} /> Instant WhatsApp Support
+                  </a>
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-        {/* Legal links */}
-        <div className="border-t border-line">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-4 text-xs text-muted">
-            <Link to="/terms" className="hover:text-store-700 dark:hover:text-store-300">Terms &amp; Conditions</Link>
-            <Link to="/privacy" className="hover:text-store-700 dark:hover:text-store-300">Privacy Policy</Link>
-            <Link to="/refund" className="hover:text-store-700 dark:hover:text-store-300">Refund &amp; Billing Policy</Link>
-            <Link to="/contact" className="hover:text-store-700 dark:hover:text-store-300">Contact</Link>
+
+            {/* Links Grid (7/12 width) */}
+            <div className="lg:col-span-7 grid gap-8 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-widest text-ink">Study Store</p>
+                <ul className="mt-4 space-y-2.5 text-sm text-muted">
+                  <li><Link to="/store/assignments" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Solved Assignments</Link></li>
+                  <li><Link to="/store/question-papers" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Question Papers</Link></li>
+                  <li><Link to="/store/help-books" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Help Books &amp; Guides</Link></li>
+                  <li><Link to="/store/notes" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Study Notes</Link></li>
+                  <li><Link to="/store/combos" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Combo Savings Packs</Link></li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-widest text-ink">Student Support</p>
+                <ul className="mt-4 space-y-2.5 text-sm text-muted">
+                  <li><Link to="/store/how-to-buy" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">How to Buy &amp; Download</Link></li>
+                  <li><Link to="/faq" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Frequently Asked Questions</Link></li>
+                  <li><Link to="/contact" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Contact Support Team</Link></li>
+                  <li><Link to="/support" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Help &amp; Documentation</Link></li>
+                  <li><Link to="/pricing" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Pro AI Study Plans</Link></li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-widest text-ink">Legal &amp; Trust</p>
+                <ul className="mt-4 space-y-2.5 text-sm text-muted">
+                  <li><Link to="/terms" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Terms &amp; Conditions</Link></li>
+                  <li><Link to="/privacy" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Privacy Policy</Link></li>
+                  <li><Link to="/refund" className="hover:text-store-700 dark:hover:text-store-300 transition-colors">Refund &amp; Cancellation</Link></li>
+                  <li className="pt-2"><span className="inline-block text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800 px-2.5 py-1 rounded-lg">✓ Razorpay Secure</span></li>
+                </ul>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="border-t border-line">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 text-sm text-muted">
-            <span>© {new Date().getFullYear()} {STORE_CONFIG.brandName}</span>
-            {store.whatsappNumber && (
-              <a href={whatsappLink("Hi, I need help", store.whatsappNumber)} target="_blank" rel="noreferrer" className="store-btn-accent">
-                <IconChat width={16} height={16} /> Join our WhatsApp
-              </a>
-            )}
+
+          {/* Bottom Bar */}
+          <div className="pt-8 border-t border-line flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-xs text-muted">
+            <p>© {new Date().getFullYear()} NoteGenie. Crafted for student excellence.</p>
+            <div className="flex items-center gap-4 text-xs text-muted">
+              <span>Instant PDF Download</span>
+              <span>&bull;</span>
+              <span>256-bit SSL Encrypted</span>
+            </div>
           </div>
         </div>
       </footer>

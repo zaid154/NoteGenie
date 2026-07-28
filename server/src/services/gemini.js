@@ -25,7 +25,7 @@ const AI_NOT_CONFIGURED =
   "AI is not configured. Ask an admin to set the Gemini API key in Admin Settings.";
 
 // Known-good model to retry with when the configured model id is rejected.
-const FALLBACK_MODEL = "gemini-2.5-flash";
+const FALLBACK_MODEL = "gemini-3.5-flash";
 
 // Max output tokens a model family can emit. We set generous request ceilings on
 // notes (below) and clamp them to the model's real ceiling so capable models
@@ -35,7 +35,7 @@ function modelOutputCeiling(modelName = "") {
   return 8192;
 }
 
-// gemini-2.5-flash / flash-lite "think" by default. Those thinking tokens are billed as
+// gemini-3.5-flash / flash-lite "think" by default. Those thinking tokens are billed as
 // output AND counted against maxOutputTokens — so on a bounded JSON call they eat the
 // budget and the response gets truncated mid-JSON (finishReason MAX_TOKENS → parse fails).
 // For these deterministic, source-grounded tasks (notes/quiz/flashcards/tutor) we disable
@@ -47,7 +47,7 @@ function thinkingConfigFor(modelName = "") {
 }
 
 export const PRICE_PER_MILLION = {
-  "gemini-2.5-flash": { input: 0.3, output: 2.5 },
+  "gemini-3.5-flash": { input: 0.3, output: 2.5 },
   "gemini-2.5-pro": { input: 1.25, output: 10.0 },
   "gemini-2.0-flash": { input: 0.1, output: 0.4 },
   "gemini-1.5-flash": { input: 0.075, output: 0.3 },
@@ -107,7 +107,7 @@ async function resolveModel(overrides = {}) {
     overrides.model?.trim() ||
     settings.geminiModel?.trim() ||
     env.geminiModel ||
-    "gemini-2.5-flash"
+    "gemini-3.5-flash"
   );
 }
 
@@ -345,7 +345,7 @@ async function generateJson(ai, { model, contents, config }, { parseRetries = 1,
   throw lastError;
 }
 
-export async function testApiKey(apiKey, model = "gemini-2.5-flash", meta = {}) {
+export async function testApiKey(apiKey, model = "gemini-3.5-flash", meta = {}) {
   if (!apiKey?.trim()) throw new Error("API key is required");
   const trimmedModel = model.trim();
   const ai = new GoogleGenAI({ apiKey: apiKey.trim() });

@@ -102,7 +102,7 @@ const settingsSchema = new mongoose.Schema(
     features: { type: featureFlagsSchema, default: () => ({}) },
     theme: { type: themeSchema, default: () => ({}) },
     geminiApiKey: { type: String, default: "" },
-    geminiModel: { type: String, default: "gemini-2.5-flash" },
+    geminiModel: { type: String, default: "gemini-3.5-flash" },
     apiKeys: { type: [apiKeyEntrySchema], default: [] },
     billingProAmount: { type: Number, default: null },
     billingTeamAmount: { type: Number, default: null },

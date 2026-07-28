@@ -86,7 +86,7 @@ export default function AdminSettings() {
   const { title, subtitle } = SECTIONS[section];
   const [newKey, setNewKey] = useState("");
   const [newLabel, setNewLabel] = useState("");
-  const [model, setModel] = useState("gemini-2.5-flash");
+  const [model, setModel] = useState("gemini-3.5-flash");
   const [apiKeys, setApiKeys] = useState([]);
   const [poolSize, setPoolSize] = useState(0);
   const [models, setModels] = useState([]);
@@ -123,7 +123,7 @@ export default function AdminSettings() {
       setApiKeys(data.apiKeys || []);
       setPoolSize(data.poolSize || 0);
       setEncryptionWarning(data.encryptionWarning || "");
-      setModel(data.geminiModel || "gemini-2.5-flash");
+      setModel(data.geminiModel || "gemini-3.5-flash");
       setPricing(data.pricing || null);
       if (data.defaultPricing) setDefaultPricing(data.defaultPricing);
       setAiRateLimitMax(String(data.aiRateLimitMax ?? 120));
@@ -137,7 +137,7 @@ export default function AdminSettings() {
           const m = await api.get("/admin/models");
           setModels(m.data.models);
         } catch {
-          setModels(["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro"]);
+          setModels(["gemini-3.5-flash", "gemini-2.0-flash", "gemini-2.5-pro"]);
         }
       }
     } catch (e) {
