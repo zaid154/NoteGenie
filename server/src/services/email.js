@@ -4,7 +4,13 @@
 
 // Email sending — verification and password reset.
 import nodemailer from "nodemailer";
+import dns from "dns";
 import { env } from "../config/env.js";
+
+// Fix for ENETUNREACH IPv6 errors on Render/DigitalOcean when connecting to smtp.gmail.com
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder("ipv4first");
+}
 
 let transporter = null;
 
