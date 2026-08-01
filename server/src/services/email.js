@@ -16,6 +16,8 @@ function getTransporter() {
     port: env.smtpPort,
     secure: env.smtpSecure ?? env.smtpPort === 465,
     auth: { user: env.smtpUser, pass: env.smtpPass },
+    connectionTimeout: 10000, // Fail fast if SMTP server is unreachable
+    greetingTimeout: 5000,
   });
   return transporter;
 }
@@ -26,14 +28,19 @@ export async function sendEmail({ to, subject, html, text }) {
     console.warn("[email] SMTP not configured — would send to:", to, subject);
     return { ok: false, dev: true };
   }
-  await tx.sendMail({
-    from: env.emailFrom || env.smtpUser,
-    to,
-    subject,
-    html,
-    text: text || html.replace(/<[^>]+>/g, ""),
-  });
-  return { ok: true };
+  try {
+    await tx.sendMail({
+      from: env.emailFrom || env.smtpUser,
+      to,
+      subject,
+      html,
+      text: text || html.replace(/<[^>]+>/g, ""),
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error("[email] Error sending email:", err.message);
+    return { ok: false, dev: false, error: err.message };
+  }
 }
 
 export function verifyOtpHtml(name, otp, expiresMin) {

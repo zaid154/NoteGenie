@@ -42,6 +42,7 @@ async function sendVerificationOtp({ name, email, otp }) {
   if (mail.dev) {
     console.log(`[email] Verification OTP for ${email}: ${otp}`);
   }
+  return mail;
 }
 
 export const register = asyncHandler(async (req, res) => {
@@ -91,7 +92,12 @@ export const register = asyncHandler(async (req, res) => {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
-  await sendVerificationOtp({ name: name.trim(), email: normalizedEmail, otp });
+  const mailResult = await sendVerificationOtp({ name: name.trim(), email: normalizedEmail, otp });
+
+  if (mailResult && mailResult.ok === false && !mailResult.dev) {
+    await PendingSignup.deleteOne({ email: normalizedEmail });
+    return res.status(500).json({ message: "Failed to send verification email. Please check server SMTP configuration." });
+  }
 
   // No token, no user yet — the client must verify the OTP to create the account.
   res.status(201).json({ needsVerification: true, email: normalizedEmail });
@@ -221,7 +227,10 @@ export const resendVerification = asyncHandler(async (req, res) => {
     existingUser.emailVerifyToken = hashOtp(otp);
     existingUser.emailVerifyOtpExpires = new Date(Date.now() + env.otpExpiresMin * 60 * 1000);
     await existingUser.save();
-    await sendVerificationOtp({ name: existingUser.name, email: normalizedEmail, otp });
+    const mailResult = await sendVerificationOtp({ name: existingUser.name, email: normalizedEmail, otp });
+    if (mailResult && mailResult.ok === false && !mailResult.dev) {
+      return res.status(500).json({ message: "Failed to send verification email. Please check SMTP configuration." });
+    }
     return res.json({ message: "Verification code sent" });
   }
 
@@ -243,7 +252,10 @@ export const resendVerification = asyncHandler(async (req, res) => {
   pending.lastSentAt = new Date(now);
   pending.expiresAt = new Date(now + PENDING_TTL_MS);
   await pending.save();
-  await sendVerificationOtp({ name: pending.name, email: normalizedEmail, otp });
+  const mailResult = await sendVerificationOtp({ name: pending.name, email: normalizedEmail, otp });
+  if (mailResult && mailResult.ok === false && !mailResult.dev) {
+    return res.status(500).json({ message: "Failed to send verification email. Please check SMTP configuration." });
+  }
 
   res.json({ message: "Verification code sent" });
 });
@@ -256,11 +268,14 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     const resetToken = user.createPasswordResetToken();
     await user.save();
     const link = `${env.clientUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
-    await sendEmail({
+    const mailResult = await sendEmail({
       to: email,
       subject: "Reset your NoteGenie password",
       html: resetPasswordHtml(user.name, link),
     });
+    if (mailResult && mailResult.ok === false && !mailResult.dev) {
+      return res.status(500).json({ message: "Failed to send reset email. Please check server SMTP configuration." });
+    }
   }
   res.json({ message: "If that email exists, a reset link was sent." });
 });

@@ -483,11 +483,14 @@ export const resetUserPassword = asyncHandler(async (req, res) => {
     const token = user.createPasswordResetToken();
     await user.save();
     const link = `${env.clientUrl}/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
-    await sendEmail({
+    const mailResult = await sendEmail({
       to: user.email,
       subject: "Reset your NoteGenie password",
       html: resetPasswordHtml(user.name, link),
     });
+    if (mailResult && mailResult.ok === false && !mailResult.dev) {
+      return res.status(500).json({ message: "Failed to send password reset email. Please check SMTP configuration." });
+    }
     await logAdminAction(req, "user.reset_password_email", "user", user._id);
     return res.json({ message: "Password reset email sent" });
   }
