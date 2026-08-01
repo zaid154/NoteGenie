@@ -11,7 +11,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: CLIENT_URL
-        value: https://notegenie-d5199.web.app
+        value: https://note-genie-two.vercel.app
       - key: GEMINI_MODEL
         value: gemini-2.0-flash
       - key: JWT_EXPIRES_IN

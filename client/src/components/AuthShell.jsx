@@ -46,18 +46,18 @@ export default function AuthShell({ children, activeTab = "login", showTabs = tr
   const currentSlide = CAROUSEL_SLIDES[slide];
 
   return (
-    <div className="w-full py-4 sm:py-8 lg:py-10 flex items-center justify-center font-sans text-slate-900 selection:bg-indigo-600 selection:text-white relative">
+    <div className="w-full py-3 sm:py-5 lg:py-6 flex items-center justify-center font-sans text-slate-900 selection:bg-indigo-600 selection:text-white relative">
       
       {/* Ambient Radial Background Glows */}
       <div className="absolute top-1/6 left-1/4 h-80 w-80 rounded-full bg-indigo-400/15 blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/6 right-1/4 h-80 w-80 rounded-full bg-blue-400/15 blur-3xl pointer-events-none" />
 
       {/* Main Floating Glassmorphic Container Card */}
-      <div className="w-full max-w-5xl rounded-[26px] sm:rounded-[32px] bg-white/90 backdrop-blur-xl shadow-[0_20px_60px_rgba(15,23,42,0.08)] border border-slate-200/80 grid grid-cols-1 lg:grid-cols-12 overflow-hidden relative z-10">
+      <div className="w-full max-w-4xl mx-4 sm:mx-6 rounded-[22px] sm:rounded-[28px] bg-white/90 backdrop-blur-xl shadow-[0_20px_60px_rgba(15,23,42,0.08)] border border-slate-200/80 grid grid-cols-1 lg:grid-cols-12 overflow-hidden relative z-10">
         
         {/* Left Hero Panel */}
-        <div className="lg:col-span-5 p-2.5 hidden lg:block h-full">
-          <div className="relative flex h-full min-h-[580px] flex-col justify-between overflow-hidden rounded-[22px] sm:rounded-[26px] bg-gradient-to-br from-[#3b82f6] via-[#2563eb] to-[#1e40af] p-6 lg:p-7 xl:p-8 text-white shadow-lg shadow-blue-500/20">
+        <div className="lg:col-span-5 p-2 hidden lg:block h-full">
+          <div className="relative flex h-full min-h-[440px] flex-col justify-between overflow-hidden rounded-[18px] sm:rounded-[22px] bg-gradient-to-br from-[#3b82f6] via-[#2563eb] to-[#1e40af] p-5 lg:p-6 text-white shadow-lg shadow-blue-500/20">
             
             {/* Ambient Glowing Orbs */}
             <div className="absolute -top-20 -left-20 h-64 w-64 rounded-full bg-sky-300/30 blur-3xl pointer-events-none" />
@@ -80,20 +80,20 @@ export default function AuthShell({ children, activeTab = "login", showTabs = tr
                 </span>
               </div>
 
-              <div className="mt-7 transition-all duration-500">
-                <h1 className="font-sans text-2xl lg:text-3xl font-extrabold tracking-tight text-white leading-snug">
+              <div className="mt-5 transition-all duration-500">
+                <h1 className="font-sans text-xl lg:text-2xl font-extrabold tracking-tight text-white leading-snug">
                   {currentSlide.title}
                 </h1>
-                <p className="mt-2 text-xs lg:text-sm text-blue-100/90 font-normal leading-relaxed max-w-xs sm:max-w-sm">
+                <p className="mt-1.5 text-xs text-blue-100/90 font-normal leading-relaxed max-w-xs">
                   {currentSlide.subtitle}
                 </p>
               </div>
             </div>
 
             {/* Bottom Section: Feature Card & Carousel Dots */}
-            <div className="relative z-10 mt-auto pt-4">
-              <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/15 p-3.5 space-y-1">
-                <h3 className="font-sans text-sm lg:text-base font-bold text-white tracking-tight flex items-center justify-between">
+            <div className="relative z-10 mt-auto pt-3">
+              <div className="rounded-lg bg-white/10 backdrop-blur-md border border-white/15 p-3 space-y-0.5">
+                <h3 className="font-sans text-xs lg:text-sm font-bold text-white tracking-tight flex items-center justify-between">
                   <span>{currentSlide.cardTitle}</span>
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                 </h3>
@@ -125,7 +125,7 @@ export default function AuthShell({ children, activeTab = "login", showTabs = tr
         </div>
 
         {/* Right Form Panel */}
-        <div className="lg:col-span-7 p-5 sm:p-6 lg:p-7 xl:p-8 flex flex-col justify-between h-full relative bg-white text-slate-900">
+        <div className="lg:col-span-7 p-4 sm:p-5 lg:p-6 flex flex-col justify-between h-full relative bg-white text-slate-900">
           
           {/* Mobile Logo */}
           <div className="lg:hidden mb-2 flex justify-center">
@@ -135,7 +135,7 @@ export default function AuthShell({ children, activeTab = "login", showTabs = tr
           <div className="flex-1 flex flex-col justify-center my-auto py-1">
             {/* Segmented Control Pill Switcher */}
             {showTabs && (
-              <div className="mb-3 sm:mb-4 flex justify-start">
+              <div className="mb-2 sm:mb-3 flex justify-start">
                 <div className="inline-flex items-center rounded-xl bg-slate-100/90 p-1 border border-slate-200/90 shadow-inner">
                   <Link
                     to="/register"
@@ -168,7 +168,7 @@ export default function AuthShell({ children, activeTab = "login", showTabs = tr
           </div>
 
           {/* Social Auth & Footer Terms */}
-          <div className="mt-3 pt-3 border-t border-slate-100 flex-shrink-0">
+          <div className="mt-2 pt-2 border-t border-slate-100 flex-shrink-0">
             <div className="relative mb-2.5 text-center">
               <span className="relative z-10 bg-white px-2.5 text-[10px] font-bold tracking-wider uppercase text-slate-400">
                 OR CONTINUE WITH

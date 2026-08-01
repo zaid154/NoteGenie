@@ -14,4 +14,4 @@ Disallow: /verify-email
 Disallow: /reset-password
 Disallow: /forgot-password
 
-Sitemap: https://notegenie-d5199.web.app/sitemap.xml
+Sitemap: https://note-genie-two.vercel.app/sitemap.xml

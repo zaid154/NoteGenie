@@ -63,7 +63,7 @@ NoteGenie/
     eslint.config.js           Frontend lint config
     firebase.json              Firebase hosting config
     .env.example               Frontend API URL sample
-    public/favicon.svg         Browser icon
+    public/favicon.png         Browser icon
     src/main.jsx               React boot file
     src/App.jsx                Frontend routes/protected route guards
     src/index.css              Global styles and Tailwind layers
@@ -475,7 +475,7 @@ Yeh section current repo scan ke hisaab se hai. Isme root, docs, client, aur ser
 | `client/eslint.config.js` | Frontend lint rules. |
 | `client/firebase.json` | Firebase hosting deploy config. |
 | `client/.env.example` | Frontend `VITE_API_URL` sample. |
-| `client/public/favicon.svg` | Browser tab icon. |
+| `client/public/favicon.png` | Browser tab icon. |
 | `client/public/manifest.webmanifest` | PWA/install metadata. |
 | `client/public/sw.js` | Service worker/offline install support. |
 

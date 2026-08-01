@@ -6,7 +6,7 @@
  * Bump CACHE when the shell strategy changes; old caches are purged on activate.
  */
 const CACHE = "notegenie-shell-v1";
-const SHELL = ["/", "/index.html", "/favicon.svg", "/manifest.webmanifest"];
+const SHELL = ["/", "/index.html", "/favicon.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -49,7 +49,7 @@ self.addEventListener("fetch", (event) => {
       if (cached) return cached;
       return fetch(req)
         .then((res) => {
-          const cacheable = res && res.ok && (url.pathname.startsWith("/assets/") || url.pathname === "/favicon.svg");
+          const cacheable = res && res.ok && (url.pathname.startsWith("/assets/") || url.pathname === "/favicon.png");
           if (cacheable) {
             const copy = res.clone();
             caches.open(CACHE).then((cache) => cache.put(req, copy));
