@@ -123,6 +123,7 @@ export default function ResourceDetail() {
   }, [resource]);
 
   async function download() {
+    if (!user) return navigate("/register");
     setBusy(true); setError("");
     try {
       await downloadResourceFile(api, id, resource.fileName);
@@ -134,6 +135,7 @@ export default function ResourceDetail() {
   }
 
   async function buy() {
+    if (!user) return navigate("/register");
     setBusy(true); setError("");
     try {
       const ok = await loadRazorpayScript();

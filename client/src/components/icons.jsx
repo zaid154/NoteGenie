@@ -112,6 +112,12 @@ export const IconLogout = make(
   </>
 );
 export const IconCheck = make(<path d="m5 13 4 4L19 7" />);
+export const IconArrowRight = make(
+  <>
+    <path d="M5 12h14" />
+    <path d="m12 5 7 7-7 7" />
+  </>
+);
 export const IconX = make(<path d="M6 6 18 18M18 6 6 18" />);
 export const IconDownload = make(
   <>
@@ -248,7 +254,8 @@ export const IconCoins = make(
     <path d="M8 6v4M6 8h4" />
   </>
 );
-export const IconChevronRight = make(<path d="m9 6 6 6-6 6" />);
+export const IconChevronDown = make(<path d="m6 9 6 6 6-6" />);
+export const IconChevronRight = make(<path d="m9 18 6-6-6-6" />);
 export const IconLayers = make(
   <>
     <path d="M12 3 3 8l9 5 9-5-9-5Z" />

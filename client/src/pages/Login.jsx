@@ -39,7 +39,7 @@ export default function Login() {
   // AuthContext se login() function milta hai.
   // Yeh backend ko login request bhejta hai.
   // ==========================================================================
-  const { login } = useAuth();
+  const { loginAndRedirect } = useAuth();
 
   // Toast notification
   const { toast } = useToast();
@@ -89,6 +89,8 @@ export default function Login() {
 
   // Login loading state
   const [loading, setLoading] = useState(false);
+
+  const resetSuccess = location.state?.message;
 
   // ==========================================================================
   // update()
@@ -186,7 +188,7 @@ export default function Login() {
       // Backend:
       // POST /auth/login
       // ==========================================================
-      await login(
+      const { user: loggedUser, needsVerification } = await loginAndRedirect(
         form.email,
         form.password
       );
@@ -210,8 +212,20 @@ export default function Login() {
         "success"
       );
 
-      // Dashboard redirect
-      navigate(from, {
+      if (needsVerification) {
+        navigate(`/verify-email?email=${encodeURIComponent(loggedUser.email || form.email)}`, {
+          replace: true,
+          state: { from: location.state?.from },
+        });
+        return;
+      }
+
+      // Smart Redirect: Admin/Staff -> /admin, Student -> intended page or /app
+      const targetUrl = (loggedUser?.role === "admin" || loggedUser?.role === "staff")
+        ? "/admin"
+        : from;
+
+      navigate(targetUrl, {
         replace: true,
       });
 
@@ -250,6 +264,7 @@ export default function Login() {
       </div>
 
       <form onSubmit={handleSubmit} className="mt-3 space-y-2.5" noValidate>
+        {resetSuccess && <Alert type="success">{resetSuccess}</Alert>}
         {error && (
           <Alert type={rateLimited ? "warning" : "error"}>
             {error}

@@ -85,13 +85,12 @@ export function PageLoader() {
 }
 
 export function StatCard({ icon: Icon, label, value, numericValue, suffix = "", hint, color = "accent", metric }) {
-  const tile = TILE_COLORS[metric ? STAT_COLORS[metric] || color : color] || TILE_COLORS.accent;
   return (
     <div className="stat-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-muted">{label}</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-ink">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">{label}</p>
+          <p className="mt-1.5 font-display text-2xl font-bold tabular-nums text-ink">
             {typeof numericValue === "number" ? (
               <>
                 <AnimatedNumber value={numericValue} />
@@ -101,11 +100,11 @@ export function StatCard({ icon: Icon, label, value, numericValue, suffix = "", 
               value
             )}
           </p>
-          {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
+          {hint && <p className="mt-1 text-xs text-muted leading-normal">{hint}</p>}
         </div>
         {Icon && (
-          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${tile}`}>
-            <Icon width={20} height={20} />
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200/80 bg-slate-50 text-slate-600 shadow-2xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+            <Icon width={18} height={18} />
           </span>
         )}
       </div>
@@ -115,15 +114,15 @@ export function StatCard({ icon: Icon, label, value, numericValue, suffix = "", 
 
 export function StatSkeleton({ count = 4 }) {
   return (
-    <div className={`grid grid-cols-2 gap-3 ${count === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+    <div className={`grid grid-cols-2 gap-4 ${count === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="stat-card">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 space-y-2">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
               <div className="skeleton h-3 w-16" />
-              <div className="skeleton h-7 w-10" />
+              <div className="skeleton h-7 w-20" />
             </div>
-            <div className="skeleton h-10 w-10 shrink-0 rounded-lg" />
+            <div className="skeleton h-9 w-9 rounded-lg" />
           </div>
         </div>
       ))}
@@ -213,24 +212,24 @@ export function NoteSkeleton() {
 export function EmptyState({ icon: Icon = IconSparkles, title, subtitle, action, compact = false }) {
   if (compact) {
     return (
-      <div className="rounded-lg border border-dashed border-line px-4 py-5 text-center">
-        <div className="es-icon mx-auto mb-2 grid h-8 w-8 place-items-center rounded-lg">
-          <Icon width={16} height={16} />
+      <div className="rounded-xl border-2 border-dashed border-line/80 bg-canvas/40 px-4 py-5 text-center transition-colors hover:border-accent-300">
+        <div className="es-icon mx-auto mb-2 grid h-9 w-9 place-items-center rounded-xl shadow-xs">
+          <Icon width={18} height={18} />
         </div>
-        <p className="text-sm font-medium text-ink">{title}</p>
-        {subtitle && <p className="mt-1 text-xs text-muted">{subtitle}</p>}
+        <p className="text-sm font-semibold text-ink">{title}</p>
+        {subtitle && <p className="mt-1 text-xs text-muted leading-relaxed">{subtitle}</p>}
         {action && <div className="mt-3">{action}</div>}
       </div>
     );
   }
   return (
-    <div className="card-solid flex flex-col items-center px-6 py-16 text-center">
-      <div className="es-icon mb-4 grid h-12 w-12 place-items-center rounded-xl">
-        <Icon width={24} height={24} />
+    <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-line/90 bg-gradient-to-b from-canvas/60 to-surface px-6 py-14 text-center shadow-xs">
+      <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-accent-100 text-accent-600 shadow-sm ring-4 ring-accent-50 dark:bg-accent-950 dark:text-accent-300 dark:ring-accent-900/40">
+        <Icon width={28} height={28} />
       </div>
-      <h3 className="text-lg font-bold text-ink">{title}</h3>
-      {subtitle && <p className="mt-2 max-w-sm text-sm text-muted">{subtitle}</p>}
-      {action && <div className="mt-5">{action}</div>}
+      <h3 className="font-display text-xl font-bold tracking-tight text-ink">{title}</h3>
+      {subtitle && <p className="mt-2 max-w-md text-sm text-muted leading-relaxed">{subtitle}</p>}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
 }

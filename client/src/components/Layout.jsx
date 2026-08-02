@@ -29,43 +29,48 @@ import {
   IconSearch,
   IconLayers,
   IconDownload,
+  IconCards,
+  IconChevronDown,
+  IconChevronRight,
 } from "./icons.jsx";
 
-// Grouped sidebar nav — clearer than one flat list. Each group has a small section label.
-// Items with a `feature` key are hidden when an admin disables that feature.
+const topNavItems = [
+  { to: "/app", label: "Home", icon: IconHome, end: true },
+  { to: "/upload", label: "Import & Convert", icon: IconUpload, feature: "upload", ai: true },
+];
+
 const navGroups = [
   {
-    title: "Workspace",
+    id: "study_hub",
+    title: "My Study Hub",
     items: [
-      { to: "/app", label: "Dashboard", icon: IconHome, end: true },
-      { to: "/upload", label: "Upload", icon: IconUpload, feature: "upload", ai: true },
-      { to: "/ask", label: "Ask AI", icon: IconChat, feature: "askAi", ai: true },
-      { to: "/analytics", label: "Analytics", icon: IconChart, feature: "analytics" },
-      { to: "/workspaces", label: "Workspaces", icon: IconUsers, feature: "workspaces" },
+      { to: "/workspaces", label: "Subjects & Folders", icon: IconUsers, feature: "workspaces" },
+      { to: "/review", label: "Flashcard Review", icon: IconCards },
     ],
   },
   {
-    title: "Store",
+    id: "ai_practice",
+    title: "AI & Practice",
     items: [
-      { to: "/store", label: "Store", icon: IconLayers, feature: "store" },
-      { to: "/my-downloads", label: "Saved & downloads", icon: IconDownload },
+      { to: "/ask", label: "AI Study Tutor", icon: IconChat, feature: "askAi", ai: true },
+      { to: "/analytics", label: "Progress & Quizzes", icon: IconChart, feature: "analytics" },
     ],
   },
   {
-    title: "Account",
+    id: "store_resources",
+    title: "Store & Downloads",
     items: [
-      { to: "/billing", label: "Billing", icon: IconCoins, feature: "billing" },
-      { to: "/profile", label: "Profile", icon: IconUser },
+      { to: "/store", label: "Browse Store", icon: IconLayers, feature: "store" },
+      { to: "/my-downloads", label: "My Purchased Files", icon: IconDownload },
     ],
   },
 ];
 
-// Mobile bottom bar shows only the 5 most-used destinations; the rest live in the drawer.
 const primaryNav = [
   { to: "/app", label: "Home", icon: IconHome, end: true },
-  { to: "/upload", label: "Upload", icon: IconUpload, feature: "upload", ai: true },
+  { to: "/upload", label: "Import", icon: IconUpload, feature: "upload", ai: true },
+  { to: "/ask", label: "AI Tutor", icon: IconChat, feature: "askAi", ai: true },
   { to: "/store", label: "Store", icon: IconLayers, feature: "store" },
-  { to: "/ask", label: "Ask AI", icon: IconChat, feature: "askAi", ai: true },
   { to: "/profile", label: "Profile", icon: IconUser },
 ];
 
@@ -81,10 +86,41 @@ function NavItem({ to, label, icon: Icon, end, onClick }) {
       {({ isActive }) => (
         <div className={isActive ? "nav-item-active" : "nav-item-idle"}>
           <Icon width={18} height={18} />
-          {label}
+          <span className="truncate">{label}</span>
         </div>
       )}
     </NavLink>
+  );
+}
+
+function CollapsibleSection({ id, title, items, onNavClick }) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted/80 hover:text-ink transition-colors"
+      >
+        <span>{title}</span>
+        {open ? <IconChevronDown width={12} height={12} /> : <IconChevronRight width={12} height={12} />}
+      </button>
+      {open && (
+        <div className="space-y-0.5 pl-1">
+          {items.map(({ to, label, icon, end }) => (
+            <NavItem
+              key={`${to}-${label}`}
+              to={to}
+              label={label}
+              icon={icon}
+              end={end}
+              onClick={onNavClick}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -96,9 +132,8 @@ export default function Layout({ children }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Nav visibility: hide admin-disabled features; AND hide AI tools (Upload, Ask AI) for EVERYONE
-  // when the AI master switch is OFF. Admins re-enable from Admin → Settings → AI keys.
   const navVisible = (it) => featureOn(features, it) && !(it.ai && store.aiEnabled === false);
+  const visibleTop = topNavItems.filter(navVisible);
   const visibleGroups = navGroups
     .map((g) => ({ ...g, items: g.items.filter(navVisible) }))
     .filter((g) => g.items.length > 0);
@@ -115,32 +150,47 @@ export default function Layout({ children }) {
         <Logo />
       </div>
 
-      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">
+      <nav className="flex flex-1 flex-col gap-3 overflow-y-auto px-3 py-4">
+        {/* Top Frequency Items */}
+        <div className="space-y-0.5">
+          {visibleTop.map(({ to, label, icon, end }) => (
+            <NavItem
+              key={`${to}-${label}`}
+              to={to}
+              label={label}
+              icon={icon}
+              end={end}
+              onClick={() => setMobileOpen(false)}
+            />
+          ))}
+        </div>
+
+        {/* Collapsible Groups */}
         {visibleGroups.map((group) => (
-          <div key={group.title} className="flex flex-col gap-0.5">
-            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted/70">
-              {group.title}
-            </p>
-            {group.items.map(({ to, label, icon, end }) => (
-              <NavItem
-                key={`${to}-${label}`}
-                to={to}
-                label={label}
-                icon={icon}
-                end={end}
-                onClick={() => setMobileOpen(false)}
-              />
-            ))}
-          </div>
+          <CollapsibleSection
+            key={group.id}
+            id={group.id}
+            title={group.title}
+            items={group.items}
+            onNavClick={() => setMobileOpen(false)}
+          />
         ))}
+
+        {/* Account Section */}
+        <div className="pt-2 border-t border-line/60 flex flex-col gap-0.5">
+          <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted/80">Account</p>
+          {featureOn(features, { feature: "billing" }) && (
+            <NavItem to="/billing" label="Billing & Plan" icon={IconCoins} onClick={() => setMobileOpen(false)} />
+          )}
+          <NavItem to="/profile" label="Profile Settings" icon={IconUser} onClick={() => setMobileOpen(false)} />
+        </div>
+
         {(user?.role === "admin" || user?.role === "staff") && (
-          <div className="flex flex-col gap-0.5">
-            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted/70">
-              Manage
-            </p>
+          <div className="pt-2 border-t border-line/60 flex flex-col gap-0.5">
+            <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted/80">Manage</p>
             <NavItem
               to="/admin"
-              label={user?.role === "admin" ? "Admin" : "Staff"}
+              label={user?.role === "admin" ? "Admin Panel" : "Staff Panel"}
               icon={IconShield}
               onClick={() => setMobileOpen(false)}
             />
@@ -148,28 +198,27 @@ export default function Layout({ children }) {
         )}
       </nav>
 
-      <div className="border-t border-line px-3 py-4 space-y-1">
+      <div className="border-t border-line px-3 py-3 space-y-2">
         {user?.plan === "free" && (
           <button
             type="button"
             onClick={() => navigate("/pricing")}
-            className="mb-2 w-full rounded-xl bg-accent-50 p-3 text-left transition hover:bg-accent-100 dark:bg-accent-950/40 dark:hover:bg-accent-950/60"
+            className="w-full rounded-xl bg-accent-50 p-2.5 text-left transition hover:bg-accent-100 dark:bg-accent-950/40 dark:hover:bg-accent-950/60"
           >
-            <div className="flex items-center gap-3">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent-600 text-white">
-                <IconSparkles width={16} height={16} />
+            <div className="flex items-center gap-2.5">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-600 text-white">
+                <IconSparkles width={15} height={15} />
               </span>
               <div className="min-w-0">
                 <span className="block text-xs font-semibold text-accent-700 dark:text-accent-300">Free plan</span>
-                <span className="block text-xs text-muted">Upgrade for more uploads</span>
+                <span className="block text-[11px] text-muted truncate">Upgrade for unlimited AI</span>
               </div>
             </div>
           </button>
         )}
-        <div className="px-1 pb-1"><ThemePicker /></div>
-        <InstallButton className="nav-item-idle w-full" />
+        <ThemePicker />
         <button onClick={handleLogout} className="nav-item-idle w-full text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30">
-          <IconLogout width={18} height={18} />
+          <IconLogout width={16} height={16} />
           Sign out
         </button>
       </div>

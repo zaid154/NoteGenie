@@ -191,19 +191,6 @@ export async function runMaterialPipeline({
     { retries: 1 }
   );
 
-  onProgress?.({ phase: "cards" });
-
-  let flashcards = [];
-  try {
-    flashcards = await generateInitialFlashcards(notesResult.notes, {
-      userId,
-      language: outputLanguage,
-      cardCount: body.initialCardCount,
-    });
-  } catch (err) {
-    console.warn("[orchestrator] flashcards step failed, saving notes only:", err.message?.slice(0, 120));
-  }
-
   onProgress?.({ phase: "saving" });
 
   const doc = await saveDocument({
@@ -223,19 +210,34 @@ export async function runMaterialPipeline({
           .filter((g) => g?.term && g?.definition)
           .slice(0, 24)
       : [],
-    flashcards,
+    flashcards: [],
     sourceText: (notesResult.sourceExcerpt || notesResult.notes || "").slice(0, 15000),
     outputLanguage,
     detailLevel,
     generationMode: notesResult.generationMode || "single",
   });
 
+  // Background Async: Generate initial flashcards without blocking document response
+  generateInitialFlashcards(notesResult.notes, {
+    userId,
+    language: outputLanguage,
+    cardCount: body.initialCardCount,
+  })
+    .then(async (cards) => {
+      if (cards && cards.length > 0) {
+        await Document.updateOne({ _id: doc._id }, { $set: { flashcards: cards } });
+      }
+    })
+    .catch((err) => {
+      console.warn("[orchestrator] async background flashcards failed:", err.message?.slice(0, 120));
+    });
+
   // Embed the notes for semantic retrieval (best-effort, runs in background).
   indexDocumentSafe(doc);
 
   return {
     doc,
-    flashcardsAdded: flashcards.length,
+    flashcardsAdded: 0,
     generationMode: doc.generationMode,
   };
 }

@@ -29,9 +29,50 @@ function getTransporter() {
 }
 
 export async function sendEmail({ to, subject, html, text }) {
+  if (env.brevoApiKey) {
+    try {
+      let senderEmail = "noreply@notegenie.com";
+      let senderName = "NoteGenie";
+      if (env.emailFrom && env.emailFrom.includes("<")) {
+        const match = env.emailFrom.match(/(.*)<([^>]+)>/);
+        if (match) {
+          senderName = match[1].trim() || senderName;
+          senderEmail = match[2].trim();
+        }
+      } else if (env.emailFrom) {
+        senderEmail = env.emailFrom;
+      }
+
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "api-key": env.brevoApiKey,
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email: to }],
+          subject: subject,
+          htmlContent: html,
+          textContent: text || html.replace(/<[^>]+>/g, ""),
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(`Brevo API Error: ${response.status} ${JSON.stringify(errData)}`);
+      }
+      return { ok: true };
+    } catch (err) {
+      console.error("[email] Error sending email via Brevo:", err.message);
+      return { ok: false, dev: false, error: err.message };
+    }
+  }
+
   const tx = getTransporter();
   if (!tx) {
-    console.warn("[email] SMTP not configured — would send to:", to, subject);
+    console.warn("[email] SMTP/Brevo not configured — would send to:", to, subject);
     return { ok: false, dev: true };
   }
   try {

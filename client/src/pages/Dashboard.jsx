@@ -49,60 +49,57 @@ function MaterialCard({ doc, onDelete, deleting }) {
   const SrcIcon = meta.Icon;
 
   return (
-    <MotionDiv whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
-      <div className="material-card group relative flex h-full flex-col">
-        {onDelete && (
-          <button
-            type="button"
-            onClick={() => onDelete(doc._id)}
-            disabled={deleting}
-            className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-lg border border-line bg-white/90 text-muted opacity-0 shadow-sm transition hover:border-red-300 hover:text-red-600 group-hover:opacity-100 dark:bg-slate-900/90"
-            aria-label="Delete material"
-            title="Delete content"
-          >
-            {deleting ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <IconTrash width={15} height={15} />}
-          </button>
-        )}
-        <Link to={`/document/${doc._id}`} className="block flex-1">
-        <div className="flex items-start gap-3">
-          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${meta.tint}`}>
-            <SrcIcon width={18} height={18} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Badge color={meta.badge}>{meta.label}</Badge>
-              {doc.folder && <Badge color="gray">{doc.folder}</Badge>}
-              {doc.tags?.slice(0, 3).map((tag) => (
-                <Badge key={tag} color="gray">{tag}</Badge>
-              ))}
+    <div className="material-card group relative flex h-full flex-col">
+      {onDelete && (
+        <button
+          type="button"
+          onClick={() => onDelete(doc._id)}
+          disabled={deleting}
+          className="absolute right-3 top-3 z-10 grid h-7 w-7 place-items-center rounded-lg border border-slate-200 bg-surface text-muted opacity-0 transition hover:border-red-300 hover:text-red-600 group-hover:opacity-100 dark:border-slate-800"
+          aria-label="Delete material"
+          title="Delete content"
+        >
+          {deleting ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <IconTrash width={14} height={14} />}
+        </button>
+      )}
+      <Link to={`/document/${doc._id}`} className="flex flex-1 flex-col justify-between">
+        <div>
+          <div className="flex items-start gap-3">
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200/60 shadow-2xs dark:border-slate-800 ${meta.tint}`}>
+              <SrcIcon width={18} height={18} />
+            </span>
+            <div className="min-w-0 flex-1 pr-6">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge color={meta.badge}>{meta.label}</Badge>
+                {doc.folder && <Badge color="gray">{doc.folder}</Badge>}
+                {doc.tags?.slice(0, 2).map((tag) => (
+                  <Badge key={tag} color="gray">{tag}</Badge>
+                ))}
+              </div>
+              <h3 className="mt-2 line-clamp-2 font-display font-semibold text-base leading-snug text-ink group-hover:text-accent-600 dark:group-hover:text-accent-400">
+                {doc.title}
+              </h3>
+              {doc.summary && (
+                <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted">{doc.summary}</p>
+              )}
             </div>
-            <h3 className="mt-2 line-clamp-2 font-semibold leading-snug text-ink group-hover:text-accent-600 dark:group-hover:text-accent-400">
-              {doc.title}
-            </h3>
-            {doc.summary && (
-              <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted">{doc.summary}</p>
-            )}
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between text-xs text-muted">
-          <span className="flex items-center gap-1">
+
+        <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-muted dark:border-slate-800/80">
+          <span className="flex items-center gap-1.5 font-medium">
             <IconCalendar width={13} height={13} />
             {date}
           </span>
           {doc.flashcardCount != null && (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5 font-medium">
               <IconCards width={14} height={14} />
               {doc.flashcardCount} cards
             </span>
           )}
         </div>
-        <span className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent-50 py-2.5 text-sm font-semibold text-accent-600 transition group-hover:bg-accent-600 group-hover:text-white dark:bg-accent-950/50 dark:text-accent-300 dark:group-hover:bg-accent-600 dark:group-hover:text-white">
-          Open material
-          <IconChevronRight width={14} height={14} />
-        </span>
-        </Link>
-      </div>
-    </MotionDiv>
+      </Link>
+    </div>
   );
 }
 
@@ -272,34 +269,37 @@ export default function Dashboard() {
       {!user?.onboardingComplete && <OnboardingWizard />}
 
       <StaggerContainer className="space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        {/* Workspace Header */}
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200/80 pb-5 dark:border-slate-800">
           <StaggerItem>
-            <p className="text-sm text-muted">{greeting}, {firstName}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted">{greeting}, {firstName}</p>
             <div className="mt-1 flex items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight text-ink lg:text-3xl">Your library</h1>
+              <h1 className="font-display text-2xl font-bold tracking-tight text-ink lg:text-3xl">Library & Materials</h1>
               {showStreak && (stats.streak?.current ?? 0) > 0 && (
                 <span
-                  className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-sm font-bold text-amber-600 dark:bg-amber-950/50 dark:text-amber-400"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/80 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
                   title="Daily study streak"
                 >
-                  <IconFlame width={15} height={15} /> {stats.streak.current}
+                  <IconFlame width={14} height={14} className="text-amber-500" />
+                  <span>{stats.streak.current} day streak</span>
                 </span>
               )}
             </div>
           </StaggerItem>
           {aiEnabled && (
             <StaggerItem>
-              <Link to="/upload" className="btn-primary">
-                <IconPlus width={16} height={16} /> Add material
+              <Link to="/upload" className="btn-primary shadow-xs">
+                <IconPlus width={15} height={15} /> Add material
               </Link>
             </StaggerItem>
           )}
         </div>
 
+        {/* Metric Cards Grid */}
         {loadingStats ? (
           <StatSkeleton count={4} />
         ) : (
-          <StaggerContainer className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StaggerContainer className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {statItems.map((item) => (
               <StaggerItem key={item.label}>
                 <StatCard {...item} />
@@ -386,7 +386,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="p-4">
+            <div className="p-5">
               {loadingDocs ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {[0, 1, 2, 3].map((i) => (
@@ -395,31 +395,91 @@ export default function Dashboard() {
                 </div>
               ) : filtered.length === 0 ? (
                 docs.length === 0 ? (
-                  <EmptyState
-                    icon={IconDoc}
-                    title="Nothing here yet"
-                    subtitle={aiEnabled
-                      ? "Upload a file or paste a link — notes, flashcards, and quizzes are generated automatically. New here? Load a sample to look around first."
-                      : "AI study tools are currently turned off. Browse the store for ready-made study material."}
-                    action={aiEnabled ? (
-                      <div className="flex flex-wrap items-center justify-center gap-2">
-                        <Link to="/upload" className="btn-primary">
-                          <IconPlus width={16} height={16} /> Upload your first source
-                        </Link>
-                        <button type="button" onClick={loadSample} disabled={loadingSample} className="btn-outline">
-                          <IconSparkles width={16} height={16} />
-                          {loadingSample ? "Adding sample…" : "Try a sample"}
-                        </button>
-                      </div>
-                    ) : (
-                      <Link to="/store" className="btn-primary">Browse the store</Link>
-                    )}
-                  />
+                  <div className="py-4">
+                    <div className="mb-6 flex flex-col items-center text-center">
+                      <span className="grid h-12 w-12 place-items-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 shadow-2xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+                        <IconSparkles width={22} height={22} />
+                      </span>
+                      <h3 className="mt-3 font-display text-xl font-bold tracking-tight text-ink">
+                        Welcome to your study workspace
+                      </h3>
+                      <p className="mt-1 max-w-md text-sm text-muted leading-relaxed">
+                        Start by uploading your course PDF, exploring ready-made solved assignments, or trying a sample document.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      {/* Action 1: Upload */}
+                      <Link
+                        to="/upload"
+                        className="group flex flex-col justify-between rounded-xl border border-slate-200/90 bg-surface p-5 shadow-2xs transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:hover:border-slate-700"
+                      >
+                        <div>
+                          <span className="grid h-9 w-9 place-items-center rounded-lg bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400">
+                            <IconUpload width={18} height={18} />
+                          </span>
+                          <h4 className="mt-3 font-display font-semibold text-sm text-ink group-hover:text-accent-600 dark:group-hover:text-accent-400">
+                            Upload Document
+                          </h4>
+                          <p className="mt-1 text-xs text-muted leading-relaxed">
+                            Turn PDFs, slides, or notes into instant AI flashcards & quizzes.
+                          </p>
+                        </div>
+                        <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-accent-600 dark:text-accent-400">
+                          Upload file <IconChevronRight width={13} height={13} />
+                        </span>
+                      </Link>
+
+                      {/* Action 2: Store */}
+                      <Link
+                        to="/store"
+                        className="group flex flex-col justify-between rounded-xl border border-slate-200/90 bg-surface p-5 shadow-2xs transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:hover:border-slate-700"
+                      >
+                        <div>
+                          <span className="grid h-9 w-9 place-items-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+                            <IconLayers width={18} height={18} />
+                          </span>
+                          <h4 className="mt-3 font-display font-semibold text-sm text-ink group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                            Browse Store
+                          </h4>
+                          <p className="mt-1 text-xs text-muted leading-relaxed">
+                            Download verified solved assignments, PYQs & course guides.
+                          </p>
+                        </div>
+                        <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                          Explore store <IconChevronRight width={13} height={13} />
+                        </span>
+                      </Link>
+
+                      {/* Action 3: Try Sample */}
+                      <button
+                        type="button"
+                        onClick={loadSample}
+                        disabled={loadingSample}
+                        className="group text-left flex flex-col justify-between rounded-xl border border-slate-200/90 bg-surface p-5 shadow-2xs transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:hover:border-slate-700 disabled:opacity-60"
+                      >
+                        <div>
+                          <span className="grid h-9 w-9 place-items-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+                            <IconSparkles width={18} height={18} />
+                          </span>
+                          <h4 className="mt-3 font-display font-semibold text-sm text-ink group-hover:text-amber-600 dark:group-hover:text-amber-400">
+                            Try Demo Sample
+                          </h4>
+                          <p className="mt-1 text-xs text-muted leading-relaxed">
+                            Instantly load a pre-built sample document to explore AI notes & tutor.
+                          </p>
+                        </div>
+                        <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                          {loadingSample ? "Loading sample…" : "Load sample"} <IconChevronRight width={13} height={13} />
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <EmptyState
                     icon={IconDoc}
-                    title="No matches"
-                    subtitle="Try clearing your search or filters."
+                    title="No matches found"
+                    subtitle="No study materials match your search or selected filter."
                     action={
                       <button
                         type="button"
@@ -595,25 +655,6 @@ export default function Dashboard() {
               </div>
             </StaggerItem>
           )}
-
-          <StaggerItem>
-            <div className="rail-card">
-              <p className="mb-3 font-semibold text-ink">Quick actions</p>
-              <div className="grid gap-2">
-                {aiEnabled && (
-                  <Link to="/upload" className="btn-outline w-full justify-start text-sm">
-                    <IconUpload width={16} height={16} /> Upload material
-                  </Link>
-                )}
-                <Link to="/store" className="btn-outline w-full justify-start text-sm">
-                  <IconLayers width={16} height={16} /> Browse store
-                </Link>
-                <Link to="/analytics" className="btn-outline w-full justify-start text-sm">
-                  <IconChart width={16} height={16} /> View analytics
-                </Link>
-              </div>
-            </div>
-          </StaggerItem>
         </StaggerContainer>
       </div>
     </div>

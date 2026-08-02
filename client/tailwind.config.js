@@ -5,10 +5,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["\"Plus Jakarta Sans\"", "system-ui", "sans-serif"],
-        display: ["\"Instrument Serif\"", "Georgia", "serif"],
-        // Store-only display face (Bricolage Grotesque). The indigo app keeps Instrument Serif.
-        "display-store": ["\"Bricolage Grotesque\"", "\"Plus Jakarta Sans\"", "system-ui", "sans-serif"],
+        sans: ["\"Plus Jakarta Sans\"", "\"Inter\"", "system-ui", "sans-serif"],
+        display: ["\"Outfit\"", "\"Plus Jakarta Sans\"", "system-ui", "sans-serif"],
+        "display-store": ["\"Outfit\"", "\"Plus Jakarta Sans\"", "system-ui", "sans-serif"],
       },
       colors: {
         brand: {

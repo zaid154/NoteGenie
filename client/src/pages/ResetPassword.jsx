@@ -9,6 +9,7 @@ import AuthShell from "../components/AuthShell.jsx";
 import FormField, { passwordStrength } from "../components/FormField.jsx";
 import { Alert, EmptyState, Spinner } from "../components/ui.jsx";
 import { IconLock } from "../components/icons.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 
 export default function ResetPassword() {
   const [params] = useSearchParams();
@@ -19,6 +20,7 @@ export default function ResetPassword() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   const strength = passwordStrength(password);
 
@@ -40,10 +42,15 @@ export default function ResetPassword() {
       setError("Passwords do not match.");
       return;
     }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
       await api.post("/auth/reset-password", { token, email, password });
+      toast("Password updated. You can log in now.", "success");
       navigate("/login", { state: { message: "Password updated. You can log in now." } });
     } catch (err) {
       setError(apiError(err));

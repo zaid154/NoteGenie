@@ -3,9 +3,10 @@
 // FLOW: App.jsx route renders this page (VerifyEmail). Values usually come from AuthContext, route params, local state, and api/client.js calls; processed state is shown through components and user actions are sent back to backend APIs.
 
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { api, apiError } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 import { Alert, Spinner, EmptyState } from "../components/ui.jsx";
 import AuthShell from "../components/AuthShell.jsx";
 import OtpInput from "../components/OtpInput.jsx";
@@ -16,6 +17,8 @@ const OTP_LENGTH = 6;
 export default function VerifyEmail() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
   const { user, verifyEmail } = useAuth();
   const email = (params.get("email") || user?.email || "").trim().toLowerCase();
 
@@ -49,11 +52,15 @@ export default function VerifyEmail() {
       // Already-verified accounts get no token — send them to login.
       if (data.alreadyVerified) {
         setMsg(data.message || "Email already verified. Please log in.");
-        setTimeout(() => navigate("/login", { replace: true }), 800);
+        toast(data.message || "Email already verified. Please log in.", "success");
+        setTimeout(() => navigate(user?.emailVerified ? "/app" : "/login", { replace: true }), 800);
         return;
       }
       setMsg(data.message || "Email verified!");
-      setTimeout(() => navigate("/app", { replace: true }), 800);
+      toast(data.message || "Email verified!", "success");
+      const intendedPath = location.state?.from?.pathname;
+      const targetUrl = (data.user?.role === "admin" || data.user?.role === "staff") ? "/admin" : intendedPath || "/app";
+      setTimeout(() => navigate(targetUrl, { replace: true }), 800);
     } catch (err) {
       setError(apiError(err));
     } finally {

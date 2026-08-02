@@ -19,8 +19,14 @@ function makeHeadingComponent(Tag) {
 }
 
 export default function MarkdownContent({ children = "", compact = false, className = "" }) {
-  const text = typeof children === "string" ? children : String(children ?? "");
-  if (!text.trim()) return null;
+  const rawText = typeof children === "string" ? children : String(children ?? "");
+  if (!rawText.trim()) return null;
+
+  const text = rawText
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
 
   const proseClass = compact ? "prose-notes prose-notes-compact" : "prose-notes";
 

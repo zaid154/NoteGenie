@@ -28,7 +28,7 @@ const STEPS = [
 ];
 
 // Decorative hero visual — 3D stacked handcrafted product preview vault with live activity pills.
-function HeroPreview() {
+function _HeroPreview() {
   const reduced = useReducedMotion();
   const float = reduced ? {} : { animate: { y: [0, -6, 0] }, transition: { duration: 4, repeat: Infinity, ease: "easeInOut" } };
 
@@ -172,7 +172,7 @@ export default function StoreHome() {
   return (
     <div className="space-y-12">
       {/* Hero — Signature Dark Cobalt Vault */}
-      <section className="store-hero relative overflow-hidden rounded-3xl border border-slate-700/60 p-5 sm:p-8 lg:p-9 shadow-store-e3 text-white">
+      <section className="rounded-xl border border-store-200 bg-store-50 p-5 sm:p-8">
         <div className="relative z-10 grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           {/* Left: headline + search */}
           <motion.div {...heroLeft}>
@@ -180,14 +180,14 @@ export default function StoreHome() {
               <IconSparkles width={13} height={13} className="text-storeaccent-400" />
               Free solved assignments, papers &amp; guides — IGNOU &amp; distance learning
             </span>
-            <h1 className="font-display mt-3 text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight">
+            <h1 className="mt-3 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
               {store.heroTitle || "Solved assignments, question papers & books — instantly."}
             </h1>
-            <p className="mt-2.5 max-w-xl text-xs sm:text-sm text-slate-300 leading-relaxed">
+            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-muted">
               {store.heroSubtitle || "Everything you need to score better, in one place. Most material is free — pick your university and degree to get started."}
             </p>
 
-            <form onSubmit={search} className="mt-5 grid gap-2.5 rounded-2xl border border-white/20 bg-white/10 p-2.5 backdrop-blur-xl shadow-2xl sm:grid-cols-[1fr_1fr_auto]">
+            <form onSubmit={search} className="mt-5 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
               <select className="input border-0 bg-white text-xs sm:text-sm text-slate-900 font-medium placeholder:text-slate-500 focus:ring-2 focus:ring-storeaccent-400 py-2" value={uni} onChange={(e) => setUni(e.target.value)} aria-label="Select university">
                 <option value="" className="text-slate-900">Select university</option>
                 {universities.map((u) => <option key={u._id} value={u._id} className="text-slate-900">{u.name}</option>)}
@@ -196,23 +196,29 @@ export default function StoreHome() {
                 <option value="" className="text-slate-900">What do you want?</option>
                 {STORE_CATEGORIES.map((c) => <option key={c.slug} value={c.slug} className="text-slate-900">{c.label}</option>)}
               </select>
-              <button type="submit" className="btn-primary cta-sheen bg-storeaccent-500 hover:bg-storeaccent-600 border-0 text-white font-bold px-5 py-2 text-xs sm:text-sm shadow-store-cta">
+              <button type="submit" className="btn-primary px-5 py-2 text-sm">
                 <IconSearch width={15} height={15} /> Search
               </button>
             </form>
 
             {/* Trust row */}
-            <ul className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px] sm:text-xs font-medium text-slate-300">
-              <li className="inline-flex items-center gap-1.5"><IconDownload width={14} height={14} className="text-storeaccent-400" /> Instant download</li>
-              <li className="inline-flex items-center gap-1.5"><IconCheck width={14} height={14} className="text-storeaccent-400" /> No card to start</li>
-              <li className="inline-flex items-center gap-1.5"><IconShield width={14} height={14} className="text-storeaccent-400" /> Secure UPI / cards</li>
-              <li className="inline-flex items-center gap-1.5"><IconSparkles width={14} height={14} className="text-storeaccent-400" /> AI tools included</li>
+            <ul className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted">
+              <li className="inline-flex items-center gap-1.5"><IconDownload width={14} height={14} className="text-store-600" /> Instant download</li>
+              <li className="inline-flex items-center gap-1.5"><IconCheck width={14} height={14} className="text-store-600" /> Free material available</li>
+              <li className="inline-flex items-center gap-1.5"><IconShield width={14} height={14} className="text-store-600" /> Secure UPI / cards</li>
             </ul>
           </motion.div>
 
           {/* Right: product preview mockup */}
-          <motion.div className="hidden lg:block" aria-hidden="true" {...heroRight}>
-            <HeroPreview />
+          <motion.div className="hidden lg:block" {...heroRight}>
+            <div className="rounded-lg border border-store-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-ink">What you can find</p>
+              <ul className="mt-3 space-y-3 text-sm text-muted">
+                <li>• Solved assignments</li>
+                <li>• Question papers and notes</li>
+                <li>• Help books and projects</li>
+              </ul>
+            </div>
           </motion.div>
         </div>
       </section>

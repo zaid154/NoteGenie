@@ -123,6 +123,9 @@ function ProtectedAdmin({ children }) {
   const location = useLocation();
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
+  if (!user.emailVerified) {
+    return <Navigate to={`/verify-email?email=${encodeURIComponent(user.email)}`} replace state={{ from: location }} />;
+  }
   if (user.role !== "admin" && user.role !== "staff") return <Navigate to="/app" replace />;
   return children;
 }
@@ -192,12 +195,8 @@ export default function App() {
     <Suspense fallback={<PageLoader />}>
       <Routes>
       <Route path="/pricing" element={<Pricing />} />
-      <Route path="/checkout" element={<ProtectedCheckout><Checkout /></ProtectedCheckout>} />
-      <Route path="/terms" element={<Terms />} />
-      <Route path="/privacy" element={<Privacy />} />
       <Route path="/refund" element={<Refund />} />
       <Route path="/share/:token" element={<ShareView />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
 
       <Route path="/app" element={<Protected><Dashboard /></Protected>} />
       <Route path="/upload" element={<FeatureProtected feature="upload"><Upload /></FeatureProtected>} />
@@ -224,6 +223,7 @@ export default function App() {
         <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
         <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
         <Route path="/reset-password" element={<PublicOnly><ResetPassword /></PublicOnly>} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/store" element={<StoreHome />} />
         <Route path="/store/search" element={<StoreSearch />} />
         <Route path="/store/cart" element={<Cart />} />

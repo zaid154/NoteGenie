@@ -7,6 +7,10 @@
 @tailwind utilities;
 
 @layer base {
+  .font-display {
+    font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif !important;
+  }
+
   :root {
     --surface: 255 255 255;
     --canvas: 248 250 252;
@@ -260,27 +264,27 @@
   }
 
   .card {
-    @apply rounded-xl border border-line bg-surface;
+    @apply rounded-xl border border-slate-200/80 bg-surface dark:border-slate-800/80;
   }
 
   .card-solid {
-    @apply rounded-xl border border-line bg-surface shadow-soft;
+    @apply rounded-xl border border-slate-200/90 bg-surface shadow-sm dark:border-slate-800;
   }
 
   .panel {
-    @apply rounded-xl border border-line bg-surface shadow-soft overflow-hidden;
+    @apply rounded-xl border border-slate-200/90 bg-surface shadow-sm overflow-hidden dark:border-slate-800;
   }
 
   .stat-card {
-    @apply rounded-xl border border-line bg-surface/80 px-4 py-4 shadow-soft backdrop-blur-sm transition-all duration-200 hover:shadow-card hover:-translate-y-0.5;
+    @apply rounded-xl border border-slate-200/90 bg-surface p-5 shadow-sm transition-all duration-150 hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:hover:border-slate-700;
   }
 
   .material-card {
-    @apply flex h-full flex-col rounded-xl border border-slate-200/80 bg-surface p-5 shadow-soft ring-1 ring-slate-200/80 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:ring-accent-200 dark:border-slate-700 dark:ring-slate-700 dark:hover:ring-accent-500/40;
+    @apply flex h-full flex-col rounded-xl border border-slate-200/90 bg-surface p-5 shadow-sm transition-all duration-150 hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:hover:border-slate-700;
   }
 
   .rail-card {
-    @apply rounded-xl border border-line bg-surface/80 p-4 shadow-soft backdrop-blur-sm;
+    @apply rounded-xl border border-slate-200/90 bg-surface p-5 shadow-sm transition-all dark:border-slate-800;
   }
 
   .input {

@@ -9,20 +9,28 @@ import AuthShell from "../components/AuthShell.jsx";
 import FormField from "../components/FormField.jsx";
 import { Alert, Spinner } from "../components/ui.jsx";
 import { IconMail } from "../components/icons.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError("Enter a valid email address.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      await api.post("/auth/forgot-password", { email });
+      await api.post("/auth/forgot-password", { email: normalizedEmail });
       setSent(true);
+      toast("If that email exists, a reset link was sent.", "success");
     } catch (err) {
       setError(apiError(err));
     } finally {

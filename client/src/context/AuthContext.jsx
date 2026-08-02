@@ -6,6 +6,7 @@
 // Iski wajah se kisi bhi page me hum user ki info aur login/logout functions use kar sakte hain.
 import { createContext, useContext, useEffect, useState } from "react";
 import { api, setToken, getToken, setUnauthorizedHandler, apiError } from "../api/client.js";
+import { useFeatures } from "../lib/useStorefront.js";
 
 // Context ek dabba (box) hai jisme hum data rakhte hain.
 const AuthContext = createContext(null);
@@ -16,6 +17,9 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   // loading = true jab tak hum check kar rahe hain ki user login hai ya nahi.
   const [loading, setLoading] = useState(true);
+  // The current backend always verifies new registrations, but keeping this
+  // flag here makes the client compatible with a future opt-out setting.
+  const features = useFeatures();
 
   // 401 par (token expire/invalid) session saaf kar dete hain.
   // client.js ko bata dete hain ki "agar 401 aaye to user ko null kar dena".
@@ -54,13 +58,27 @@ export function AuthProvider({ children }) {
     const { data } = await api.post("/auth/login", { email, password });
     setToken(data.token);
     setUser(data.user);
+    return data.user;
   }
 
   // Register: signup details bhejo. Account abhi NAHI banta — OTP verify hone tak
   // server PendingSignup me rakhता hai. Isliye yahan koi token/user save nahi hota.
   async function register(name, email, password) {
     const { data } = await api.post("/auth/register", { name, email, password });
-    return data; // { needsVerification: true, email }
+    return data; // { needsVerification: true, email, token?, user? }
+  }
+
+  // New helper to handle registration flow based on email verification requirement
+  async function registerAndHandle(name, email, password) {
+    const data = await register(name, email, password);
+    const verificationRequired = features.emailVerificationRequired !== false; // default true
+    if (!verificationRequired && data.token) {
+      // Auto-login when verification not required
+      setToken(data.token);
+      setUser(data.user);
+      return { ...data, autoLoggedIn: true };
+    }
+    return { ...data, autoLoggedIn: false };
   }
 
   // verifyEmail: OTP verify karo. Sahi OTP par server account banata hai aur token deta hai —
@@ -72,6 +90,14 @@ export function AuthProvider({ children }) {
       setUser(data.user);
     }
     return data;
+  }
+
+  async function loginAndRedirect(email, password) {
+    const loggedUser = await login(email, password);
+    return {
+      user: loggedUser,
+      needsVerification: !loggedUser?.emailVerified,
+    };
   }
 
   // Logout: token aur user dono hata do.
@@ -101,7 +127,22 @@ export function AuthProvider({ children }) {
 
   // value = jo bhi cheezein hum dusre components ko dena chahte hain.
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, verifyEmail, logout, refreshUser, hasPermission }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isAuthenticated: !!user,
+        isEmailVerified: user?.emailVerified ?? false,
+        login,
+        loginAndRedirect,
+        register,
+        registerAndHandle,
+        verifyEmail,
+        logout,
+        refreshUser,
+        hasPermission,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

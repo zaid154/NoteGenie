@@ -1,44 +1,75 @@
-// FLOW: Client source file. Data usually comes from props/context/routes/api/client.js, UI logic processes it, and rendered output or user actions go back to parent/API flow.
+// FLOW: Client source file (TutorChat.jsx).
+// Handcrafted senior product designer AI Study Studio (Notion AI / Perplexity style).
 
-// FLOW: Parent page/layout renders this component (TutorChat). Data comes through props/context, UI events call callbacks or api/client.js helpers, and the result is displayed back in the parent flow.
-
-// TutorChat = AI tutor se chat karne wala box. Ek document ke baare me sawal poochho.
-// Khaas baat: jawab "streaming" me aata hai (thoda-thoda kar ke, jaise typing).
 import { useState, useRef, useEffect } from "react";
 import { api, apiUrl, getToken, apiError } from "../api/client.js";
-import { IconSend, IconChat, IconTrash, IconMic, IconHeadphones } from "./icons.jsx";
+import {
+  IconSend,
+  IconChat,
+  IconTrash,
+  IconMic,
+  IconHeadphones,
+  IconSparkles,
+  IconDoc,
+  IconCheck,
+} from "./icons.jsx";
 import { Spinner } from "./ui.jsx";
 import MarkdownContent from "./MarkdownContent.jsx";
 import { useConfirm } from "../context/ConfirmContext.jsx";
 import { useSpeech } from "../hooks/useSpeech.js";
 import { markdownToPlainText } from "../utils/textClean.js";
 
+const promptCategories = [
+  {
+    icon: "💡",
+    title: "Concept Breakdown",
+    prompt: "Explain the hardest topic from my notes in simple terms with a real-world example.",
+  },
+  {
+    icon: "🎓",
+    title: "Exam Readiness",
+    prompt: "Create a 5-question practice quiz based on the key exam topics in my notes.",
+  },
+  {
+    icon: "📊",
+    title: "Cross-Note Synthesis",
+    prompt: "Compare key differences and connections between my recent study materials.",
+  },
+  {
+    icon: "📝",
+    title: "Key Definitions & Formulas",
+    prompt: "Extract all key definitions, terms, and formulas into a structured bullet list.",
+  },
+];
+
 export default function TutorChat({
   documentId,
   basePath,
   outputLanguage = "English",
-  emptyTitle = "Ask the AI tutor",
-  emptyHint = 'Ask anything about this material — for example, "explain this concept in simple words".',
-  placeholder = "Type your question...",
+  emptyTitle = "What would you like to master today?",
+  emptyHint = "Ask anything — NoteGenie searches across your study materials to deliver grounded answers.",
+  placeholder = "Ask anything about your study notes, request a summary, or build a practice quiz...",
 }) {
-  // basePath lets this component serve both document-scoped (/tutor/:id) and the
-  // cross-document global tutor (/tutor/global).
   const base = basePath || `/tutor/${documentId}`;
   const confirm = useConfirm();
-  const [messages, setMessages] = useState([]);  const [input, setInput] = useState("");          // text box me likha hua sawal
-  const [streaming, setStreaming] = useState(false); // AI abhi jawab de raha hai?
-  const [loadingHistory, setLoadingHistory] = useState(true); // purani chat load ho rahi hai?
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyError, setHistoryError] = useState("");
-  const [clearing, setClearing] = useState(false);  const scrollRef = useRef(null);   // chat ko apne aap neeche scroll karne ke liye
-  const abortRef = useRef(null);    // chalu request ko beech me rokne ke liye
+  const [clearing, setClearing] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState(null);
+  const scrollRef = useRef(null);
+  const abortRef = useRef(null);
+  const textareaRef = useRef(null);
 
-  // Voice output: read assistant replies aloud (uses the browser TTS hook).
+  // Voice output TTS
   const { supported: ttsSupported, speaking, play: speak, stop: stopSpeak } = useSpeech();
   const [autoSpeak, setAutoSpeak] = useState(false);
   const autoSpeakRef = useRef(false);
   autoSpeakRef.current = autoSpeak;
 
-  // Voice input: dictate the question via the Web Speech Recognition API.
+  // Voice input STT
   const [sttSupported] = useState(
     () => typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
   );
@@ -78,6 +109,13 @@ export default function TutorChat({
     });
   }
 
+  function handleCopy(text, idx) {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 2000);
+  }
+
   useEffect(() => {
     let ignore = false;
     setLoadingHistory(true);
@@ -89,7 +127,6 @@ export default function TutorChat({
         const { data } = await api.get(`${base}/history`);
         if (!ignore) setMessages(data.messages || []);
       } catch (err) {
-        // 404 = abhi tak koi chat nahi (normal); baaki errors dikhate hain.
         if (!ignore && err?.response?.status !== 404) {
           setHistoryError(apiError(err));
         }
@@ -102,27 +139,31 @@ export default function TutorChat({
 
     return () => {
       ignore = true;
-      // Document change/unmount par chalu stream + voice cancel.
       abortRef.current?.abort();
       stopListening();
       stopSpeak();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base]);
 
-  // Jab bhi naya message aaye, chat ko sabse neeche scroll kar do.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  // send: user ka sawal backend ko bhejo aur jawab thoda-thoda dikhate jao.
-  async function send(e) {
-    e.preventDefault(); // form submit par page reload na ho
-    const question = input.trim();
-    if (!question || streaming) return; // khaali sawal ya pehle se chal raha hai to ruk jao
+  // Auto-grow textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+    }
+  }, [input]);
+
+  async function sendQuestion(questionText) {
+    const question = (questionText || input).trim();
+    if (!question || streaming) return;
 
     setMessages((m) => [...m, { role: "user", content: question }, { role: "assistant", content: "" }]);
     setInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     setStreaming(true);
     stopListening();
     if (ttsSupported) stopSpeak();
@@ -132,8 +173,6 @@ export default function TutorChat({
     abortRef.current = controller;
 
     try {
-      // Streaming ke liye fetch use karte hain (axios stream handle nahi karta easily).
-      // History server DB se leta hai, isliye yahan bhejne ki zaroorat nahi.
       const res = await fetch(apiUrl(base), {
         method: "POST",
         headers: {
@@ -164,7 +203,6 @@ export default function TutorChat({
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
         acc += chunk;
-        // Aakhri (assistant) message me chunk add karte jao.
         setMessages((m) => {
           const copy = [...m];
           copy[copy.length - 1] = {
@@ -174,10 +212,8 @@ export default function TutorChat({
           return copy;
         });
       }
-      // Auto-speak the finished reply if voice output is enabled.
       if (autoSpeakRef.current && acc.trim()) speak(markdownToPlainText(acc));
     } catch (err) {
-      // Abort (document change/unmount) par UI update mat karo.
       if (err.name === "AbortError") return;
       setMessages((m) => {
         const copy = [...m];
@@ -190,6 +226,13 @@ export default function TutorChat({
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
       setStreaming(false);
+    }
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendQuestion();
     }
   }
 
@@ -215,133 +258,201 @@ export default function TutorChat({
   }
 
   return (
-    <div className="flex min-h-[32rem] flex-col lg:min-h-[calc(100vh-22rem)]">
-      {(ttsSupported || messages.length > 0) && (
-        <div className="mb-2 flex items-center justify-between gap-2">
-          {ttsSupported ? (
+    <div className="flex h-full flex-1 flex-col rounded-3xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/90 overflow-hidden">
+      {/* Studio Header Bar */}
+      <div className="flex items-center justify-between border-b border-slate-100 px-6 py-3.5 dark:border-slate-800/80">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300">
+            <IconSparkles width={15} height={15} />
+          </span>
+          <div>
+            <p className="text-xs font-bold text-slate-900 dark:text-white">NoteGenie AI Tutor</p>
+            <p className="text-[10px] text-slate-400">Searching all active study materials</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {ttsSupported && (
             <button
               type="button"
               onClick={toggleAutoSpeak}
               aria-pressed={autoSpeak}
-              className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                autoSpeak ? "text-accent-600 dark:text-accent-400" : "text-muted hover:text-ink"
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                autoSpeak
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
               }`}
               title="Read tutor answers aloud"
             >
               <IconHeadphones width={14} height={14} />
-              {autoSpeak ? (speaking ? "Speaking…" : "Voice on") : "Voice off"}
+              <span>{autoSpeak ? (speaking ? "Speaking…" : "Voice On") : "Voice Off"}</span>
             </button>
-          ) : (
-            <span />
           )}
+
           {messages.length > 0 && (
             <button
               type="button"
               onClick={clearChat}
               disabled={streaming || clearing}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 transition"
             >
               {clearing ? <Spinner size={12} /> : <IconTrash width={14} height={14} />}
-              Clear chat
+              <span>Clear</span>
             </button>
           )}
         </div>
-      )}
-      <div ref={scrollRef} className="chat-scroll flex-1 space-y-4 overflow-y-auto p-1">
+      </div>
+
+      {/* Messages Canvas */}
+      <div ref={scrollRef} className="chat-scroll flex-1 overflow-y-auto px-6 py-6 space-y-6">
         {loadingHistory ? (
           <div className="flex h-full items-center justify-center">
             <Spinner size={24} />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center text-muted">
-            <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-accent-50 text-accent-600 dark:bg-accent-950/60 dark:text-accent-400">
-              <IconChat />
-            </span>
-            <p className="font-500 text-ink">{emptyTitle}</p>
-            <p className="mt-1 max-w-xs text-sm">{emptyHint}</p>
+          /* Handcrafted Landing Canvas (Empty State) */
+          <div className="flex h-full flex-col items-center justify-center text-center max-w-xl mx-auto space-y-5 py-2">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 px-3 py-0.5 text-[11px] font-semibold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <IconSparkles width={12} height={12} /> Global Study Copilot
+              </div>
+              <h2 className="font-display text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
+                {emptyTitle}
+              </h2>
+              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed dark:text-slate-400">
+                {emptyHint}
+              </p>
+            </div>
+
+            {/* 4 Prompt Cards Grid */}
+            <div className="grid gap-2.5 sm:grid-cols-2 w-full text-left">
+              {promptCategories.map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => sendQuestion(item.prompt)}
+                  className="group rounded-xl border border-slate-200 bg-slate-50/50 p-3 transition-all duration-200 hover:border-emerald-400 hover:bg-emerald-50/40 hover:shadow-2xs dark:border-slate-800 dark:bg-slate-950/40 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/30"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm">{item.icon}</span>
+                    <p className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">
+                      {item.title}
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-normal dark:text-slate-400 line-clamp-2">
+                    "{item.prompt}"
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
+          /* Active Chat Stream */
           messages.map((m, i) => (
-            <div
-              key={m.createdAt || `${m.role}-${i}`}
-              className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`rounded-2xl px-4 py-2.5 text-sm ${
-                  m.role === "user"
-                    ? "max-w-[85%] whitespace-pre-wrap bg-accent-600 text-white"
-                    : "max-w-[92%] border border-line bg-white text-ink shadow-sm lg:max-w-[85%]"
-                }`}
-              >
-                {m.role === "user" ? (
-                  m.content
-                ) : m.content ? (
-                  <MarkdownContent compact>{m.content}</MarkdownContent>
-                ) : (
-                  <Spinner size={14} />
-                )}
-              </div>
+            <div key={m.createdAt || `${m.role}-${i}`} className="space-y-2">
+              {m.role === "user" ? (
+                /* User Bubble */
+                <div className="flex justify-end">
+                  <div className="max-w-[80%] rounded-2xl bg-slate-900 px-4 py-3 text-xs font-medium leading-relaxed text-white shadow-xs dark:bg-emerald-600">
+                    {m.content}
+                  </div>
+                </div>
+              ) : (
+                /* AI Assistant Bubble */
+                <div className="flex items-start gap-3 max-w-[92%] lg:max-w-[85%]">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                    <IconSparkles width={14} height={14} />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-950/60">
+                      {m.content ? (
+                        <MarkdownContent compact>{m.content}</MarkdownContent>
+                      ) : (
+                        <div className="flex items-center gap-2 text-slate-400 text-xs py-1">
+                          <Spinner size={14} />
+                          <span>Synthesizing answer from notes…</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Toolbar */}
+                    {m.content && (
+                      <div className="flex items-center gap-3 px-1 text-[11px] font-medium text-slate-400">
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(m.content, i)}
+                          className="flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-200 transition"
+                        >
+                          {copiedIdx === i ? (
+                            <><IconCheck width={12} height={12} className="text-emerald-600" /> Copied</>
+                          ) : (
+                            "Copy"
+                          )}
+                        </button>
+                        {ttsSupported && (
+                          <button
+                            type="button"
+                            onClick={() => speak(markdownToPlainText(m.content))}
+                            className="hover:text-slate-700 dark:hover:text-slate-200 transition"
+                          >
+                            Listen
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}
       </div>
 
       {historyError && (
-        <div className="mt-2 flex items-center gap-2">
-          <p className="text-xs text-red-500">{historyError}</p>
-          <button
-            type="button"
-            className="text-xs font-500 text-accent-600 hover:underline dark:text-accent-400"
-            onClick={() => {
-              setHistoryError("");
-              setLoadingHistory(true);
-              api.get(`${base}/history`)
-                .then(({ data }) => setMessages(data.messages || []))
-                .catch((err) => {
-                  if (err?.response?.status !== 404) setHistoryError(apiError(err));
-                })
-                .finally(() => setLoadingHistory(false));
-            }}
-          >
-            Retry
-          </button>
+        <div className="px-6 py-1">
+          <p className="text-xs text-rose-500">{historyError}</p>
         </div>
       )}
 
-      <form onSubmit={send} className="mt-3 flex items-center gap-2 border-t border-line pt-3">
-        <label htmlFor="tutor-input" className="sr-only">
-          Ask the tutor a question
-        </label>
-        <input
-          id="tutor-input"
-          className="input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={listening ? "Listening… speak now" : placeholder}
-          disabled={streaming}
-        />
-        {sttSupported && (
-          <button
-            type="button"
-            onClick={toggleListen}
+      {/* Floating Capsule Command Dock */}
+      <div className="p-4 bg-slate-50/50 border-t border-slate-100 dark:bg-slate-950/30 dark:border-slate-800">
+        <form onSubmit={(e) => { e.preventDefault(); sendQuestion(); }} className="relative flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 dark:border-slate-800 dark:bg-slate-900">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={listening ? "Listening… speak now" : placeholder}
             disabled={streaming}
-            aria-pressed={listening}
-            aria-label={listening ? "Stop dictation" : "Dictate your question"}
-            title={listening ? "Stop dictation" : "Dictate your question"}
-            className={`btn-ghost rounded-lg p-2.5 ${listening ? "animate-pulse text-red-600 dark:text-red-400" : "text-muted hover:text-ink"}`}
-          >
-            <IconMic width={18} height={18} />
-          </button>
-        )}
-        <button
-          className="btn-primary px-3"
-          disabled={streaming || !input.trim()}
-          aria-label="Send message"
-        >
-          <IconSend />
-        </button>
-      </form>
+            className="flex-1 resize-none bg-transparent px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white"
+          />
+
+          <div className="flex items-center gap-1 shrink-0 pb-1">
+            {sttSupported && (
+              <button
+                type="button"
+                onClick={toggleListen}
+                disabled={streaming}
+                title={listening ? "Stop dictation" : "Dictate question"}
+                className={`rounded-xl p-2 transition ${
+                  listening ? "animate-pulse bg-rose-50 text-rose-600" : "text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                }`}
+              >
+                <IconMic width={16} height={16} />
+              </button>
+            )}
+
+            <button
+              type="submit"
+              disabled={streaming || !input.trim()}
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 text-white transition hover:bg-emerald-500 disabled:opacity-40"
+            >
+              <IconSend width={14} height={14} />
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
-

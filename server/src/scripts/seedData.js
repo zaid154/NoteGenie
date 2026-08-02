@@ -4,6 +4,7 @@
 // Run: npm run seed   (from project root or server folder)
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
 import mongoose from "mongoose";
@@ -210,6 +211,11 @@ const ALL_UNIVERSITIES_DATA = [
           ["BCS-040", "Statistical Techniques"],
           ["MCS-012", "Computer Organisation and Assembly Language Programming"],
           ["BCSL-013", "Computer Basics and PC Software Lab"],
+          ["BCS-053", "Web Programming"],
+          ["BCS-054", "Computer Oriented Numerical Techniques"],
+          ["BCS-055", "Business Communication"],
+          ["MCS-021", "Data and File Structures"],
+          ["MCS-022", "Operating System Concepts and Networking Management"],
         ]
       },
       {
@@ -438,76 +444,97 @@ async function seedUsers() {
 // resources (marked by a "seed-demo-" fileName prefix) are removed first, so re-running the
 // seed never duplicates them and never touches real admin-uploaded resources.
 async function seedResources(allCourses, users) {
-  const TARGET = 300;
-
+  const seedFilesDir = path.join(__dirname, "seed_files");
+  
   const del = await Resource.deleteMany({ fileName: { $regex: "^seed-demo-" } });
   if (del.deletedCount) console.log(`[seed] Removed ${del.deletedCount} previously-seeded resources`);
 
-  if (!allCourses.length) {
-    console.log("[seed] No courses to attach resources to — skipping resources");
+  if (!fs.existsSync(seedFilesDir)) {
+    console.log("[seed] No seed_files directory found, skipping real file seed.");
     return [];
   }
 
-  const SESSIONS = ["June 2024", "December 2024", "June 2025", "December 2025"];
-  // Per course: 3 free + 2 paid → store stays "mostly free" as intended.
-  const TEMPLATES = [
-    { type: "notes", label: "Study Notes", paid: false, price: 0 },
-    { type: "question_paper", label: "Previous Year Question Papers (Last 5 Years)", paid: false, price: 0 },
-    { type: "assignment", label: "Assignment Questions", paid: false, price: 0, sessioned: true },
-    { type: "solved_assignment", label: "Solved Assignment (Handwritten + PDF)", paid: true, price: 9900, sessioned: true },
-    { type: "guide", label: "Help Book & Exam Guide", paid: true, price: 14900 },
-  ];
-
-  // Generate + upload one real sample PDF per type so every product actually downloads a file.
-  const fileByType = {};
-  for (const t of TEMPLATES) {
-    if (fileByType[t.type]) continue;
-    try {
-      const pdf = await buildSamplePdf(`Sample · ${t.label}`, t.type);
-      fileByType[t.type] = await uploadBuffer(pdf, { filename: `sample-${t.type}.pdf`, mime: "application/pdf" });
-    } catch (e) {
-      console.warn(`[seed] Could not upload sample PDF for ${t.type}: ${e.message}`);
-    }
+  const files = fs.readdirSync(seedFilesDir).filter(f => f.endsWith('.pdf'));
+  if (files.length === 0) {
+    console.log("[seed] No PDF files in seed_files, skipping real file seed.");
+    return [];
   }
 
   const docs = [];
   let i = 0;
-  for (const c of allCourses) {
-    for (const t of TEMPLATES) {
-      if (docs.length >= TARGET) break;
-      const session = t.sessioned ? SESSIONS[i % SESSIONS.length] : "";
-      const year = session ? session.split(" ")[1] : "";
+  
+  // Find generic courses to fallback
+  const fallbackCourse = allCourses[0]; 
+  const bcaCourses = allCourses.filter(c => c.code.includes('BCS') || c.code.includes('MCS'));
+  const bcomCourses = allCourses.filter(c => c.code.includes('BCOC'));
+
+  for (const file of files) {
+    const filePath = path.join(seedFilesDir, file);
+    const buffer = fs.readFileSync(filePath);
+    
+    // Determine type and course based on filename
+    let type = "notes";
+    let course = fallbackCourse;
+    
+    const lowerName = file.toLowerCase();
+    
+    if (lowerName.includes("assignment") || lowerName.includes("b.com")) {
+      type = "assignment";
+      if (lowerName.includes("b.com")) course = bcomCourses[i % bcomCourses.length] || fallbackCourse;
+      else course = bcaCourses[i % bcaCourses.length] || fallbackCourse;
+    } else if (lowerName.includes("bcs-") || lowerName.includes("mcs-")) {
+      type = "question_paper";
+      const codeMatch = file.match(/(BCS|MCS)[\s\-]?[0-9]{3}/i);
+      if (codeMatch) {
+         const codeStr = codeMatch[0].replace(/\s+/, '-').toUpperCase();
+         const matchedCourse = allCourses.find(c => c.code === codeStr);
+         if (matchedCourse) course = matchedCourse;
+         else course = bcaCourses[i % bcaCourses.length] || fallbackCourse;
+      } else {
+         course = bcaCourses[i % bcaCourses.length] || fallbackCourse;
+      }
+    } else {
+      type = "guide";
+    }
+
+    try {
+      const uploaded = await uploadBuffer(buffer, { filename: `seed-demo-${file}`, mime: "application/pdf" });
+      
+      const isPaid = (i % 3 === 0); // make every 3rd paid
+      const price = isPaid ? 4900 : 0; // 49 INR
+
       docs.push({
         uploadedBy: users.admin._id,
-        universityId: c.universityId,
-        programId: c.programId,
-        courseId: c._id,
-        courseCode: c.code,
-        resourceType: t.type,
-        title: `${c.code} ${c.name} — ${t.label}${session ? ` (${session})` : ""}`,
-        description: `${t.label} for ${c.code} (${c.name}), IGNOU. ${t.paid ? "Premium instant download." : "Free instant download."}`,
-        year,
-        session,
-        isPaid: t.paid,
-        price: t.paid ? t.price : 0,
+        universityId: course.universityId,
+        programId: course.programId,
+        courseId: course._id,
+        courseCode: course.code,
+        resourceType: type,
+        title: file.replace('.pdf', '').substring(0, 100), // Enforce title length limits if any
+        description: `Authentic ${type} for ${course.code}.`,
+        year: "2025",
+        session: "July 2025",
+        isPaid,
+        price,
         currency: "INR",
-        fileName: `seed-demo-${c.code}-${t.type}-${i}.pdf`,
-        storageProvider: fileByType[t.type]?.provider || "gridfs",
-        storageKey: fileByType[t.type]?.key || "",
-        mime: "application/pdf",
-        size: fileByType[t.type]?.size || 1024 * 300,
-        pages: 16 + ((i * 7) % 120),                   // 16–135 pages
-        downloadCount: (i * 37) % 600,                 // varies popularity for "Most downloaded"
+        fileName: `seed-demo-${file}`,
+        storageProvider: uploaded.provider,
+        storageKey: uploaded.key,
+        mime: uploaded.mime,
+        size: uploaded.size,
+        pages: 10 + (i % 20), 
+        downloadCount: (i * 10) % 100,
         isActive: true,
       });
       i++;
+    } catch (e) {
+      console.warn(`[seed] Could not upload real file ${file}: ${e.message}`);
     }
-    if (docs.length >= TARGET) break;
   }
 
   const inserted = await Resource.insertMany(docs);
   const free = inserted.filter((r) => !r.isPaid).length;
-  console.log(`\n[seed] Created ${inserted.length} store resources (${free} free, ${inserted.length - free} paid)`);
+  console.log(`\n[seed] Created ${inserted.length} store resources from real files (${free} free, ${inserted.length - free} paid)`);
   return inserted;
 }
 

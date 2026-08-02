@@ -9,7 +9,7 @@ import { Alert, Spinner } from "../components/ui.jsx";
 import { IconUser, IconMail, IconLock, IconChevronRight } from "../components/icons.jsx";
 
 export default function Register() {
-  const { register } = useAuth();
+  const { registerAndHandle } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -57,9 +57,14 @@ export default function Register() {
     if (!validate()) return;
     setLoading(true);
     try {
-      await register(form.name.trim(), form.email, form.password);
+      const result = await registerAndHandle(form.name.trim(), form.email, form.password);
+      if (result.autoLoggedIn) {
+        toast("Your account is ready!", "success");
+        navigate(result.user?.role === "admin" || result.user?.role === "staff" ? "/admin" : "/app", { replace: true });
+        return;
+      }
       toast("We sent a 6-digit code to your email. Enter it to finish signing up.", "success");
-      navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, { replace: true });
+      navigate(`/verify-email?email=${encodeURIComponent(result.email || form.email)}`, { replace: true });
     } catch (err) {
       setError(apiError(err));
     } finally {

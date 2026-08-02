@@ -196,13 +196,23 @@ export default function WorkspaceDetail() {
       </div>
 
       <div className="panel p-5 shadow-soft">
-        <p className="mb-3 text-sm font-semibold text-ink">Shared materials ({docs.length})</p>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-sm font-semibold text-ink">Shared materials ({docs.length})</p>
+          <Link to="/upload" className="btn-primary text-xs py-1.5">
+            + Upload new material
+          </Link>
+        </div>
         {docs.length === 0 ? (
           <EmptyState
             compact
             icon={IconUsers}
             title="Nothing shared yet"
-            subtitle="Open one of your materials and use “Share to workspace”."
+            subtitle="Upload a new PDF for this workspace or open an existing material and click 'Share to workspace'."
+            action={
+              <Link to="/upload" className="btn-primary mt-3 text-xs">
+                Upload material now
+              </Link>
+            }
           />
         ) : (
           <ul className="divide-y divide-line">

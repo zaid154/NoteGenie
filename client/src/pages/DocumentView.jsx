@@ -406,173 +406,111 @@ export default function DocumentView() {
         {doc.summary && (
           <MarkdownContent className="text-muted">{doc.summary}</MarkdownContent>
         )}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          {isOwner && (
-            <>
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {isOwner && (
               <input
-                className="input max-w-[200px] py-1.5 text-sm"
-                placeholder="Folder"
+                className="input max-w-[160px] py-1.5 text-xs"
+                placeholder="+ Add Folder"
                 value={folder}
                 onChange={(e) => setFolder(e.target.value)}
                 onBlur={saveFolder}
                 list="folder-suggestions"
               />
-              <datalist id="folder-suggestions">
-                {folders.map((f) => <option key={f} value={f} />)}
-              </datalist>
-            </>
-          )}
-          <select
-            className="input max-w-[160px] py-1.5 text-sm"
-            value={outputLanguage}
-            onChange={(e) => setOutputLanguage(e.target.value)}
-            title="Output language for regenerate, quiz, and tutor"
-            aria-label="Output language"
-          >
-            {OUTPUT_LANGUAGES.map((lang) => (
-              <option key={lang} value={lang}>{lang}</option>
-            ))}
-          </select>
-          <select
-            className="input max-w-[140px] py-1.5 text-sm"
-            value={detailLevel}
-            onChange={(e) => setDetailLevel(e.target.value)}
-            title="Note depth for regenerate"
-            aria-label="Note depth"
-          >
-            {DETAIL_LEVELS.map(({ id, label }) => (
-              <option key={id} value={id}>{label}</option>
-            ))}
-          </select>
-          <div className="ml-auto flex flex-wrap gap-2">
+            )}
+            <datalist id="folder-suggestions">
+              {folders.map((f) => <option key={f} value={f} />)}
+            </datalist>
+
             {isOwner && workspaces.length > 0 && (
               <select
-                className="input max-w-[200px] py-1.5 text-sm"
+                className="input max-w-[170px] py-1.5 text-xs"
                 value={docWorkspaceId}
                 onChange={(e) => changeWorkspace(e.target.value)}
                 title="Share this material to a workspace"
                 aria-label="Share to workspace"
               >
-                <option value="">Not in a workspace</option>
+                <option value="">No workspace</option>
                 {workspaces.map((w) => (
                   <option key={w._id} value={w._id}>
-                    Share to: {w.name}
+                    Workspace: {w.name}
                   </option>
                 ))}
               </select>
             )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Export Actions */}
+            <div className="inline-flex rounded-lg border border-line bg-surface p-0.5">
+              <button
+                type="button"
+                onClick={exportNotes}
+                className="btn-ghost px-2.5 py-1 text-xs font-semibold"
+                title="Download Markdown"
+              >
+                <IconDownload width={13} height={13} /> MD
+              </button>
+              <button
+                type="button"
+                onClick={exportPdf}
+                className="btn-ghost px-2.5 py-1 text-xs font-semibold border-l border-line"
+              >
+                PDF
+              </button>
+              <button
+                type="button"
+                onClick={exportAnki}
+                className="btn-ghost px-2.5 py-1 text-xs font-semibold border-l border-line"
+              >
+                Anki
+              </button>
+            </div>
+
             {isOwner && (
               <>
                 <button
                   type="button"
                   onClick={toggleShare}
-                  className={`btn-outline text-sm ${shareEnabled ? "border-accent-300 text-accent-600" : ""}`}
+                  className={`btn-outline py-1.5 text-xs ${shareEnabled ? "border-accent-300 text-accent-600" : ""}`}
                   disabled={sharing}
                 >
-                  {sharing ? <Spinner size={16} /> : <IconShare width={16} height={16} />}
+                  {sharing ? <Spinner size={14} /> : <IconShare width={14} height={14} />}
                   {shareEnabled ? "Sharing on" : "Share"}
                 </button>
                 {shareEnabled && shareUrl && (
-                  <button type="button" onClick={copyShareLink} className="btn-outline text-sm">
+                  <button type="button" onClick={copyShareLink} className="btn-outline py-1.5 text-xs">
                     Copy link
                   </button>
                 )}
-                <button onClick={handleRegenerate} className="btn-outline text-sm" disabled={regenerating}>
-                  {regenerating ? <Spinner size={16} /> : <IconSparkles width={16} height={16} />}
+                <button onClick={handleRegenerate} className="btn-outline py-1.5 text-xs" disabled={regenerating}>
+                  {regenerating ? <Spinner size={14} /> : <IconSparkles width={14} height={14} />}
                   Regenerate
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="btn-outline py-1.5 text-xs text-red-600 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  title="Delete material"
+                >
+                  {deleting ? <Spinner size={14} /> : <IconTrash width={14} height={14} />}
                 </button>
               </>
             )}
-            <button onClick={exportNotes} className="btn-outline text-sm" title="Markdown">
-              <IconDownload width={16} height={16} /> MD
-            </button>
-            <button onClick={exportPdf} className="btn-outline text-sm">PDF</button>
-            <button onClick={exportAnki} className="btn-outline text-sm">Anki</button>
-            {isOwner && (
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="btn-outline text-sm text-red-600 hover:border-red-300"
-                title="Delete all content"
-              >
-                {deleting ? <Spinner size={16} /> : <IconTrash width={16} height={16} />}
-                Delete
-              </button>
-            )}
           </div>
         </div>
-        {isOwner ? (
-          <div className="pt-2">
-            <p className="label mb-2">Tags</p>
+
+        {isOwner && (
+          <div className="pt-1">
             <TagInput tags={tags} onChange={saveTags} />
           </div>
-        ) : tags.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5 pt-2">
-            {tags.map((t) => (
-              <Badge key={t} color="gray">{t}</Badge>
-            ))}
-          </div>
-        ) : null}
+        )}
       </header>
 
       <GenerationBanner
         loading={generatingCards && (doc.flashcards?.length ?? 0) === 0}
         message="Building your first 5 flashcards from your notes…"
       />
-
-      <div className="panel p-5">
-        <p className="text-sm font-semibold text-ink">Generate quiz</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label">Difficulty</label>
-            <div className="flex gap-2">
-              {["easy", "medium", "hard"].map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setDifficulty(d)}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-sm capitalize transition ${
-                    difficulty === d
-                      ? "border-accent-600 bg-accent-50 text-accent-700 dark:bg-accent-950/50 dark:text-accent-300"
-                      : "border-line text-muted hover:border-slate-300"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="label">Questions: {questionCount}</label>
-            <input
-              type="range"
-              min={3}
-              max={25}
-              value={questionCount}
-              onChange={(e) => setQuestionCount(Number(e.target.value))}
-              className="w-full accent-accent-600"
-            />
-            <div className="mt-2 flex gap-2">
-              {[5, 10, 15, 20].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setQuestionCount(n)}
-                  className={`rounded-md border px-2 py-0.5 text-xs ${
-                    questionCount === n ? "border-accent-600 bg-accent-50 text-accent-700 dark:bg-accent-950/50 dark:text-accent-300" : "border-line text-muted"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        <button onClick={generateQuiz} className="btn-primary mt-4" disabled={makingQuiz}>
-          {makingQuiz ? <><Spinner /> Generating...</> : <><IconSparkles width={16} height={16} /> Start quiz</>}
-        </button>
-        {error && <div className="mt-3"><Alert>{error}</Alert></div>}
-      </div>
 
       <div className="sticky top-0 z-10 -mx-1 flex gap-6 border-b border-line bg-surface/95 px-1 backdrop-blur-sm">
         {tabs.map(({ id: tid, label, icon: Icon }) => (
@@ -629,7 +567,7 @@ export default function DocumentView() {
                     )}
                   </div>
                 )}
-                <div className="grid lg:grid-cols-[220px_1fr]">
+                <div className={noteSections.length > 0 ? "grid lg:grid-cols-[220px_1fr]" : "w-full"}>
                   {noteSections.length > 0 && (
                     <div className="hidden border-r border-line p-4 lg:block">
                       <div className="sticky top-24">
