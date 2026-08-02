@@ -440,107 +440,136 @@ async function seedUsers() {
   return { admin, demoUser, premiumUser, freeUser };
 }
 
-// Generates ~150 store products across the given courses. Idempotent: previously-seeded
+// Generates store products across the given courses. Idempotent: previously-seeded
 // resources (marked by a "seed-demo-" fileName prefix) are removed first, so re-running the
 // seed never duplicates them and never touches real admin-uploaded resources.
+// Falls back to virtual placeholder resources if no seed_files/ directory exists.
 async function seedResources(allCourses, users) {
   const seedFilesDir = path.join(__dirname, "seed_files");
-  
+
   const del = await Resource.deleteMany({ fileName: { $regex: "^seed-demo-" } });
   if (del.deletedCount) console.log(`[seed] Removed ${del.deletedCount} previously-seeded resources`);
 
-  if (!fs.existsSync(seedFilesDir)) {
-    console.log("[seed] No seed_files directory found, skipping real file seed.");
-    return [];
+  // ── Try seeding from real PDF files first ──────────────────────────────
+  if (fs.existsSync(seedFilesDir)) {
+    const files = fs.readdirSync(seedFilesDir).filter(f => f.endsWith('.pdf'));
+    if (files.length > 0) {
+      const docs = [];
+      let i = 0;
+      const fallbackCourse = allCourses[0];
+      const bcaCourses = allCourses.filter(c => c.code.includes('BCS') || c.code.includes('MCS'));
+      const bcomCourses = allCourses.filter(c => c.code.includes('BCOC'));
+
+      for (const file of files) {
+        const filePath = path.join(seedFilesDir, file);
+        const buffer = fs.readFileSync(filePath);
+        let type = "notes";
+        let course = fallbackCourse;
+        const lowerName = file.toLowerCase();
+        if (lowerName.includes("assignment") || lowerName.includes("b.com")) {
+          type = "assignment";
+          if (lowerName.includes("b.com")) course = bcomCourses[i % bcomCourses.length] || fallbackCourse;
+          else course = bcaCourses[i % bcaCourses.length] || fallbackCourse;
+        } else if (lowerName.includes("bcs-") || lowerName.includes("mcs-")) {
+          type = "question_paper";
+          const codeMatch = file.match(/(BCS|MCS)[\s-]?[0-9]{3}/i);
+          if (codeMatch) {
+            const codeStr = codeMatch[0].replace(/\s+/, '-').toUpperCase();
+            const matchedCourse = allCourses.find(c => c.code === codeStr);
+            if (matchedCourse) course = matchedCourse;
+            else course = bcaCourses[i % bcaCourses.length] || fallbackCourse;
+          } else {
+            course = bcaCourses[i % bcaCourses.length] || fallbackCourse;
+          }
+        } else {
+          type = "guide";
+        }
+        try {
+          const uploaded = await uploadBuffer(buffer, { filename: `seed-demo-${file}`, mime: "application/pdf" });
+          const isPaid = (i % 3 === 0);
+          const price = isPaid ? 4900 : 0;
+          docs.push({
+            uploadedBy: users.admin._id, universityId: course.universityId, programId: course.programId,
+            courseId: course._id, courseCode: course.code, resourceType: type,
+            title: file.replace('.pdf', '').substring(0, 100),
+            description: `Authentic ${type} for ${course.code}.`,
+            year: "2025", session: "July 2025", isPaid, price, currency: "INR",
+            fileName: `seed-demo-${file}`, storageProvider: uploaded.provider,
+            storageKey: uploaded.key, mime: uploaded.mime, size: uploaded.size,
+            pages: 10 + (i % 20), downloadCount: (i * 10) % 100, isActive: true,
+          });
+          i++;
+        } catch (e) {
+          console.warn(`[seed] Could not upload real file ${file}: ${e.message}`);
+        }
+      }
+      const inserted = await Resource.insertMany(docs);
+      const free = inserted.filter((r) => !r.isPaid).length;
+      console.log(`\n[seed] Created ${inserted.length} store resources from real files (${free} free, ${inserted.length - free} paid)`);
+      return inserted;
+    }
   }
 
-  const files = fs.readdirSync(seedFilesDir).filter(f => f.endsWith('.pdf'));
-  if (files.length === 0) {
-    console.log("[seed] No PDF files in seed_files, skipping real file seed.");
-    return [];
-  }
+  // ── Fallback: create virtual sample resources (no real files) ──────────
+  console.log("[seed] No seed_files found — creating virtual sample resources...");
+  const findCourse = (code) => allCourses.find((c) => c.code === code) || allCourses[0];
+
+  const VIRTUAL = [
+    // Notes
+    { code: "BCS-011", type: "notes", title: "BCS-011 Complete Handwritten Notes", desc: "Topic-wise handwritten notes — OS, hardware, networking, MS Office. Neat diagrams.", paid: false, price: 0, pages: 68, dl: 1240 },
+    { code: "MCS-011", type: "notes", title: "MCS-011 Problem Solving & Programming Notes", desc: "C programming, flowcharts, algorithms, arrays, pointers. Important questions marked.", paid: false, price: 0, pages: 52, dl: 890 },
+    { code: "MHI-01", type: "notes", title: "MHI-01 Ancient & Medieval Societies Notes", desc: "Summary notes — Greek, Roman, Indian, Chinese civilisations. Exam-oriented.", paid: false, price: 0, pages: 44, dl: 530 },
+    { code: "BCOC-131", type: "notes", title: "BCOC-131 Financial Accounting Notes", desc: "Chapter-wise typed notes with solved illustrations. Journal, ledger, trial balance.", paid: false, price: 0, pages: 92, dl: 710 },
+    { code: "MEG-01", type: "notes", title: "MEG-01 British Poetry Notes", desc: "Comprehensive notes on Chaucer, Shakespeare, Romantic & Victorian poetry.", paid: false, price: 0, pages: 60, dl: 420 },
+    // Solved Assignments
+    { code: "BCS-011", type: "solved_assignment", title: "BCS-011 Solved Assignment 2024-25", desc: "100% solved. Neatly handwritten PDF for July 2024 & Jan 2025.", paid: false, price: 0, pages: 24, dl: 3420 },
+    { code: "BCS-012", type: "solved_assignment", title: "BCS-012 Basic Maths Solved Assignment", desc: "Step-by-step working. Sets, matrices, calculus, trigonometry.", paid: false, price: 0, pages: 30, dl: 2810 },
+    { code: "MHI-04", type: "solved_assignment", title: "MHI-04 Solved Assignment — Jan 2025", desc: "Handwritten solved assignment. All questions covered.", paid: false, price: 0, pages: 20, dl: 1420 },
+    { code: "MMPC-001", type: "solved_assignment", title: "MMPC-001 Solved Assignment — MBA 2025", desc: "Theory + case-study answers for Management Functions.", paid: true, price: 4900, pages: 28, dl: 670 },
+    { code: "BCOC-132", type: "solved_assignment", title: "BCOC-132 Business Organisation Solved Assignment", desc: "B.Com IGNOU — July 2024 & January 2025.", paid: false, price: 0, pages: 22, dl: 1560 },
+    { code: "MMPC-002", type: "solved_assignment", title: "MMPC-002 HRM Solved Assignment 2025", desc: "Complete MBA HRM solved assignment.", paid: true, price: 4900, pages: 26, dl: 480 },
+    // Question Papers
+    { code: "BCS-011", type: "question_paper", title: "BCS-011 Question Paper — June 2024 TEE", desc: "Original term-end exam paper. Scanned PDF.", paid: false, price: 0, pages: 4, dl: 4200 },
+    { code: "BCS-011", type: "question_paper", title: "BCS-011 Question Paper — Dec 2023 TEE", desc: "Previous year term-end exam paper.", paid: false, price: 0, pages: 4, dl: 3800 },
+    { code: "MCS-013", type: "question_paper", title: "MCS-013 Discrete Maths — Last 5 Years Papers", desc: "Compiled papers from 2019 to 2024.", paid: false, price: 0, pages: 20, dl: 1560 },
+    { code: "MHI-01", type: "question_paper", title: "MHI-01 Question Paper — June 2024", desc: "TEE question paper for MA History.", paid: false, price: 0, pages: 3, dl: 920 },
+    { code: "BCOC-131", type: "question_paper", title: "BCOC-131 Last 3 Years Papers", desc: "Compiled TEE papers for Financial Accounting B.Com.", paid: false, price: 0, pages: 12, dl: 1100 },
+    // Projects & Synopsis
+    { code: "BCSL-013", type: "project", title: "BCA Lab Project — Library Management System", desc: "Complete C project with source code, docs, synopsis, viva questions.", paid: true, price: 14900, pages: null, dl: 320 },
+    { code: "MCS-011", type: "project", title: "MCA Project — Online Quiz Application", desc: "Full-stack React + Node project. Synopsis, SRS, source, report.", paid: true, price: 29900, pages: null, dl: 185 },
+    { code: "BCS-040", type: "synopsis", title: "BCA Synopsis — E-Commerce Website", desc: "Ready-made synopsis for BCA final year project.", paid: true, price: 9900, pages: 18, dl: 450 },
+    { code: "BCS-053", type: "project", title: "BCA Project — Student Portal (PHP + MySQL)", desc: "Working student portal with admin dashboard, source code, DB dump.", paid: true, price: 19900, pages: null, dl: 260 },
+    // Help Books & Guides
+    { code: "BCS-011", type: "guide", title: "BCS-011 Exam Guide — Neeraj Publications", desc: "Chapter-wise solved previous-year questions and model answers.", paid: true, price: 19900, pages: 180, dl: 1100 },
+    { code: "MMPC-001", type: "book", title: "MMPC-001 Management Functions — GPH Help Book", desc: "Help book with solved papers, theory notes, important Q&A.", paid: true, price: 24900, pages: 240, dl: 780 },
+    { code: "BEGLA-135", type: "guide", title: "BEGLA-135 English in Daily Life — Study Guide", desc: "Grammar tips, letter formats, solved exercises.", paid: false, price: 0, pages: 75, dl: 640 },
+    { code: "MEG-05", type: "guide", title: "MEG-05 Literary Criticism & Theory Guide", desc: "All schools of criticism from Aristotle to post-structuralism.", paid: true, price: 14900, pages: 140, dl: 350 },
+  ];
 
   const docs = [];
-  let i = 0;
-  
-  // Find generic courses to fallback
-  const fallbackCourse = allCourses[0]; 
-  const bcaCourses = allCourses.filter(c => c.code.includes('BCS') || c.code.includes('MCS'));
-  const bcomCourses = allCourses.filter(c => c.code.includes('BCOC'));
-
-  for (const file of files) {
-    const filePath = path.join(seedFilesDir, file);
-    const buffer = fs.readFileSync(filePath);
-    
-    // Determine type and course based on filename
-    let type = "notes";
-    let course = fallbackCourse;
-    
-    const lowerName = file.toLowerCase();
-    
-    if (lowerName.includes("assignment") || lowerName.includes("b.com")) {
-      type = "assignment";
-      if (lowerName.includes("b.com")) course = bcomCourses[i % bcomCourses.length] || fallbackCourse;
-      else course = bcaCourses[i % bcaCourses.length] || fallbackCourse;
-    } else if (lowerName.includes("bcs-") || lowerName.includes("mcs-")) {
-      type = "question_paper";
-      const codeMatch = file.match(/(BCS|MCS)[\s\-]?[0-9]{3}/i);
-      if (codeMatch) {
-         const codeStr = codeMatch[0].replace(/\s+/, '-').toUpperCase();
-         const matchedCourse = allCourses.find(c => c.code === codeStr);
-         if (matchedCourse) course = matchedCourse;
-         else course = bcaCourses[i % bcaCourses.length] || fallbackCourse;
-      } else {
-         course = bcaCourses[i % bcaCourses.length] || fallbackCourse;
-      }
-    } else {
-      type = "guide";
-    }
-
-    try {
-      const uploaded = await uploadBuffer(buffer, { filename: `seed-demo-${file}`, mime: "application/pdf" });
-      
-      const isPaid = (i % 3 === 0); // make every 3rd paid
-      const price = isPaid ? 4900 : 0; // 49 INR
-
-      docs.push({
-        uploadedBy: users.admin._id,
-        universityId: course.universityId,
-        programId: course.programId,
-        courseId: course._id,
-        courseCode: course.code,
-        resourceType: type,
-        title: file.replace('.pdf', '').substring(0, 100), // Enforce title length limits if any
-        description: `Authentic ${type} for ${course.code}.`,
-        year: "2025",
-        session: "July 2025",
-        isPaid,
-        price,
-        currency: "INR",
-        fileName: `seed-demo-${file}`,
-        storageProvider: uploaded.provider,
-        storageKey: uploaded.key,
-        mime: uploaded.mime,
-        size: uploaded.size,
-        pages: 10 + (i % 20), 
-        downloadCount: (i * 10) % 100,
-        isActive: true,
-      });
-      i++;
-    } catch (e) {
-      console.warn(`[seed] Could not upload real file ${file}: ${e.message}`);
-    }
+  for (const v of VIRTUAL) {
+    const course = findCourse(v.code);
+    const ext = v.type === "project" ? ".zip" : ".pdf";
+    const mime = v.type === "project" ? "application/zip" : "application/pdf";
+    docs.push({
+      uploadedBy: users.admin._id, universityId: course.universityId, programId: course.programId,
+      courseId: course._id, courseCode: course.code, resourceType: v.type,
+      title: v.title, description: v.desc,
+      year: v.title.match(/20\d{2}/)?.[0] || "2024", session: "2024-25",
+      isPaid: v.paid, price: v.price, currency: "INR",
+      fileName: `seed-demo-${v.code.toLowerCase()}-${v.type}${ext}`,
+      storageProvider: "gridfs", storageKey: "", mime,
+      size: (v.pages || 30) * 45000, pages: v.pages,
+      downloadCount: v.dl, isActive: true,
+    });
   }
 
   const inserted = await Resource.insertMany(docs);
-  const free = inserted.filter((r) => !r.isPaid).length;
-  console.log(`\n[seed] Created ${inserted.length} store resources from real files (${free} free, ${inserted.length - free} paid)`);
+  const freeCount = inserted.filter((r) => !r.isPaid).length;
+  console.log(`\n[seed] Created ${inserted.length} virtual store resources (${freeCount} free, ${inserted.length - freeCount} paid)`);
   return inserted;
 }
 
-// Builds a few demo combo packs from the generated resources. Idempotent: removes its own
-// combos (matched by slug) first so re-running the seed doesn't pile up duplicates.
-// Note: the Combo schema requires `title` + a unique `slug` (NOT name/image).
 async function seedCombos(resources, users) {
   const COMBOS = [
     {

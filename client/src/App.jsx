@@ -13,7 +13,6 @@ import { useFeatures } from "./lib/useStorefront.js";
 import { PageLoader, PageShellSkeleton } from "./components/ui.jsx";
 import Layout from "./components/Layout.jsx";
 import AdminLayout from "./components/AdminLayout.jsx";
-import OnboardingWizard from "./components/OnboardingWizard.jsx";
 
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
@@ -195,6 +194,9 @@ export default function App() {
     <Suspense fallback={<PageLoader />}>
       <Routes>
       <Route path="/pricing" element={<Pricing />} />
+      <Route path="/checkout" element={<ProtectedCheckout><Checkout /></ProtectedCheckout>} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="/refund" element={<Refund />} />
       <Route path="/share/:token" element={<ShareView />} />
 

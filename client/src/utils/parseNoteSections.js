@@ -34,7 +34,7 @@ export function parseNoteSections(notes = "") {
     const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
 
     // Match Bold Header Lines: e.g. **1. Overview** or **Key Concepts:**
-    const boldHeaderMatch = !headingMatch && trimmed.match(/^\*\*(?:(?:\d+[\.\)]\s*)|(?:Section\s+\d+:?\s*))?(.+?)\*\*:?$/i);
+    const boldHeaderMatch = !headingMatch && trimmed.match(/^\*\*(?:(?:\d+[.)]\s*)|(?:Section\s+\d+:?\s*))?(.+?)\*\*:?$/i);
 
     // Match Colon Header Lines: e.g. "Technical Skills:", "Education & Qualifications:"
     const colonHeaderMatch = !headingMatch && !boldHeaderMatch && trimmed.match(/^([A-Z][A-Za-z0-9\s&/\\-]{2,45}):$/);
@@ -57,7 +57,7 @@ export function parseNoteSections(notes = "") {
               : upperMatch[1];
 
       let cleanTitle = rawTitle
-        ? rawTitle.replace(/[*`_#><|]/g, "").replace(/[:\-]{2,}/g, "").replace(/\\r|\\n|\r|\n/g, " ").trim()
+        ? rawTitle.replace(/[*`_#><|]/g, "").replace(/[:-]{2,}/g, "").replace(/\\r|\\n|\r|\n/g, " ").trim()
         : "";
 
       // Skip markdown table rows or dividers

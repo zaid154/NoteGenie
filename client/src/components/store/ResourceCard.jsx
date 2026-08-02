@@ -14,6 +14,13 @@ import { typeVisual, DOT_PATTERN } from "../../lib/resourceVisuals.js";
 // Downloads at/above this count earn a "Popular" chip — a zero-backend social-proof signal.
 const POPULAR_THRESHOLD = 200;
 
+function displayTitle(title = "") {
+  return String(title)
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .trim();
+}
+
 export default function ResourceCard({ r }) {
   const { add, has } = useCart();
   const inCart = has(r.id);
@@ -97,7 +104,7 @@ export default function ResourceCard({ r }) {
       </div>
 
       <p className="mt-2 line-clamp-2 font-semibold text-sm leading-snug text-ink group-hover:text-store-700 dark:group-hover:text-store-300">
-        {r.title}
+        {displayTitle(r.title)}
       </p>
 
       {/* Trust row */}

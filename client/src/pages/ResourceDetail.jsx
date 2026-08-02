@@ -21,6 +21,7 @@ import {
   IconFlame,
 } from "../components/icons.jsx";
 import { loadRazorpayScript, downloadResourceFile } from "../lib/razorpay.js";
+import { useFeatures } from "../lib/useStorefront.js"; // feature flags (e.g., emailVerificationRequired)
 import { typeLabel, rupees, STORE_CATEGORIES } from "../lib/storeCategories.js";
 import { recordView, removeViewed, getRecentlyViewed } from "../lib/recentlyViewed.js";
 import ResourceCard from "../components/store/ResourceCard.jsx";
@@ -243,12 +244,28 @@ export default function ResourceDetail() {
     ? "Jamia Millia Islamia (JMI)"
     : "IGNOU & Distance Learning";
 
+  // Human‑friendly description generator – creates a richer, non‑AI sounding paragraph
+  function generateHumanDescription(res, uni) {
+    const parts = [];
+    if (res.title) parts.push(`${res.title}`);
+    if (res.courseCode) parts.push(`for the ${res.courseCode} syllabus`);
+    if (res.session) parts.push(`(${res.session} session)`);
+    if (res.resourceType) parts.push(`- ${typeLabel(res.resourceType)}`);
+    if (res.edition) parts.push(`Edition: ${res.edition}`);
+    parts.push(`crafted by expert educators to align with the official ${uni} curriculum.`);
+    if (res.isPaid) parts.push(`Available for ${rupees(res.price)} with instant, secure access.`);
+    else parts.push(`Free download – no payment required.`);
+    return parts.join(' ');
+  }
+
   let desc = resource.description || "";
+  // Replace generic mentions with the resolved university name for authenticity
   if (desc.includes("IGNOU.") && !resource.courseCode?.startsWith("BCS") && !resource.courseCode?.startsWith("MHI") && !resource.courseCode?.startsWith("MMPC") && !resource.courseCode?.startsWith("BCOC") && !resource.courseCode?.startsWith("MEG") && !resource.courseCode?.startsWith("MCS")) {
     desc = desc.replace(/IGNOU\./g, `${uniName}.`);
   }
+  // If no description supplied, generate a human‑friendly paragraph
   if (!desc) {
-    desc = `Verified, high-quality study material for ${resource.courseCode || resource.title}. Prepared according to the official ${uniName} syllabus and examination pattern. Includes complete chapter-wise solutions, key formulas, and exam practice questions.`;
+    desc = generateHumanDescription(resource, uniName);
   }
 
   function addToCart() {
@@ -267,7 +284,7 @@ export default function ResourceDetail() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-20 sm:pb-0">
       {/* Tight Breadcrumb Bar */}
-      <nav className="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm text-muted">
+      <nav className="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm text-muted" aria-label="Breadcrumb">
         <Link to="/store" className="hover:text-store-700 dark:hover:text-store-300 font-medium">Store</Link>
         {cat && (
           <>
@@ -289,7 +306,12 @@ export default function ResourceDetail() {
         <div className="lg:col-span-6 space-y-5">
           {/* Handcrafted Ultra-Premium Book Cover Graphic */}
           {resource.previewUrl ? (
-            <img src={resource.previewUrl} alt="" className="h-60 sm:h-72 w-full rounded-2xl object-cover shadow-card border border-line" />
+            <img
+              src={resource.previewUrl}
+              alt={resource.title}
+              className={`h-60 sm:h-72 w-full rounded-2xl object-cover shadow-card border border-line transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              onLoad={() => setImageLoaded(true)}
+            />
           ) : (
             <div
               style={{ background: visual.bg }}
@@ -302,6 +324,8 @@ export default function ResourceDetail() {
               <WatermarkIcon className="absolute -bottom-10 -right-8 text-white/10" width={180} height={180} />
 
               <div className="relative z-10 flex h-full flex-col justify-between p-6 sm:p-7 text-white">
+                {/* subtle overlay animation */}
+                <div className="absolute inset-0 bg-black/20 opacity-0 hover:opacity-100 transition-opacity duration-300" />
                 {/* Top Badge Header */}
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white backdrop-blur-md border border-white/20">
@@ -400,17 +424,25 @@ export default function ResourceDetail() {
 
             {/* Action Buttons */}
             {canDownload ? (
-              <button onClick={download} className="btn-primary cta-sheen w-full py-3 text-sm font-bold" disabled={busy}>
+              <button
+                onClick={download}
+                className="btn-primary cta-sheen w-full py-3 text-sm font-bold transition-transform duration-200 hover:scale-105"
+                disabled={busy}
+              >
                 {busy ? <Spinner /> : <><IconDownload width={16} height={16} /> {resource.isPaid ? "Download Purchased File" : "Download PDF Instantly"}</>}
               </button>
             ) : digital ? (
               <div className="space-y-2.5">
-                <button onClick={buy} className="btn-primary cta-sheen w-full py-3 text-sm font-bold" disabled={busy}>
+                <button
+                  onClick={buy}
+                  className="btn-primary cta-sheen w-full py-3 text-sm font-bold transition-transform duration-200 hover:scale-105"
+                  disabled={busy}
+                >
                   {busy ? <Spinner /> : <><IconCoins width={16} height={16} /> Buy Now · {rupees(resource.price)}</>}
                 </button>
                 <button
                   onClick={() => (inCart ? navigate("/store/cart") : addToCart())}
-                  className="btn-outline w-full py-2.5 text-xs font-semibold"
+                  className="btn-outline w-full py-2.5 text-xs font-semibold transition-colors duration-200 hover:bg-store-100"
                   disabled={busy}
                 >
                   {inCart ? <><IconCheck width={14} height={14} /> Go to cart</> : <><IconCart width={14} height={14} /> Add to cart</>}
@@ -475,11 +507,19 @@ export default function ResourceDetail() {
         </div>
         <div className="flex-1 max-w-[180px]">
           {canDownload ? (
-            <button onClick={download} className="btn-primary w-full py-2 text-xs font-bold" disabled={busy}>
+            <button
+              onClick={download}
+              className="btn-primary w-full py-2 text-xs font-bold transition-transform duration-200 hover:scale-105"
+              disabled={busy}
+            >
               {busy ? <Spinner /> : <><IconDownload width={13} height={13} /> Download</>}
             </button>
           ) : digital ? (
-            <button onClick={buy} className="btn-primary cta-sheen w-full py-2 text-xs font-bold" disabled={busy}>
+            <button
+              onClick={buy}
+              className="btn-primary cta-sheen w-full py-2 text-xs font-bold transition-transform duration-200 hover:scale-105"
+              disabled={busy}
+            >
               {busy ? <Spinner /> : <><IconCoins width={13} height={13} /> Buy Now</>}
             </button>
           ) : (

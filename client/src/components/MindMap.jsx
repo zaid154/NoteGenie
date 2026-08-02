@@ -21,7 +21,7 @@ function cleanNodeLabel(text) {
     .replace(/\r\n/g, " ")
     .replace(/\r|\n/g, " ")
     .replace(/\|/g, "")
-    .replace(/[:\-]{2,}/g, "")
+    .replace(/[:-]{2,}/g, "")
     .replace(/[*`_#><]/g, "")
     .replace(/\[(.+?)\]\(.*?\)/g, "$1")
     .replace(/\s+/g, " ")

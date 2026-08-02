@@ -28,7 +28,7 @@ const STEPS = [
 ];
 
 // Decorative hero visual — 3D stacked handcrafted product preview vault with live activity pills.
-function _HeroPreview() {
+function HeroPreview() {
   const reduced = useReducedMotion();
   const float = reduced ? {} : { animate: { y: [0, -6, 0] }, transition: { duration: 4, repeat: Infinity, ease: "easeInOut" } };
 
@@ -139,28 +139,6 @@ export default function StoreHome() {
   const [recent] = useState(() => getRecentlyViewed());
   const [saved] = useState(() => getSaved());
 
-  useEffect(() => {
-    const types = viewedResourceTypes().slice(0, 3);
-    const recReq = types.length
-      ? api.get("/catalog/resources", { params: { resourceType: types.join(","), sort: "popular", limit: 4 } })
-          .then((r) => r.data.resources || []).catch(() => [])
-      : Promise.resolve([]);
-
-    Promise.all([
-      api.get("/catalog/universities").then((r) => r.data.universities || []).catch(() => []),
-      api.get("/catalog/programs/flat").then((r) => r.data.programs || []).catch(() => []),
-      api.get("/catalog/resources", { params: { sort: "popular", limit: 8 } }).then((r) => r.data.resources || []).catch(() => []),
-      api.get("/catalog/resources", { params: { sort: "latest", limit: 4 } }).then((r) => r.data.resources || []).catch(() => []),
-      api.get("/catalog/resources", { params: { price: "free", sort: "popular", limit: 4 } }).then((r) => r.data.resources || []).catch(() => []),
-      recReq,
-    ]).then(([u, p, pop, lat, fr, rec]) => {
-      setUniversities(u); setPrograms(p); setPopular(pop); setLatest(lat); setFree(fr);
-      // Don't recommend something the user is literally looking at right now.
-      const recentIds = new Set(recent.map((r) => String(r.id)));
-      setRecommended(rec.filter((r) => !recentIds.has(String(r.id))));
-    }).finally(() => setLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   function search(e) {
     e.preventDefault();
     const params = new URLSearchParams();
@@ -169,36 +147,103 @@ export default function StoreHome() {
     navigate(`/store/search?${params.toString()}`);
   }
 
+  // Load resources – try API, fallback to static samples if it fails.
+  useEffect(() => {
+    const types = viewedResourceTypes().slice(0, 3);
+    const recReq = types.length
+      ? api
+          .get("/catalog/resources", {
+            params: { resourceType: types.join(","), sort: "popular", limit: 4 },
+          })
+          .then((r) => r.data.resources || [])
+          .catch(() => [])
+      : Promise.resolve([]);
+
+    Promise.all([
+      api.get("/catalog/universities").then((r) => r.data.universities || []).catch(() => []),
+      api.get("/catalog/programs/flat").then((r) => r.data.programs || []).catch(() => []),
+      api.get("/catalog/resources", { params: { sort: "popular", limit: 8 } })
+        .then((r) => r.data.resources || [])
+        .catch(() => []),
+      api.get("/catalog/resources", { params: { sort: "latest", limit: 4 } })
+        .then((r) => r.data.resources || [])
+        .catch(() => []),
+      api.get("/catalog/resources", { params: { price: "free", sort: "popular", limit: 4 } })
+        .then((r) => r.data.resources || [])
+        .catch(() => []),
+      recReq,
+    ])
+      .then(([u, p, pop, lat, fr, rec]) => {
+        setUniversities(u);
+        setPrograms(p);
+        setPopular(pop);
+        setLatest(lat);
+        setFree(fr);
+        const recentIds = new Set(recent.map((r) => String(r.id)));
+        setRecommended(rec.filter((r) => !recentIds.has(String(r.id))));
+      })
+      .catch((err) => {
+        console.error("API fetch error, loading sample data:", err);
+        const sampleResources = [
+          {
+            _id: "sample-note-1",
+            title: "Advanced Calculus Notes",
+            description: "Comprehensive notes covering limits, derivatives, integrals, and series.",
+            resourceType: "notes",
+            price: 0,
+            isPaid: false,
+            previewUrl: "",
+            fileUrl: "#",
+          },
+          {
+            _id: "sample-project-1",
+            title: "Machine Learning Project – Predictive Analytics",
+            description:
+              "Full project files, dataset, notebooks, and report for a predictive analytics case study.",
+            resourceType: "project",
+            price: 49900,
+            isPaid: true,
+            previewUrl: "",
+            fileUrl: "#",
+          },
+        ];
+        setUniversities([]);
+        setPrograms([]);
+        setPopular(sampleResources);
+        setLatest(sampleResources);
+        setFree(sampleResources.filter((r) => !r.isPaid));
+        setRecommended(sampleResources);
+      })
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Hero — Signature Dark Cobalt Vault */}
-      <section className="rounded-xl border border-store-200 bg-store-50 p-5 sm:p-8">
+      <section className="rounded-2xl border border-store-200 bg-gradient-to-br from-store-50 to-white p-6 shadow-sm sm:p-8">
         <div className="relative z-10 grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           {/* Left: headline + search */}
           <motion.div {...heroLeft}>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-storeaccent-500/40 bg-storeaccent-500/15 px-3 py-0.5 text-[11px] font-semibold text-storeaccent-300 backdrop-blur-md">
-              <IconSparkles width={13} height={13} className="text-storeaccent-400" />
-              Free solved assignments, papers &amp; guides — IGNOU &amp; distance learning
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-store-700">
+              <IconSparkles width={13} height={13} className="text-store-600" />
+              Premium free solved assignments, exam papers & guides for IGNOU & distance learning – curated by experts.
             </span>
             <h1 className="mt-3 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
               {store.heroTitle || "Solved assignments, question papers & books — instantly."}
             </h1>
-            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-muted">
-              {store.heroSubtitle || "Everything you need to score better, in one place. Most material is free — pick your university and degree to get started."}
-            </p>
-
+            <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-muted">Explore expertly curated solved assignments and exam guides for IGNOU, all free and instantly downloadable.</p>
             <form onSubmit={search} className="mt-5 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-              <select className="input border-0 bg-white text-xs sm:text-sm text-slate-900 font-medium placeholder:text-slate-500 focus:ring-2 focus:ring-storeaccent-400 py-2" value={uni} onChange={(e) => setUni(e.target.value)} aria-label="Select university">
-                <option value="" className="text-slate-900">Select university</option>
-                {universities.map((u) => <option key={u._id} value={u._id} className="text-slate-900">{u.name}</option>)}
-              </select>
-              <select className="input border-0 bg-white text-xs sm:text-sm text-slate-900 font-medium placeholder:text-slate-500 focus:ring-2 focus:ring-storeaccent-400 py-2" value={cat} onChange={(e) => setCat(e.target.value)} aria-label="What do you want">
-                <option value="" className="text-slate-900">What do you want?</option>
-                {STORE_CATEGORIES.map((c) => <option key={c.slug} value={c.slug} className="text-slate-900">{c.label}</option>)}
-              </select>
-              <button type="submit" className="btn-primary px-5 py-2 text-sm">
-                <IconSearch width={15} height={15} /> Search
-              </button>
+                <select className="input border-0 bg-white text-xs sm:text-sm text-slate-900 font-medium placeholder:text-slate-500 focus:ring-2 focus:ring-storeaccent-400 py-2" value={uni} onChange={(e) => setUni(e.target.value)} aria-label="Select university">
+                  <option value="" className="text-slate-900">Select university</option>
+                  {universities.map((u) => <option key={u._id} value={u._id} className="text-slate-900">{u.name}</option>)}
+                </select>
+                <select className="input border-0 bg-white text-xs sm:text-sm text-slate-900 font-medium placeholder:text-slate-500 focus:ring-2 focus:ring-storeaccent-400 py-2" value={cat} onChange={(e) => setCat(e.target.value)} aria-label="What do you want">
+                  <option value="" className="text-slate-900">What do you want?</option>
+                  {STORE_CATEGORIES.map((c) => <option key={c.slug} value={c.slug} className="text-slate-900">{c.label}</option>)}
+                </select>
+                <button type="submit" className="btn-primary px-5 py-2 text-sm">
+                  <IconSearch width={15} height={15} /> Search
+                </button>
             </form>
 
             {/* Trust row */}
@@ -224,32 +269,32 @@ export default function StoreHome() {
       </section>
 
       {/* Category tiles */}
-      <section className="relative py-2">
+      <section>
         <ScrollReveal>
-          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="mb-2.5 inline-flex items-center gap-2 rounded-full border border-store-200/80 bg-store-50/80 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-store-700 shadow-2xs backdrop-blur-xs dark:border-store-800/60 dark:bg-store-950/60 dark:text-store-300">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-store-400 opacity-75"></span>
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-store-500"></span>
                 </span>
-                Curated Collections
+                Study material
               </div>
-              <h2 className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+              <h2 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                 Browse by category
               </h2>
-              <p className="mt-1 max-w-xl text-xs text-muted sm:text-sm">
-                Explore handpicked study materials, verified assignments, exam guides, and project work tailored for your course.
+              <p className="mt-1 max-w-xl text-sm text-muted">
+                Choose a category to explore material for your course.
               </p>
             </div>
-            <div className="hidden sm:flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3.5 py-1.5 text-xs font-medium text-muted shadow-2xs">
+            <div className="hidden sm:flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-muted">
               <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
               <span>Updated for 2024–25 Session</span>
             </div>
           </div>
         </ScrollReveal>
 
-        <StaggerReveal className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
+        <StaggerReveal className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {ALL_STORE_CATEGORIES.map((c) => {
             const Icon = c.icon;
             const toPath = c.slug === "combos" ? "/store/combos" : `/store/${c.slug}`;
@@ -257,45 +302,18 @@ export default function StoreHome() {
               <StaggerItem key={c.slug} className="h-full">
                 <Link
                   to={toPath}
-                  className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-line bg-surface p-4 sm:p-4.5 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${c.hoverBorder || "hover:border-store-400"}`}
+                  className="group flex h-full flex-col rounded-xl border border-line bg-surface p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-store-300 hover:shadow-card"
                 >
-                  {/* Soft background radial glow blur on hover */}
-                  <div className={`pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full ${c.glowBg || "bg-store-500/10"} opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100`} />
-
-                  {/* Top row: Elevated gradient icon + subtle micro-arrow */}
-                  <div className="relative flex items-center justify-between">
-                    <span className={`grid h-11 w-11 place-items-center rounded-xl text-white ${c.gradient || "bg-store-600"} ${c.shadow || "shadow-md"} transition-all duration-300 group-hover:scale-110 group-hover:-rotate-3`}>
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-store-600 text-white">
                       <Icon width={20} height={20} className="stroke-[2]" />
                     </span>
-                    <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-slate-400 opacity-0 transition-all duration-200 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:bg-slate-900 group-hover:text-white dark:bg-slate-800 dark:text-slate-500 dark:group-hover:bg-white dark:group-hover:text-slate-900">
-                      <IconChevronRight width={12} height={12} />
+                    <span className="font-semibold text-ink group-hover:text-store-700">
+                      {c.label}
                     </span>
                   </div>
 
-                  {/* Label & Description & Badge */}
-                  <div className="relative mt-3.5 flex flex-1 flex-col justify-between">
-                    <div>
-                      <span className="block font-display text-sm font-bold text-ink transition-colors group-hover:text-store-600 dark:group-hover:text-store-400">
-                        {c.label}
-                      </span>
-                      {c.description && (
-                        <span className="mt-0.5 block text-[11px] font-normal text-muted leading-snug line-clamp-1">
-                          {c.description}
-                        </span>
-                      )}
-                    </div>
-
-                    {c.tag && (
-                      <div className="mt-2.5">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide border ${c.badgeStyle || "bg-slate-100 text-slate-700 border-slate-200"}`}>
-                          {c.tag}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bottom accent glow line on hover */}
-                  <span className={`absolute bottom-0 left-0 right-0 h-0.5 ${c.accentLine || "bg-store-500"} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
+                  {c.description && <span className="mt-2 text-xs text-muted line-clamp-2">{c.description}</span>}
                 </Link>
               </StaggerItem>
             );
